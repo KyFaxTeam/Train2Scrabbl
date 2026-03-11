@@ -1,8 +1,7 @@
 """
 Train Scrabble - Un générateur de situations d'entraînement au Scrabble.
 
-Migration vers CBIC: L'algorithme CBIC (Construction Incrémentale par Contraintes)
-remplace l'ancien workflow en 3 phases pour une génération de grilles plus efficace.
+Utilise Natural Flow pour générer des grilles réalistes.
 """
 from .models.board import Board
 from .models.gaddag import GADDAG
@@ -16,7 +15,10 @@ from .modules.cbic import (
     score_unifie
 )
 
-from .modules.optimization import optimisation_locale_legere
+from .modules.natural_flow import (
+    generer_situation_naturelle,
+    generer_situations_pour_liste
+)
 
 from .services.word_validator import WordValidator
 
@@ -32,6 +34,7 @@ __all__ = [
     'Placement',
     'generer_placements_connexes',
     'score_unifie',
-    'optimisation_locale_legere',
+    'generer_situation_naturelle',
+    'generer_situations_pour_liste',
     'WordValidator'
 ]

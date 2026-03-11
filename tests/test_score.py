@@ -1,156 +1,70 @@
 from src.models.board import Board, SquareType
-from src.services.move_generator import MoveGenerator, Direction, Move
-from src.models.gaddag import GADDAG
-from src.models.rack import Rack
 from src.services.score_calculator import ScoreCalculator
+from src.models.types import Direction, Move
 
 def test_scores() -> None:
     """Test du système complet de calcul des scores."""
-    print("\n=== Test du système de scores ===")
-    
-    # Premier test : multiplicateurs simples
+    # Test des multiplicateurs simples
     test_multiplicateurs()
     
-    # Test des mots croisés et bonus
-    board = Board()
-    gaddag = GADDAG()
-    test_words = ["VERTICALEMENT", "HORIZONTAL"]
-    for word in test_words:
-        gaddag.add_word(word)
-    
-    # Place un mot vertical puis un mot horizontal qui le croise
-    board.reset_multipliers()
-    print("\nTest des mots croisés:")
-    
-    # Place "VERTICALEMENT" en colonne 8
-    for i, letter in enumerate("VERTICALEMENT"):
-        board.place_letter(i+1, 8, letter)
-        board.use_multiplier(i+1, 8)
-    
-    print("Après placement vertical:")
-    print(board)
-    
-    # Place "HORIZONTAL" en ligne 8 - Correction du placement
-    move = Move(
-        word="HORIZONTAL",
-        row=8,  # Ligne I
-        col=5,  # Pour que le I croise avec VERTICALEMENT
-        direction=Direction.HORIZONTAL
-    )
-    
-    # Utiliser ScoreCalculator pour placer le mot correctement
-    calculator = ScoreCalculator(board)
-    score = calculator.calculate_move_score(move)
-    
-    print(f"\nScore du mot horizontal: {score}")
-    print("Plateau final:")
-    print(board)
-
-def test_placement_score(word: str, coord: str, direction: Direction, 
-                        board: Board, generator: MoveGenerator) -> None:
-    """Test le score d'un placement spécifique."""
-    print(f"\nTest du placement de '{word}' en {coord} {direction.name}")
-    
-    # Nettoyer le plateau avant chaque test
-    board.grid = [['' for _ in range(board.SIZE)] for _ in range(board.SIZE)]
-    board.first_move = True
-    
-    # Convertit les coordonnées
-    row, col = board.parse_coordinates(coord)
-    
-    # Place le mot et collecte les informations
-    letters_used = []
-    blanks_used = []
-    
-    for i, letter in enumerate(word):
-        current_row = row + (i if direction == Direction.VERTICAL else 0)
-        current_col = col + (i if direction == Direction.HORIZONTAL else 0)
-        
-        if letter == '_':
-            blanks_used.append(i)
-            letter = 'E'  # Utilise E comme exemple pour le blank
-            
-        board.place_letter(current_row, current_col, letter)
-        letters_used.append((letter, (current_row, current_col)))
-    
-    print(f"Plateau après placement:")
-    print(board)
-    
-    # Calcule les différents composants du score
-    main_score = generator._calculate_word_score(letters_used, blanks_used)
-    cross_score = generator._calculate_cross_words_score(letters_used, blanks_used)
-    bingo_bonus = generator.BINGO_BONUS if len(word) >= 7 else 0
-    
-    print(f"Score du mot principal: {main_score}")
-    print(f"Score des mots croisés: {cross_score}")
-    if bingo_bonus:
-        print(f"Bonus pour 7 lettres: {bingo_bonus}")
-    print(f"Score total: {main_score + cross_score + bingo_bonus}")
+    # Test des mots croisés
+    test_multiplicateurs_mots_croises()
 
 def test_multiplicateurs() -> None:
     """Test des multiplicateurs du plateau."""
-    print("\n=== Test des multiplicateurs ===")
-    
-    test_cases = [
-        ("ZOO", "H8", "H", "Mot normal au centre (Z=10, O=1)"),
-        ("QUIZ", "A1", "H", "Triple mot avec Q=10, U=1, I=1, Z=10x2 -> 32*3"),
-        ("AXE", "H1", "H", "A=1, X=10 double lettre, E=1"),
-        ("JEUX", "A8", "V", "J=8, E=1, U=1, X=10x2 + triple mot"),
-    ]
-    
-    for word, pos, direction, desc in test_cases:
-        print(f"\nTest: {desc}")
-        board = Board()
-        calculator = ScoreCalculator(board)
-        
-        # Crée et calcule le mouvement
-        move = Move(
-            word=word,
-            row=board.parse_coordinates(pos)[0],
-            col=board.parse_coordinates(pos)[1],
-            direction=Direction.HORIZONTAL if direction == "H" else Direction.VERTICAL
-        )
-        
-        score = calculator.calculate_move_score(move)
-        print(f"Mot: {word}")
-        print(f"Score: {score}")
-        print(board)
+    # ZOO at center: Z=10, O=1, O=1. Center (7,7) is DW.
+    board = Board()
+    calculator = ScoreCalculator(board)
+    move = Move("ZOO", 7, 7, Direction.HORIZONTAL)
+    score = calculator.calculate_move_score(move)
+    # (10+1+1)*2 = 24
+    assert score == 24, f"ZOO at center: expected 24, got {score}"
+
+    # AXE at H1 (row 7, col 0): A=1, X=10, E=1
+    # (7,0) is TRIPLE_WORD → (1+10+1)*3 = 36
+    board2 = Board()
+    calc2 = ScoreCalculator(board2)
+    move2 = Move("AXE", 7, 0, Direction.HORIZONTAL)
+    score2 = calc2.calculate_move_score(move2)
+    assert score2 == 36, f"AXE at H1: expected 36, got {score2}"
 
 def test_multiplicateurs_mots_croises() -> None:
     """Test des scores avec des mots qui se croisent."""
-    print("\n=== Test des mots croisés ===")
+    # Test 1: PAR then ART crossing through A
+    board = Board()
+    calculator = ScoreCalculator(board)
     
-    test_cases = [
-        # Format: (premier mot, pos1, dir1, score1, deuxième mot, pos2, dir2, score2, desc)
-        (
-            "PAR", "H8", "H", 5,           # Premier mot: PAR -> 5 pts
-            "ART", "H8", "V", 4,           # Deuxième mot: ART -> 4 pts (A déjà posé)
-            "Test simple croisement PAR/ART"
-        ),
-        (
-            "THE", "H8", "H", 6,           # Premier mot
-            "CHAT", "G9", "V", 12,         # Deuxième mot avec H déjà posé + lettre double
-            "THE croisé par CHAT avec bonus"
-        ),
-    ]
+    # PAR at H8 horizontal: P(7,7)=DW, A(7,8), R(7,9)
+    move1 = Move("PAR", 7, 7, Direction.HORIZONTAL)
+    score1 = calculator.calculate_move_score(move1)
+    board.apply_move(move1, score1)
+    # (3+1+1)*2 = 10
+    assert score1 == 10, f"PAR at center: expected 10, got {score1}"
     
-    for (word1, pos1, dir1, score1, 
-         word2, pos2, dir2, score2, desc) in test_cases:
-        board = Board()
-        calculator = ScoreCalculator(board)
-        
-        # Premier mot
-        move1 = Move(word1, *board.parse_coordinates(pos1), Direction.HORIZONTAL if dir1 == "H" else Direction.VERTICAL)
-        actual_score1 = calculator.calculate_move_score(move1)
-        
-        # Deuxième mot
-        move2 = Move(word2, *board.parse_coordinates(pos2), Direction.HORIZONTAL if dir2 == "H" else Direction.VERTICAL)
-        actual_score2 = calculator.calculate_move_score(move2)
-        
-        # Vérifications
-        assert actual_score1 == score1, f"Score incorrect pour {word1}"
-        assert actual_score2 == score2, f"Score incorrect pour {word2}"
-        assert board.get_total_score() == score1 + score2, "Score total incorrect"
+    # ART at col 8 vertical through A: A(7,8)=existing, R(8,8)=DL, T(9,8)
+    move2 = Move("ART", 7, 8, Direction.VERTICAL)
+    score2 = calculator.calculate_move_score(move2)
+    # A(7,8): existing → 1. R(8,8): DL → 1*2=2. T(9,8): normal → 1.
+    # (1+2+1)*1 = 4
+    assert score2 == 4, f"ART crossing PAR: expected 4, got {score2}"
+    
+    # Test 2: THE then CHAT crossing through H
+    board2 = Board()
+    calc2 = ScoreCalculator(board2)
+    
+    # THE at H8 horizontal: T(7,7)=DW, H(7,8), E(7,9)
+    m1 = Move("THE", 7, 7, Direction.HORIZONTAL)
+    s1 = calc2.calculate_move_score(m1)
+    board2.apply_move(m1, s1)
+    # (1+4+1)*2 = 12
+    assert s1 == 12, f"THE at center: expected 12, got {s1}"
+    
+    # CHAT at G9 vertical through H: C(6,8)=DL, H(7,8)=existing, A(8,8)=DL, T(9,8)
+    m2 = Move("CHAT", 6, 8, Direction.VERTICAL)
+    s2 = calc2.calculate_move_score(m2)
+    # C(6,8): DL → 3*2=6. H(7,8): existing → 4. A(8,8): DL → 1*2=2. T(9,8): → 1.
+    # (6+4+2+1)*1 = 13
+    assert s2 == 13, f"CHAT crossing THE: expected 13, got {s2}"
 
 def test_score_simulation():
     """Test that score simulation doesn't modify board state."""
@@ -160,13 +74,15 @@ def test_score_simulation():
     # Place first word
     move1 = Move("PAR", 7, 7, Direction.HORIZONTAL)
     actual_score1 = calculator.calculate_move_score(move1)
+    board.apply_move(move1, actual_score1)
     
-    # Simulate second word
-    move2 = Move("ART", 7, 7, Direction.VERTICAL)
+    # Simulate second word (through A of PAR)
+    move2 = Move("ART", 7, 8, Direction.VERTICAL)
     simulated_score = calculator.simulate_move_score(move2)
     
-    # Board should be unchanged after simulation
-    assert len(board.grid) == 3, "Board was modified during simulation"
+    # Board should be unchanged after simulation: only PAR letters present
+    placed_count = sum(1 for r in range(board.size) for c in range(board.size) if board.get_letter(r, c))
+    assert placed_count == 3, "Board was modified during simulation"
     assert board.total_score == actual_score1, "Score was modified during simulation"
     
     # Actually place second word
@@ -174,6 +90,6 @@ def test_score_simulation():
     assert simulated_score == actual_score2, "Simulated score differs from actual"
 
 if __name__ == "__main__":
-    print("=== Tests des scores ===")
     test_multiplicateurs()
     test_multiplicateurs_mots_croises()
+    test_score_simulation()

@@ -46,3 +46,7 @@ htmlcov/
 
 # Logs
 *.log
+
+
+scrabble-solver-master/*
+scrabble-solver-master/

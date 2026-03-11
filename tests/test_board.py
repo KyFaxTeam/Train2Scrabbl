@@ -1,64 +1,51 @@
 from src.models.board import Board
 
-def test_plateau() -> Board:
+def test_plateau():
     """
     Test des fonctionnalités basiques du plateau :
-    1. Affichage du plateau vide
-    2. Système de coordonnées (A1-O15)
-    3. Règles de placement :
+    1. Système de coordonnées (A1-O15)
+    2. Règles de placement :
        - Premier coup au centre (H8)
        - Coups suivants adjacents
        - Une lettre par case
-    Note: Ce test ne vérifie PAS la validité des mots,
-    il teste uniquement la mécanique du plateau.
     """
-    print("\n=== Test du plateau ===")
     board = Board()
     
-    print("Plateau initial:")
-    print(board)
+    # Le plateau est initialement vide (15x15 de None)
+    assert board.is_empty(), "Le plateau devrait être vide"
     
-    # Tests de placement de lettres (sans vérification de mots valides)
-    test_moves = [
-        ("H8", "S"),  # Test 1: Premier coup - doit être au centre (H8)
-        ("H7", "C"),  # Test 2: Adjacent horizontal gauche
-        ("H9", "R"),  # Test 3: Adjacent horizontal droit
-        ("G8", "U"),  # Test 4: Adjacent vertical haut
-        ("I8", "X"),  # Test 5: Adjacent vertical bas
-        ("A1", "Z"),  # Test 6: Devrait échouer (non adjacent)
-        ("H8", "A"),  # Test 7: Devrait échouer (case occupée)
-    ]
+    # Place une lettre au centre
+    row, col = board.parse_coordinates("H8")
+    board.place_letter(row, col, "S")
+    assert board.get_letter(row, col) == "S"
+    assert not board.is_empty()
     
-    for coord, letter in test_moves:
-        try:
-            row, col = board.parse_coordinates(coord)
-            if board.place_letter(row, col, letter):
-                print(f"\nPlacement réussi: {letter} en {coord}")
-            else:
-                print(f"\nPlacement invalide: {letter} en {coord} (non adjacent ou case occupée)")
-            print(board)
-        except ValueError as e:
-            print(f"Erreur de coordonnées: {e}")
+    # Place des lettres adjacentes
+    row2, col2 = board.parse_coordinates("H7")
+    board.place_letter(row2, col2, "C")
+    assert board.get_letter(row2, col2) == "C"
     
-    return board
+    row3, col3 = board.parse_coordinates("H9")
+    board.place_letter(row3, col3, "R")
+    assert board.get_letter(row3, col3) == "R"
 
-def test_coordonnees(board: Board) -> None:
+def test_coordonnees():
     """Test spécifique du système de coordonnées."""
-    test_coords = [
-        "H8",   # Valide
-        "A1",   # Valide - coin supérieur gauche
-        "O15",  # Valide - coin inférieur droit
-        "P1",   # Invalid - lettre hors limites
-        "A16",  # Invalid - nombre hors limites
-        "AA",   # Invalid - format incorrect
-        "11",   # Invalid - pas de lettre
-        "",     # Invalid - vide
-    ]
+    board = Board()
     
-    print("\n=== Test des coordonnées ===")
-    for coord in test_coords:
-        try:
-            row, col = board.parse_coordinates(coord)
-            print(f"Coordonnées {coord} -> ({row}, {col})")
-        except ValueError as e:
-            print(f"Coordonnées {coord} invalides: {e}")
+    # Coordonnées valides
+    row, col = board.parse_coordinates("H8")
+    assert row == 7 and col == 7
+    
+    row, col = board.parse_coordinates("A1")
+    assert row == 0 and col == 0
+    
+    row, col = board.parse_coordinates("O15")
+    assert row == 14 and col == 14
+    
+    # Coordonnées invalides
+    import pytest
+    invalid_coords = ["P1", "A16", "AA", "11", ""]
+    for coord in invalid_coords:
+        with pytest.raises(ValueError):
+            board.parse_coordinates(coord)

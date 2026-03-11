@@ -1,9 +1,14 @@
 from typing import Dict, Set, List, Tuple
 import re
 import unicodedata
-
+import pickle
+import hashlib
+import os
+import logging
 
 from .node import Node  # Corrected relative import
+
+logger = logging.getLogger(__name__)
 
 class GADDAG:
     """Structure de données GADDAG pour le Scrabble."""
@@ -229,5 +234,49 @@ class GADDAG:
         max_skeleton_pos = max(norm_skeleton.keys(), default=-1)
         self._search_backward(self.root, "", max_skeleton_pos + 1, norm_skeleton, all_available, words)
         return sorted(words)
-    
-    
+
+    def save_cache(self, cache_path: str) -> None:
+        """Sérialise le GADDAG vers un fichier pickle."""
+        with open(cache_path, 'wb') as f:
+            pickle.dump((self.root, self.word_count), f, protocol=pickle.HIGHEST_PROTOCOL)
+        logger.info("GADDAG cache sauvegardé: %s", cache_path)
+
+    @classmethod
+    def load_cache(cls, cache_path: str) -> 'GADDAG':
+        """Charge un GADDAG depuis un fichier pickle."""
+        gaddag = cls()
+        with open(cache_path, 'rb') as f:
+            gaddag.root, gaddag.word_count = pickle.load(f)
+        logger.info("GADDAG chargé depuis cache: %d mots", gaddag.word_count)
+        return gaddag
+
+    @staticmethod
+    def _file_hash(filepath: str) -> str:
+        """Calcule un hash MD5 du fichier dictionnaire."""
+        h = hashlib.md5()
+        with open(filepath, 'rb') as f:
+            for chunk in iter(lambda: f.read(8192), b''):
+                h.update(chunk)
+        return h.hexdigest()
+
+    @classmethod
+    def load_with_cache(cls, dict_path: str, cache_dir: str = None) -> 'GADDAG':
+        """Charge le GADDAG depuis le cache si disponible, sinon construit et cache."""
+        if cache_dir is None:
+            cache_dir = os.path.dirname(dict_path)
+
+        dict_hash = cls._file_hash(dict_path)
+        cache_path = os.path.join(cache_dir, f"gaddag_{dict_hash}.pkl")
+
+        if os.path.exists(cache_path):
+            try:
+                gaddag = cls.load_cache(cache_path)
+                return gaddag
+            except Exception as e:
+                logger.warning("Cache GADDAG invalide, reconstruction: %s", e)
+
+        logger.info("Construction du GADDAG depuis %s...", dict_path)
+        gaddag = cls()
+        gaddag.load_dictionary(dict_path)
+        gaddag.save_cache(cache_path)
+        return gaddag

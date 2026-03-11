@@ -62,8 +62,6 @@ class Board:
     def place_letter(self, row: int, col: int, letter: str) -> None:
         """Place une lettre sur la grille."""
         if 0 <= row < self.size and 0 <= col < self.size:
-            # Ajouter un print de debug
-            print(f"Placing {letter} at ({row}, {col})")
             self.grid[row][col] = letter
         else:
             raise ValueError(f"Position invalide : ({row}, {col})")

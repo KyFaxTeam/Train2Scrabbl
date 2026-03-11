@@ -79,7 +79,7 @@ def test_undo_move():
     # Vérifie l'état après annulation
     assert game.board.get_total_score() == 0
     assert len(game.board.get_move_history()) == 0
-    assert len(game.board.grid) == 0, "Le plateau devrait être vide"
+    assert game.board.is_empty(), "Le plateau devrait être vide"
 
 def test_game_flow():
     """Test un flux de jeu complet."""
@@ -95,7 +95,6 @@ def test_game_flow():
     scores = []
     for word, row, col, direction in moves:
         move = Move(word, row, col, direction)
-        print(f"\nTentative: {word} en ({row},{col}) {direction}")  # Debug
         score = game.place_move(move)
         assert score is not None, f"Le coup {word} devrait être valide"
         scores.append(score)

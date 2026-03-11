@@ -9,11 +9,14 @@ Principe: Ne placer QUE ce qui connecte.
 
 from dataclasses import dataclass
 from typing import List, Dict, Set, Tuple, Optional
+import logging
 from ..models.board import Board
 from ..models.gaddag import GADDAG
 from ..models.graph import ScrabbleGraph
 from ..models.types import Direction
 from ..services.score_calculator import ScoreCalculator
+
+logger = logging.getLogger(__name__)
 
 
 # Configuration des poids pour la fonction de score unifiée
@@ -544,7 +547,7 @@ def CBIC_generer_grille(
     center = grille.size // 2
     start_row = center - len(mot_central) // 2
     
-    print(f"\n=== CBIC: Placement du mot central '{mot_central}' ===")
+    logger.info("CBIC: Placement du mot central '%s'", mot_central)
     for i, lettre in enumerate(mot_central):
         grille.place_letter(start_row + i, center, lettre)
     
@@ -556,7 +559,7 @@ def CBIC_generer_grille(
     
     # 2. Boucle de construction incrémentale
     iteration = 0
-    print(f"\n=== CBIC: Construction incrémentale de {len(mots_restants)} mots ===")
+    logger.info("CBIC: Construction incrémentale de %d mots", len(mots_restants))
     
     while mots_restants and iteration < MAX_ITERATIONS:
         iteration += 1
@@ -586,23 +589,24 @@ def CBIC_generer_grille(
         
         # 7. Si un placement a été trouvé, l'appliquer
         if meilleur_placement_global:
-            print(f"  Itération {iteration}: Placement de '{mot_a_placer_final}' "
-                  f"(score: {meilleur_score_global:.1f})")
+            logger.info("  Itération %d: Placement de '%s' (score: %.1f)",
+                       iteration, mot_a_placer_final, meilleur_score_global)
             
             placer_mot(grille, mot_a_placer_final, meilleur_placement_global, graphe)
             mots_places.add(mot_a_placer_final)
             mots_restants.remove(mot_a_placer_final)
         else:
             # Aucun mot restant n'a pu être placé
-            print(f"\n⚠️  CBIC: Impossible de placer les mots restants: {mots_restants}")
-            print(f"     Mots placés avec succès: {len(mots_places)}/{len(mots_a_reviser)}")
+            logger.warning("CBIC: Impossible de placer les mots restants: %s", mots_restants)
+            logger.info("     Mots placés avec succès: %d/%d", len(mots_places), len(mots_a_reviser))
             break
     
     if iteration >= MAX_ITERATIONS:
-        print(f"\n⚠️  CBIC: Limite d'itérations atteinte ({MAX_ITERATIONS})")
+        logger.warning("CBIC: Limite d'itérations atteinte (%d)", MAX_ITERATIONS)
     
-    print(f"\n=== CBIC: Construction terminée ===")
-    print(f"  Mots placés: {len(mots_places)}/{len(mots_a_reviser)}")
-    print(f"  Taux de succès: {len(mots_places) / len(mots_a_reviser) * 100:.1f}%")
+    total = len(mots_a_reviser)
+    taux = (len(mots_places) / total * 100) if total > 0 else 100.0
+    logger.info("CBIC: Construction terminée - Mots placés: %d/%d (%.1f%%)",
+                len(mots_places), total, taux)
     
     return grille, graphe, mots_places

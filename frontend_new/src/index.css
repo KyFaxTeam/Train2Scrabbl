@@ -1,0 +1,44 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  /* Board shadows */
+  --box-shadow-raised: inset -2px -2px 2px -1px rgba(34, 34, 34, 0.7);
+  --box-shadow-raised-subtle: inset -1px -1px 1px 0 rgba(34, 34, 34, 0.6);
+  --box-shadow-board: 0 0 8px 1px rgba(0, 0, 0, 0.15);
+
+  /* Bonus cell colors (pastel) */
+  --color-bonus-dl: #b8d5ed;
+  --color-bonus-tl: #86aed1;
+  --color-bonus-dw: #fbc997;
+  --color-bonus-tw: #f19393;
+  --color-bonus-center: #b284b8;
+
+  /* Tile colors by points */
+  --color-tile-1pt: #efe3ae;
+  --color-tile-2pt: #bae3ba;
+  --color-tile-3pt: #c7d8f9;
+  --color-tile-5pt: #f7c2aa;
+
+  /* Focus */
+  --color-focus: rgba(38, 143, 255, 0.5);
+
+  /* Border */
+  --border-radius: 5px;
+}
+
+@layer base {
+  body {
+    @apply bg-slate-50 text-slate-800 font-sans antialiased;
+  }
+}
+
+.no-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+
+.no-scrollbar {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}

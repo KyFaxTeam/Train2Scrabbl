@@ -1,10 +1,9 @@
 """
 Modules pour la génération de situations d'entraînement au Scrabble.
 
-Migration vers CBIC (Construction Incrémentale par Contraintes):
-- Les anciens modules initialization et connection sont obsolètes
-- Le nouveau module cbic remplace le workflow en 3 phases
-- optimization est simplifié en optimisation légère optionnelle
+Migration vers Natural Flow:
+- natural_flow: Algorithme principal pour situations réalistes
+- cbic: Construction Incrémentale par Contraintes (legacy)
 """
 
 from .cbic import (
@@ -15,9 +14,9 @@ from .cbic import (
     score_unifie
 )
 
-from .optimization import optimisation_locale_legere
+from .natural_flow import (
+    generer_situation_naturelle,
+    generer_situations_pour_liste
+)
 
-# Note: initialization et connection sont obsolètes avec CBIC
-# Ils sont gardés temporairement pour compatibilité mais seront supprimés
-
-
+# Note: optimization module removed - functionality integrated into natural_flow

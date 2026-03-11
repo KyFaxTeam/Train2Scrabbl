@@ -1,0 +1,49 @@
+Pour comparer les performances, laissez-moi rechercher plus d'informations sur l'implémentation et voir s'il y a des benchmarks ou discussions sur la performance.## GADDAG est généralement plus rapide ⚡
+
+D'après la recherche et la littérature technique, **GADDAG est significativement plus rapide que le Trie pour la génération de coups au Scrabble** :
+
+### Comparaison de performance
+
+| Structure de données | Vitesse de génération | Utilisation mémoire | Adaptation au Scrabble |
+|---------------------|----------------------|---------------------|------------------------|
+| **GADDAG** | **Plus de 2x plus rapide** | Élevée (5x DAWG) | Excellente |
+| **Trie/DAWG** | Rapide | Faible | Adéquate |
+
+### Pourquoi GADDAG est plus rapide ?
+
+**GADDAG** (Directed Acyclic Graph for Anagram Generation) a été spécifiquement conçu pour le Scrabble :
+- Il permet de "s'accrocher" à n'importe quelle lettre déjà sur le plateau, pas seulement au début ou à la fin des mots
+- Il stocke les mots sous plusieurs formes inversées pour couvrir tous les points d'accrochage possibles
+- Selon le papier fondateur de Steven Gordon, GADDAG génère les coups **plus de deux fois plus vite** qu'une approche DAWG[[1]](https://ericsink.com/downloads/faster-scrabble-gordon.pdf)[[2]](https://www.academia.edu/95754068/A_faster_scrabble_move_generation_algorithm)[[3]](https://en.wikipedia.org/wiki/GADDAG)
+
+**Trie/DAWG** est plus compact en mémoire mais :
+- Il doit chercher des mots qui correspondent à plusieurs contraintes simultanées sur le plateau
+- L'approche n'est pas aussi directe pour gérer les "crochets" au milieu des mots
+
+### Pourquoi scrabble-solver utilise un Trie alors ?
+
+Dans le code que nous avons analysé, le projet utilise un Trie optimisé avec mise en cache. Cela peut s'expliquer par :
+- **Simplicité d'implémentation** : le Trie est plus simple à maintenir
+- **Contraintes mémoire** : pour une application web qui tourne dans le navigateur, la taille du dictionnaire est critique
+- **Performance suffisante** : le code implémente même une course entre résolution locale et serveur pour choisir la plus rapide
+
+```typescript
+// Le projet compare dynamiquement les performances
+const response = await Promise.race([
+  solveLocal(trie),  // Résolution locale avec Trie
+  solveServer()      // Résolution serveur
+]);
+```
+
+### Conclusion
+
+Pour un **solveur de Scrabble haute performance**, GADDAG est objectivement plus rapide. C'est pourquoi les IA de Scrabble puissantes comme **Quackle** l'utilisent. Mais pour une application web avec contraintes mémoire, un Trie bien optimisé peut être un compromis acceptable.
+
+---
+
+1. [A Faster Scrabble Move Generation Algorithm - Eric Sink](https://ericsink.com/downloads/faster-scrabble-gordon.pdf)
+2. [(PDF) A faster scrabble move generation algorithm - Academia.edu](https://www.academia.edu/95754068/A_faster_scrabble_move_generation_algorithm)
+3. [GADDAG - Wikipedia](https://en.wikipedia.org/wiki/GADDAG)
+4. [The 2 Data structures you need in a Scrabble AI - Amédée d'Aboville](https://amedee.me/2020/11/04/fst-gaddag/)
+5. [Scrabble solver](https://seth.rocks/projects/scrabble/)
+6. [Effects of AI in Scrabble - Seventh Sense Research Group](https://ijcttjournal.org/archives/ijctt-v71i10p102)

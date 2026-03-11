@@ -1,29 +1,28 @@
-from typing import Set, Dict
+from typing import Set, Dict, List, Tuple
 import random
 
 from src.models.board import Board
 from src.models.gaddag import GADDAG
 from src.models.graph import ScrabbleGraph
 from src.models.types import Direction
-from src.modules.cbic import CBIC_generer_grille
+from src.modules.natural_flow import (
+    generer_situation_naturelle,
+    generer_situations_pour_liste
+)
+from src.models.situation import NaturalFlowConfig
+from src.services.word_pool import WordPool
+
+from src.utils.dictionary_parser import parse_dictionary, DictionaryEntry
 
 
-
-def charger_dictionnaire(chemin_fichier: str) -> Set[str]:
+def charger_dictionnaire(chemin_fichier: str) -> Dict[str, DictionaryEntry]:
     """Charge le dictionnaire depuis un fichier."""
-    try:
-        # Modifier le chemin pour qu'il soit relatif à la racine du projet
-        with open(f"data/{chemin_fichier}", 'r', encoding='utf-8') as f:
-            return {word.strip().upper() for word in f if word.strip()}
-    except FileNotFoundError:
-        print(f"Fichier data/{chemin_fichier} non trouvé, utilisation d'un dictionnaire de test")
-        return {"CACABERA", "BACCARAS", "BACCARAT", "CHAT", "CHIEN", "MAISON", "JARDIN", 
-                "LIVRE", "CRAYON", "PAPIER", "FENETRE", "PORTE", "LAMPE",
-                "ARBRE", "FLEUR", "SOLEIL", "LUNE", "ETOILE", "NUAGE"}
+    full_path = f"data/{chemin_fichier}"
+    return parse_dictionary(full_path)
 
 
 def initialiser_sac_lettres() -> Dict[str, int]:
-    """Initialises le sac de lettres avec la distribution du Scrabble français."""
+    """Initialises le sac de lettres avec la distribution du Scrabble francais."""
     return {
         'A': 9, 'B': 2, 'C': 2, 'D': 3, 'E': 15, 'F': 2, 'G': 2, 'H': 2,
         'I': 8, 'J': 1, 'K': 1, 'L': 5, 'M': 3, 'N': 6, 'O': 6, 'P': 2,
@@ -32,100 +31,144 @@ def initialiser_sac_lettres() -> Dict[str, int]:
     }
 
 
-def generer_situation_entrainement(mots_a_reviser: Set[str], dico: Set[str],
-                                  gaddag: GADDAG, sac_lettres: Dict[str, int],
-                                  lettres_appui: Dict[str, Dict[str, int]],
-                                  mot_central: str = "DATAIS") -> Board:
-    """
-    Génère une situation d'entraînement complète en utilisant l'algorithme CBIC.
-    
-    L'algorithme CBIC (Construction Incrémentale par Contraintes) garantit la connexité
-    par construction en ne plaçant que des mots qui se connectent aux mots existants.
-    
-    Args:
-        mots_a_reviser: Ensemble des mots à réviser
-        dico: Dictionnaire des mots valides (non utilisé avec CBIC mais gardé pour compatibilité)
-        gaddag: Structure GADDAG pour validation des mots
-        sac_lettres: Dictionnaire des lettres disponibles (non utilisé mais gardé pour compatibilité)
-        lettres_appui: Dictionnaire des lettres d'appui pour chaque mot
-        mot_central: Mot central à placer (défaut: "DATAIS")
-        
-    Returns:
-        Plateau de jeu généré avec tous les mots connectés
-        
-    Raises:
-        ValueError: Si un mot à réviser n'a pas ses lettres d'appui définies
-    """
-    # Valider que tous les mots à réviser ont leurs lettres d'appui définies
-    for mot in mots_a_reviser:
-        if mot not in lettres_appui:
-            raise ValueError(f"Le mot '{mot}' n'a pas ses lettres d'appui définies")
+def extraire_tous_mots(dico_entries: Dict[str, DictionaryEntry]) -> Set[str]:
+    """Extrait tous les mots du dictionnaire (base + extensions)."""
+    all_words = set()
+    for entry in dico_entries.values():
+        for word in entry.base_words:
+            all_words.add(word)
+        for ext_list in entry.extensions_1.values():
+            for word in ext_list:
+                all_words.add(word)
+    return all_words
 
-    # Utiliser l'algorithme CBIC pour générer la grille
-    # CBIC garantit la connexité par construction en une seule phase
-    grille, graphe, mots_places = CBIC_generer_grille(
-        list(mots_a_reviser),
-        gaddag,
-        lettres_appui,
-        mot_central
+
+def generer_situation_entrainement_natural_flow(
+    mots_a_reviser: List[Tuple[str, str]],
+    gaddag: GADDAG,
+    all_words: Set[str],
+    config: NaturalFlowConfig = None
+) -> List:
+    """
+    Genere des situations d'entrainement avec Natural Flow.
+    
+    Philosophie Natural Flow:
+    - UNE grille par mot cible (pas tous les mots sur une grille)
+    - Grille naturelle avec densite ~20%
+    - Mot cible JOUABLE, pas simplement PRESENT
+    """
+    config = config or NaturalFlowConfig()
+    
+    # Creer un WordPool avec tous les mots
+    word_pool = WordPool(gaddag)
+    word_pool.set_words(all_words)
+    
+    # Generer les situations
+    situations = generer_situations_pour_liste(
+        mots_a_reviser=mots_a_reviser,
+        gaddag=gaddag,
+        tirages=None,
+        word_pool=word_pool,
+        config=config
     )
     
-    print("\n=== Résultat final ===")
-    print(f"Mots placés: {len(mots_places)}/{len(mots_a_reviser)} "
-          f"({len(mots_places) / len(mots_a_reviser) * 100:.1f}%)")
-    print(f"Mots: {', '.join(sorted(mots_places))}")
-    
-    mots_non_places = set(mots_a_reviser) - mots_places
-    if mots_non_places:
-        print(f"Mots non placés: {', '.join(sorted(mots_non_places))}")
-    
-    print("\nÉtat de la grille finale:")
-    grille.debug_print()
-    print("\nÉtat du graphe final:")
-    graphe.debug_print()
-        
-    return grille
+    return situations
+
+
+def charger_dictionnaire_ods(chemin_fichier: str) -> Set[str]:
+    """Charge un dictionnaire simple (une mot par ligne)."""
+    full_path = f"data/{chemin_fichier}"
+    words = set()
+    try:
+        with open(full_path, 'r', encoding='utf-8') as f:
+            for line in f:
+                word = line.strip().upper()
+                if word and len(word) >= 2:
+                    words.add(word)
+    except FileNotFoundError:
+        print(f"Fichier non trouve: {full_path}")
+    return words
 
 
 def main():
-    """Point d'entrée du programme."""
-    # 1. Charger le dictionnaire - Modifier le chemin
-    dico = charger_dictionnaire("ods8.txt")  # Changement ici
-    print(f"\nDictionnaire chargé avec {len(dico)} mots")
+    """Point d'entree du programme."""
+    # 1. Charger le dictionnaire d'extensions (pour les mots a reviser)
+    dico_entries = charger_dictionnaire("scrabble_dict_ext1.txt")
+    print(f"\nDictionnaire extensions charge avec {len(dico_entries)} entrees")
     
-    # 2. Créer le GADDAG
+    # 2. Extraire les mots du dictionnaire d'extensions
+    mots_extensions = extraire_tous_mots(dico_entries)
+    print(f"Extraction de {len(mots_extensions)} mots d'extensions (7-8 lettres)")
+    
+    # 3. Charger le dictionnaire complet ODS8 (pour Natural Flow)
+    print("Chargement du dictionnaire complet ODS8...")
+    mots_ods = charger_dictionnaire_ods("ods8.txt")
+    print(f"Dictionnaire ODS8: {len(mots_ods)} mots")
+    
+    # 4. Combiner tous les mots
+    all_words = mots_extensions | mots_ods
+    print(f"Total: {len(all_words)} mots uniques")
+    
+    # 5. Creer le GADDAG
+    print("Construction du GADDAG...")
     gaddag = GADDAG()
-    for mot in dico:
-        gaddag.add_word(mot)
-    print(f"GADDAG créé avec {gaddag.word_count} mots")
+    for word in all_words:
+        gaddag.add_word(word)
+    print(f"GADDAG cree avec {gaddag.word_count} mots")
     
-    # 3. Définir les mots à réviser et leurs lettres d'appui
-    mots_a_reviser = {"CACABERA", "BACCARAS", "BACCARAT"}
-    # Définir les lettres d'appui pour chaque mot avec leur position
-    lettres_appui = {
-        'CACABERA': {'E': 6},  # E en position 6
-        'BACCARAS': {'S': 7},  # S en position 7
-        'BACCARAT': {'T': 7}   # T en position 7
-    }
-    print(f"\nMots à réviser : {', '.join(mots_a_reviser)}")
-    print("Lettres d'appui définies pour chaque mot :")
-    for mot, appuis in lettres_appui.items():
-        print(f"  {mot}: {', '.join(f'{lettre} en position {pos}' for lettre, pos in appuis.items())}")
+    # 6. Definir les mots a reviser avec leurs lettres d'appui
+    mots_a_reviser = [
+        ("CACABERA", "E"),
+        ("BACCARAS", "S"),
+        ("BACCARAT", "T"),
+    ]
+    print(f"\nMots a reviser : {[m[0] for m in mots_a_reviser]}")
     
-    # 4. Initialiser le sac de lettres
-    sac_lettres = initialiser_sac_lettres()
+    # 4. Configuration Natural Flow
+    config = NaturalFlowConfig(
+        profondeur_respiration=6,
+        max_retries=3,
+        seuil_naturalite=40.0
+    )
     
-    # 5. Générer la situation d'entraînement
-    grille = generer_situation_entrainement(mots_a_reviser, dico, gaddag, sac_lettres, lettres_appui)
+    # 5. Generer les situations d'entrainement avec Natural Flow
+    situations = generer_situation_entrainement_natural_flow(
+        mots_a_reviser=mots_a_reviser,
+        gaddag=gaddag,
+        all_words=all_words,
+        config=config
+    )
     
-    # 6. Afficher le résultat
-    print("\nSituation d'entraînement générée :")
-    print(grille)  # Utilise directement la méthode __str__ de Board
+    # 6. Afficher les resultats
+    print(f"\n{'='*60}")
+    print(f"SITUATIONS D'ENTRAINEMENT GENEREES: {len(situations)}")
+    print(f"{'='*60}")
     
-    # 7. Générer un tirage aléatoire de 7 lettres
-    lettres_disponibles = list(sac_lettres.keys())
-    tirage = ''.join(random.choice(lettres_disponibles) for _ in range(7))
-    print(f"\nTirage : {tirage}")
+    for i, situation in enumerate(situations, 1):
+        print(f"\n--- Situation {i}: {situation.mot_cible} ---")
+        print(f"Tirage: {''.join(situation.tirage)}")
+        if situation.solution:
+            print(f"Solution: {situation.solution.mot} "
+                  f"en {situation.solution.placement.position} "
+                  f"({situation.solution.placement.direction})")
+            print(f"Score: {situation.solution.score} points")
+        if situation.score_naturalite:
+            print(f"Score naturalite: {situation.score_naturalite.score_global():.1f}")
+        print(f"Mots sur la grille: {situation.mots_places}")
+        print("\nGrille:")
+        situation.grille.debug_print()
+    
+    # 7. Resume
+    print(f"\n{'='*60}")
+    print(f"RESUME NATURAL FLOW")
+    print(f"{'='*60}")
+    print(f"  Paradigme: 1 grille = 1 mot cible = 1 objectif pedagogique")
+    print(f"  Situations generees: {len(situations)}/{len(mots_a_reviser)}")
+    if situations:
+        avg_mots = sum(len(s.mots_places) for s in situations) / len(situations)
+        print(f"  Moyenne mots par grille: {avg_mots:.1f}")
+        avg_nat = sum(s.score_naturalite.score_global() for s in situations if s.score_naturalite) / len(situations)
+        print(f"  Score naturalite moyen: {avg_nat:.1f}")
 
 
 if __name__ == "__main__":
