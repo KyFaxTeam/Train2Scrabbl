@@ -1,5 +1,8 @@
 from dataclasses import dataclass, field
 from typing import Dict, List, Set, Optional
+import logging
+
+logger = logging.getLogger(__name__)
 
 @dataclass
 class DictionaryEntry:
@@ -15,7 +18,7 @@ def parse_dictionary(filepath: str) -> Dict[str, DictionaryEntry]:
     entries: Dict[str, DictionaryEntry] = {}
     current_entry: Optional[DictionaryEntry] = None
     
-    print(f"Parsing dictionary from {filepath}...")
+    logger.info("Parsing dictionary from %s...", filepath)
     try:
         with open(filepath, 'r', encoding='utf-8') as f:
             for line in f:
@@ -48,10 +51,10 @@ def parse_dictionary(filepath: str) -> Dict[str, DictionaryEntry]:
                     entries[line] = current_entry
                     
     except FileNotFoundError:
-        print(f"Error: Dictionary file {filepath} not found")
+        logger.error("Dictionary file %s not found", filepath)
         return {}
         
-    print(f"Parsed {len(entries)} entries")
+    logger.info("Parsed %d entries", len(entries))
     return entries
 
 def get_extensions(entries: Dict[str, DictionaryEntry], sorted_letters: str, extension_letter: str) -> List[str]:

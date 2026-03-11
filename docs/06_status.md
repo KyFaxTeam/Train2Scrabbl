@@ -1,6 +1,6 @@
 # Statut Actuel du Projet - train_scrabble
 
-**Date**: 19 juillet 2025 (mis à jour)
+**Date**: 20 juillet 2025 (mis à jour)
 
 ---
 
@@ -8,7 +8,7 @@
 
 ### Évolution du Projet
 
-Le projet a traversé **trois phases majeures de conception algorithmique**. La Phase 3 (Natural Flow) est **pleinement implémentée et opérationnelle**.
+Le projet a traversé **trois phases majeures de conception algorithmique**. La Phase 3 (Natural Flow) est **pleinement implémentée et opérationnelle**. CBIC est archivé dans `legacy/`.
 
 ---
 
@@ -21,13 +21,13 @@ Le projet a traversé **trois phases majeures de conception algorithmique**. La 
 
 ---
 
-## Phase 2 : CBIC (Obsolète)
+## Phase 2 : CBIC (Archivé)
 
 - **Paradigme** : "Ne placer que ce qui connecte"
 - **Taux de succès** : >90%
 - **Problème** : Grilles artificiellement denses
-- **Statut** : OBSOLÈTE - Remplacé par Natural Flow
-- **Code** : `src/modules/cbic.py` (conservé)
+- **Statut** : ARCHIVÉ dans `legacy/`
+- **Code** : `legacy/cbic.py`, `legacy/test_cbic.py`
 - **Doc** : `03_critique_initial_et_transition_cbic.md`, `04_solution_cbic.md`
 
 ---
@@ -61,17 +61,17 @@ Le projet a traversé **trois phases majeures de conception algorithmique**. La 
 
 ## État Technique
 
-### Tests : 52/52 passent
+### Tests : 32/32 passent
 ```
 tests/test_board.py          2/2   ✅
-tests/test_cbic.py          22/22  ✅
 tests/test_gaddag.py         6/6   ✅
 tests/test_game_manager.py   4/4   ✅
 tests/test_move_generator.py 5/5   ✅
 tests/test_rack.py           1/1   ✅
 tests/test_score.py          4/4   ✅
-tests/test_skeleton_utils.py 8/8   ✅
+tests/test_skeleton_utils.py 10/10 ✅
 ```
+(Tests CBIC archivés dans `legacy/test_cbic.py`)
 
 ### Backend (FastAPI)
 - API sur port 8099
@@ -91,8 +91,7 @@ src/
 │   ├── situation.py      ✅ Dataclasses Natural Flow
 │   └── types.py          ✅ Direction, Move, SquareType
 ├── modules/
-│   ├── cbic.py           ✅ CBIC (legacy, conservé)
-│   └── natural_flow.py   ✅ Natural Flow (algorithme principal)
+│   └── natural_flow.py   ✅ Natural Flow (algorithme unique)
 ├── services/
 │   ├── game_manager.py   ✅ Gestion de partie
 │   ├── move_generator.py ✅ Génération de coups
@@ -144,10 +143,13 @@ frontend_new/
 
 ## Prochaines Étapes
 
-1. **Intégrer Natural Flow dans le frontend** : connecter TrainingPage au backend NF
-2. **Tracking progression** : système de répétition espacée (FSRS)
-3. **Gamification** : XP, streaks, niveaux
-4. **Qualité pédagogique** : validation avec vrais utilisateurs
+Voir `docs/09_roadmap_nff.md` pour la feuille de route complète du Natural Flow Framework.
+
+1. **Mode Challenge** : grilles plus denses avec distracteurs
+2. **Mode Arena** : situations mid-game réalistes, top-3 scoring
+3. **Mode Endgame** : end-game dense, sac connu
+4. **Tracking progression** : système de répétition espacée (FSRS)
+5. **Gamification** : XP, streaks, niveaux
 
 ---
 

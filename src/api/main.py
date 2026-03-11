@@ -63,9 +63,6 @@ async def lifespan(app: FastAPI):
     app_state["ready"] = True
     logger.info("API ready to serve requests!")
     
-    app_state["ready"] = True
-    logger.info("API ready to serve requests!")
-    
     yield
     
     # Cleanup

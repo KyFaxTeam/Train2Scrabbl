@@ -1,3 +1,9 @@
+"""
+Train Scrabble - Point d'entrée principal.
+
+Utilise exclusivement Natural Flow pour la génération de situations.
+"""
+import logging
 from typing import Set, Dict, List, Tuple
 import random
 
@@ -13,6 +19,8 @@ from src.models.situation import NaturalFlowConfig
 from src.services.word_pool import WordPool
 
 from src.utils.dictionary_parser import parse_dictionary, DictionaryEntry
+
+logger = logging.getLogger(__name__)
 
 
 def charger_dictionnaire(chemin_fichier: str) -> Dict[str, DictionaryEntry]:
@@ -86,35 +94,37 @@ def charger_dictionnaire_ods(chemin_fichier: str) -> Set[str]:
                 if word and len(word) >= 2:
                     words.add(word)
     except FileNotFoundError:
-        print(f"Fichier non trouve: {full_path}")
+        logger.error("Fichier non trouve: %s", full_path)
     return words
 
 
 def main():
     """Point d'entree du programme."""
+    logging.basicConfig(level=logging.INFO, format='%(levelname)s - %(message)s')
+
     # 1. Charger le dictionnaire d'extensions (pour les mots a reviser)
     dico_entries = charger_dictionnaire("scrabble_dict_ext1.txt")
-    print(f"\nDictionnaire extensions charge avec {len(dico_entries)} entrees")
+    logger.info("Dictionnaire extensions charge avec %d entrees", len(dico_entries))
     
     # 2. Extraire les mots du dictionnaire d'extensions
     mots_extensions = extraire_tous_mots(dico_entries)
-    print(f"Extraction de {len(mots_extensions)} mots d'extensions (7-8 lettres)")
+    logger.info("Extraction de %d mots d'extensions (7-8 lettres)", len(mots_extensions))
     
     # 3. Charger le dictionnaire complet ODS8 (pour Natural Flow)
-    print("Chargement du dictionnaire complet ODS8...")
+    logger.info("Chargement du dictionnaire complet ODS8...")
     mots_ods = charger_dictionnaire_ods("ods8.txt")
-    print(f"Dictionnaire ODS8: {len(mots_ods)} mots")
+    logger.info("Dictionnaire ODS8: %d mots", len(mots_ods))
     
     # 4. Combiner tous les mots
     all_words = mots_extensions | mots_ods
-    print(f"Total: {len(all_words)} mots uniques")
+    logger.info("Total: %d mots uniques", len(all_words))
     
     # 5. Creer le GADDAG
-    print("Construction du GADDAG...")
+    logger.info("Construction du GADDAG...")
     gaddag = GADDAG()
     for word in all_words:
         gaddag.add_word(word)
-    print(f"GADDAG cree avec {gaddag.word_count} mots")
+    logger.info("GADDAG cree avec %d mots", gaddag.word_count)
     
     # 6. Definir les mots a reviser avec leurs lettres d'appui
     mots_a_reviser = [
@@ -122,16 +132,16 @@ def main():
         ("BACCARAS", "S"),
         ("BACCARAT", "T"),
     ]
-    print(f"\nMots a reviser : {[m[0] for m in mots_a_reviser]}")
+    logger.info("Mots a reviser : %s", [m[0] for m in mots_a_reviser])
     
-    # 4. Configuration Natural Flow
+    # 7. Configuration Natural Flow
     config = NaturalFlowConfig(
         profondeur_respiration=6,
         max_retries=3,
         seuil_naturalite=40.0
     )
     
-    # 5. Generer les situations d'entrainement avec Natural Flow
+    # 8. Generer les situations d'entrainement avec Natural Flow
     situations = generer_situation_entrainement_natural_flow(
         mots_a_reviser=mots_a_reviser,
         gaddag=gaddag,
@@ -139,36 +149,36 @@ def main():
         config=config
     )
     
-    # 6. Afficher les resultats
-    print(f"\n{'='*60}")
-    print(f"SITUATIONS D'ENTRAINEMENT GENEREES: {len(situations)}")
-    print(f"{'='*60}")
+    # 9. Afficher les resultats
+    logger.info("=" * 60)
+    logger.info("SITUATIONS D'ENTRAINEMENT GENEREES: %d", len(situations))
+    logger.info("=" * 60)
     
     for i, situation in enumerate(situations, 1):
-        print(f"\n--- Situation {i}: {situation.mot_cible} ---")
-        print(f"Tirage: {''.join(situation.tirage)}")
+        logger.info("--- Situation %d: %s ---", i, situation.mot_cible)
+        logger.info("Tirage: %s", ''.join(situation.tirage))
         if situation.solution:
-            print(f"Solution: {situation.solution.mot} "
-                  f"en {situation.solution.placement.position} "
-                  f"({situation.solution.placement.direction})")
-            print(f"Score: {situation.solution.score} points")
+            logger.info("Solution: %s en %s (%s)",
+                       situation.solution.mot,
+                       situation.solution.placement.position,
+                       situation.solution.placement.direction)
+            logger.info("Score: %d points", situation.solution.score)
         if situation.score_naturalite:
-            print(f"Score naturalite: {situation.score_naturalite.score_global():.1f}")
-        print(f"Mots sur la grille: {situation.mots_places}")
-        print("\nGrille:")
+            logger.info("Score naturalite: %.1f", situation.score_naturalite.score_global())
+        logger.info("Mots sur la grille: %s", situation.mots_places)
         situation.grille.debug_print()
     
-    # 7. Resume
-    print(f"\n{'='*60}")
-    print(f"RESUME NATURAL FLOW")
-    print(f"{'='*60}")
-    print(f"  Paradigme: 1 grille = 1 mot cible = 1 objectif pedagogique")
-    print(f"  Situations generees: {len(situations)}/{len(mots_a_reviser)}")
+    # 10. Resume
+    logger.info("=" * 60)
+    logger.info("RESUME NATURAL FLOW")
+    logger.info("=" * 60)
+    logger.info("  Paradigme: 1 grille = 1 mot cible = 1 objectif pedagogique")
+    logger.info("  Situations generees: %d/%d", len(situations), len(mots_a_reviser))
     if situations:
         avg_mots = sum(len(s.mots_places) for s in situations) / len(situations)
-        print(f"  Moyenne mots par grille: {avg_mots:.1f}")
+        logger.info("  Moyenne mots par grille: %.1f", avg_mots)
         avg_nat = sum(s.score_naturalite.score_global() for s in situations if s.score_naturalite) / len(situations)
-        print(f"  Score naturalite moyen: {avg_nat:.1f}")
+        logger.info("  Score naturalite moyen: %.1f", avg_nat)
 
 
 if __name__ == "__main__":
