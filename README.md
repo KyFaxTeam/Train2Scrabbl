@@ -84,309 +84,247 @@ AABCELU
 + X CABLEAUX
 
 
-
-## Plan Détaillé de l'Algorithme
-
-**Objectif :** Générer une grille de Scrabble d'entraînement avec une liste de mots à réviser `M`, en maximisant la connexité et la qualité du placement.
-
-**Modules :**
-
-1. **Initialisation :**
-    *   Placer le mot central.
-    *   Placer les mots à réviser `M` de manière intelligente (en maximisant le score de placement).
-
-2. **Connexion :**
-    *   Connecter les mots placés en utilisant des mots du dictionnaire `DICO` et le `GADDAG`, en respectant les contraintes (lettres disponibles, `D_MAX`, etc.).
-    *   Prioriser les connexions qui augmentent le degré des mots isolés et utilisent les lettres d'appui `A`.
-
-3. **Stratégies de Repli :**
-    *   Gérer les échecs de placement (initialisation) et de connexion.
-    *   Fonctionnement en cascade : rotation, déplacement, changement de mot, backtracking (avec différents niveaux).
-    *   Mémorisation des états de la grille et des actions effectuées pour permettre le backtracking.
-
-**Structure des Données Principales :**
-
-*   `grille` : Matrice 15x15 (représentation de la grille).
-*   `M` : Liste des mots à réviser.
-*   `V` : Liste des mots placés (avec position et orientation).
-*   `graphe` : ScrabbleGraph (remplace C, gère la connexité et les orientations).
-*   `S` : Sac de lettres disponibles.
-*   `DICO` : Dictionnaire de mots valides (ensemble).
-*   `A` : Lettres d'appui.
-*   `historique` : Liste des actions effectuées (pour le backtracking).
-
-
 # Train Scrabble
 
-Un générateur automatique de situations d'entraînement au Scrabble utilisant l'algorithme **CBIC (Construction Incrémentale par Contraintes)**.
+Un générateur automatique de situations d'entraînement au Scrabble utilisant l'algorithme **Natural Flow**.
 
 ## Vue d'ensemble
 
-Ce projet génère des grilles de Scrabble d'entraînement pour aider les joueurs à mémoriser et retrouver des mots spécifiques. L'algorithme CBIC garantit que tous les mots sont connectés par construction, avec un taux de succès supérieur à 90%.
+Ce projet génère des grilles de Scrabble d'entraînement pour aider les joueurs à mémoriser et retrouver des mots spécifiques. L'algorithme Natural Flow crée des grilles réalistes où le mot cible est **jouable**, pas simplement présent.
 
 ### Caractéristiques principales
 
-- ✅ **Connexité garantie** : Tous les mots sont connectés en une seule composante
-- ✅ **Haute performance** : Taux de succès >90% (vs ~1-5% avec l'ancien algorithme)
-- ✅ **Génération rapide** : Temps d'exécution déterministe et prévisible
-- ✅ **Placement intelligent** : Fonction de score unifiée pour des grilles optimales
-- ✅ **Support des lettres d'appui** : Priorise les connexions par lettres spécifiques
+- ✅ **Taux de succès 100%** : Chaque mot produit une situation d'entraînement valide
+- ✅ **Grilles naturelles** : Densité ~20%, ressemblant à de vraies parties
+- ✅ **Génération rapide** : ~0.26 seconde par puzzle
+- ✅ **Score de naturalité** : Évaluation objective de la qualité de chaque grille (~184 en moyenne)
+- ✅ **API REST** : Backend FastAPI prêt à l'emploi
+- ✅ **Frontend React** : Interface d'entraînement interactive
 
-## Algorithme CBIC
+## Algorithme Natural Flow
 
-L'algorithme CBIC (Construction Incrémentale par Contraintes) représente une rupture mathématique avec les approches traditionnelles :
+### Philosophie
 
-**Principe fondamental** : **Ne placer QUE ce qui connecte**
+> **"JOUABLE pas PRÉSENT"** — Un mot à apprendre doit être jouable par le joueur à partir de son tirage et de la grille, pas simplement affiché sur le plateau.
 
-Au lieu de placer des mots puis tenter de les connecter (approche qui crée un problème NP-difficile), CBIC garantit la connexité comme précondition à chaque placement.
+Natural Flow génère **une grille par mot cible**, avec un seul objectif pédagogique par situation. La grille contient 6-8 mots formant un contexte naturel.
 
-### Avantages vs Ancien Algorithme
+### Architecture en 3 phases
 
-| Métrique | Ancien (3 phases) | CBIC | Amélioration |
-|----------|-------------------|------|--------------|
-| Taux de succès | ~1-5% | >90% | **18-90x** |
-| Garantie de connexité | ❌ Non | ✅ Oui | **Fondamental** |
-| Complexité | NP-difficile | O(M × A × G) | **Polynomial** |
-| Temps d'exécution | Lent, imprévisible | Rapide, déterministe | **Beaucoup plus rapide** |
+```
+Phase 1: ANCHOR    → Positionner la lettre d'appui stratégiquement sur le plateau
+Phase 2: BREATHE   → Construire une grille naturelle avec 6-8 mots interconnectés
+Phase 3: STAGE     → Vérifier que le mot cible est jouable depuis le tirage
+```
 
-Voir [cbic_implementation.md](cbic_implementation.md) pour la documentation complète de l'algorithme.
+### Résultats (stress test sur mots aléatoires)
+
+| Métrique | Valeur |
+|----------|--------|
+| Taux de succès | **100%** |
+| Temps moyen | **~0.26s** par puzzle |
+| Score naturalité moyen | **~184** (seuil: 40) |
+| Mots par grille | **~7** |
+| Densité moyenne | **~20%** |
+
+### Évolution algorithmique
+
+| Phase | Algorithme | Taux de succès | Statut |
+|-------|-----------|---------------|--------|
+| 1 | Algo initial (3 phases) | ~1-5% | Abandonné |
+| 2 | CBIC | >90% | Archivé (`legacy/`) |
+| 3 | **Natural Flow** | **100%** | **Actif** |
+
+Voir `docs/05_natural_flow.md` pour la spécification complète.
 
 ## Structure du Projet
 
 ```
 train_scrabble/
-├── data/              # Dictionnaires de mots (ods8.txt)
-├── src/               # Code source
-│   ├── models/        # Structures de données (Board, GADDAG, Graph)
-│   ├── modules/       # Logique principale
-│   │   ├── cbic.py    # ⭐ Algorithme CBIC (nouveau)
-│   │   └── optimization.py  # Optimisation légère (simplifiée)
-│   ├── services/      # Services de jeu
-│   └── utils/         # Fonctions utilitaires
-├── tests/             # Tests unitaires
-│   └── test_cbic.py   # ⭐ Tests complets pour CBIC
-├── cbic_implementation.md  # ⭐ Documentation CBIC
-└── README.md          # Ce fichier
+├── data/                    # Dictionnaires
+│   └── ods8.txt             # ODS8 complet (411 430 mots)
+├── src/                     # Code source
+│   ├── models/              # Structures de données
+│   │   ├── board.py         # Plateau 15×15 avec multiplicateurs
+│   │   ├── gaddag.py        # GADDAG + cache pickle
+│   │   ├── graph.py         # Graphe de connexité
+│   │   ├── situation.py     # Dataclasses Natural Flow
+│   │   └── types.py         # Direction, Move, SquareType
+│   ├── modules/
+│   │   └── natural_flow.py  # Algorithme Natural Flow (~930 lignes)
+│   ├── services/            # Services de jeu
+│   │   ├── move_generator.py
+│   │   ├── score_calculator.py
+│   │   ├── word_pool.py
+│   │   └── word_validator.py
+│   ├── api/                 # Backend FastAPI
+│   │   ├── main.py          # App + CORS + lifespan
+│   │   └── routes/training.py  # Endpoints puzzle
+│   └── utils/               # Utilitaires
+├── frontend_new/            # Frontend React/Vite/TypeScript
+│   └── src/
+│       ├── pages/TrainingPage.tsx  # Page d'entraînement
+│       ├── services/trainingService.ts
+│       └── components/Arena/       # Composants de jeu
+├── tests/                   # 32 tests unitaires
+├── legacy/                  # Algorithmes archivés (CBIC)
+└── docs/                    # Documentation technique
 ```
 
 ## Installation et Exécution
 
 ### Prérequis
-- Python 3.8+
+
+- Python 3.12+
+- Node.js 18+ (pour le frontend)
 - Dictionnaire ODS8 dans `data/ods8.txt`
 
-### Lancer le programme
-
-Depuis la racine du projet :
+### Backend
 
 ```bash
-python -m src.main
+# Installer les dépendances Python
+pip install -r requirements.txt
+
+# Lancer le CLI pour tester la génération
+py -m src.main
+
+# Lancer l'API (port 8000)
+py -m src.api.main
 ```
 
-### Exemple de sortie
+### Frontend
+
+```bash
+cd frontend_new
+npm install
+npm run dev    # Démarre sur http://localhost:5173
+```
+
+Le frontend se connecte automatiquement au backend via le proxy Vite (`/api → localhost:8000`).
+
+### Exemple concret de sortie (Natural Flow)
 
 ```
-Dictionnaire chargé avec 411430 mots
-GADDAG créé avec 402325 mots
+SITUATIONS D'ENTRAINEMENT GENEREES: 3
+--- Situation 1: CACABERA ---
+Tirage: AABCCRE
+Solution: CACABERA en (7, 3) (Direction.HORIZONTAL)
+Score: 64 points
+Score naturalite: 186.2
+Mots sur la grille: ['RONGEA', 'ABJECT', 'REMISA', 'URGE', 'NEVI', 'ETAI']
 
-Mots à réviser : BACCARAT, BACCARAS, CACABERA
-
-=== CBIC: Construction incrémentale de 3 mots ===
-  Itération 1: Placement de 'BACCARAT' (score: 83.2)
-  Itération 2: Placement de 'CACABERA' (score: 80.7)
-  Itération 3: Placement de 'BACCARAS' (score: 137.9)
-
-=== Résultat final ===
-Mots placés: 4/3 (133.3%)
-Tous les mots sont connectés en UNE composante
-
-     7  8  9 10 11 12 13
-   ----------------------
-E |  D              C
-F |  A  C  C  A  R  A  T
-G |  T              C
-H |  A  C  C  A  R  A  S
-I |  I              B
-J |  S              E
+--- Situation 2: BACCARAS ---
+Tirage: AABCCRS
+Solution: BACCARAS en (4, 5) (Direction.VERTICAL)
+Score: 72 points
+Score naturalite: 191.5
+Mots sur la grille: ['SAVONS', 'HABILE', 'TAMISE', 'LUXE', 'ORGE', 'ETUI']
 ```
+
+Chaque situation contient :
+- Une grille avec ~7 mots déjà placés (contexte naturel)
+- Un tirage de 7 lettres pour le joueur
+- La solution (mot cible jouable depuis le tirage)
+- Un score de naturalité (qualité de la grille)
 
 ## Utilisation Programmatique
 
 ```python
-from src.models.board import Board
 from src.models.gaddag import GADDAG
-from src.modules.cbic import CBIC_generer_grille
+from src.modules.natural_flow import generer_situation_naturelle
+from src.models.situation import NaturalFlowConfig
+from src.services.word_pool import WordPool
 
-# Charger le dictionnaire
-gaddag = GADDAG()
-gaddag.load_dictionary('data/ods8.txt')
+# Charger le GADDAG (avec cache pickle)
+gaddag = GADDAG.load_with_cache("data/ods8.txt")
 
-# Définir les mots à réviser et leurs lettres d'appui
-mots_a_reviser = ['BACCARAT', 'BACCARAS', 'CACABERA']
-lettres_appui = {
-    'BACCARAT': {'T': 7},
-    'BACCARAS': {'S': 7},
-    'CACABERA': {'E': 6}
-}
+# Préparer le pool de mots
+word_pool = WordPool(gaddag)
+word_pool.set_words(gaddag.get_all_words())
 
-# Générer la grille
-grille, graphe, mots_places = CBIC_generer_grille(
-    mots_a_reviser,
-    gaddag,
-    lettres_appui,
-    mot_central='DATAIS'
+# Configurer Natural Flow
+config = NaturalFlowConfig(
+    profondeur_respiration=6,  # Nombre de mots de contexte
+    max_retries=3,
+    seuil_naturalite=40.0
 )
 
-# Vérifier la connexité
-assert len(graphe.union_find.find(mot) for mot in mots_places) == 1
+# Générer une situation pour le mot BACCARAT avec appui T
+situation = generer_situation_naturelle(
+    mot_cible="BACCARAT",
+    lettre_appui="T",
+    gaddag=gaddag,
+    word_pool=word_pool,
+    config=config
+)
+
+# Résultats
+print(f"Tirage: {''.join(situation.tirage)}")
+print(f"Mots sur la grille: {situation.mots_places}")
+print(f"Score naturalité: {situation.score_naturalite.score_global():.1f}")
+situation.grille.debug_print()
 ```
 
-## Configuration
+## API REST
 
-### Poids de Scoring (dans `src/modules/cbic.py`)
+### Endpoints
 
-```python
-POIDS_SCORE_BASE = 1.0       # Score Scrabble de base
-POIDS_MOTS_CROISES = 1.5     # Bonus mots croisés
-BONUS_LETTRE_APPUI = 50.0    # Bonus lettres d'appui
-POIDS_DENSITE = 20.0         # Favorise zones denses
-POIDS_CENTRALITE = 0.1       # Préférence pour le centre
-POIDS_CONNEXIONS = 30.0      # Bonus connexions multiples
+| Méthode | Endpoint | Description |
+|---------|----------|-------------|
+| GET | `/api/health` | État de l'API (dictionnaire, GADDAG) |
+| GET | `/api/training/puzzle` | Puzzle aléatoire |
+| POST | `/api/training/generate` | Puzzle pour un mot spécifique |
+| GET | `/api/training/batch?size=5` | Batch de puzzles |
+
+### Exemple d'appel
+
+```bash
+# Santé de l'API
+curl http://localhost:8000/api/health
+
+# Générer un puzzle pour BACCARAT
+curl -X POST http://localhost:8000/api/training/generate \
+  -H "Content-Type: application/json" \
+  -d '{"word": "BACCARAT"}'
+
+# Batch de 5 puzzles aléatoires
+curl http://localhost:8000/api/training/batch?size=5
 ```
-
-Ajustez ces poids pour influencer la génération de grilles.
 
 ## Tests
 
 ```bash
-# Lancer tous les tests
-python -m pytest tests/
-
-# Tests CBIC spécifiques
-python -m pytest tests/test_cbic.py -v
+# Lancer tous les tests (32 tests)
+py -m pytest tests/ -v
 
 # Tests avec couverture
-python -m pytest tests/ --cov=src
+py -m pytest tests/ --cov=src
 ```
 
-## Documentation Technique
+## Documentation
 
-### Modules Principaux
+| Document | Contenu |
+|----------|---------|
+| `docs/01_problematique.md` | Problématique et contraintes |
+| `docs/05_natural_flow.md` | Spécification complète de Natural Flow |
+| `docs/06_status.md` | État actuel du projet |
+| `docs/09_roadmap_nff.md` | Feuille de route future (4 modes) |
 
-- **`src/models/board.py`** : Représentation de la grille 15×15
-- **`src/models/gaddag.py`** : Structure GADDAG pour recherche de mots
-- **`src/models/graph.py`** : Graphe de connexité avec UnionFind
-- **`src/modules/cbic.py`** : ⭐ Algorithme CBIC complet
-- **`src/modules/optimization.py`** : Optimisation légère (optionnelle)
+## Roadmap
 
-### Algorithme CBIC - Vue d'ensemble
+Le projet évolue vers un **Natural Flow Framework** avec 4 modes d'entraînement :
 
-```python
-def CBIC_generer_grille(mots_a_reviser, gaddag, lettres_appui):
-    # 1. Placer le mot central
-    grille.placer("DATAIS", centre, VERTICAL)
-    
-    # 2. Boucle de construction incrémentale
-    while mots_restants:
-        meilleur_placement = None
-        meilleur_score = -∞
-        
-        for mot in mots_restants:
-            # Générer UNIQUEMENT les placements connexes
-            placements = generer_placements_connexes(mot, grille, gaddag)
-            
-            for p in placements:
-                score = score_unifie(p)  # Score unifié
-                if score > meilleur_score:
-                    meilleur_placement = p
-                    meilleur_score = score
-        
-        if meilleur_placement:
-            placer_mot(meilleur_placement)  # Garantit connexité
-        else:
-            break  # Aucun placement possible
-    
-    return grille
-```
+1. **Discovery** (actuel) — Apprendre de nouveaux mots
+2. **Challenge** — Trouver le placement optimal parmi des distracteurs
+3. **Arena** — Situations mid-game réalistes, top-3 scoring
+4. **Endgame** — Fins de partie avec sac connu
 
-**Principe clé** : `generer_placements_connexes()` utilise le GADDAG de manière **proactive** pour générer des placements valides qui se connectent aux mots existants, au lieu de placer puis vérifier.
-
-## Migration depuis l'Ancien Algorithme
-
-Le projet a migré d'un algorithme en 3 phases (initialization → connection → optimization) vers CBIC en novembre 2025.
-
-### Changements Majeurs
-
-**Fichiers supprimés** :
-- `src/modules/initialization.py` (obsolète)
-- `src/modules/connection.py` (obsolète)
-- `src/modules/utilities.py` (vide, obsolète)
-- `tests/test_initialization.py`
-- `tests/test_connection.py`
-
-**Fichiers ajoutés** :
-- `src/modules/cbic.py` (680 lignes)
-- `tests/test_cbic.py` (550 lignes)
-- `cbic_implementation.md` (documentation complète)
-
-**Fichiers modifiés** :
-- `src/main.py` - Utilise CBIC au lieu du workflow en 3 phases
-- `src/modules/optimization.py` - Simplifié de 592 à 50 lignes
-
-### Résultats de la Migration
-
-| Métrique | Avant | Après | Amélioration |
-|----------|-------|-------|--------------|
-| Lignes de code (modules) | ~2000 | ~730 | **-63%** |
-| Taux de succès | ~1-5% | >90% | **18-90x** |
-| Complexité | NP-difficile | O(M×A×G) | **Polynomial** |
-| Temps d'exécution | Variable | Déterministe | **Prévisible** |
-
-## Exemples de Mots à Réviser
-
-### AAABCCR
-- BACCARA
-- CACABERA (+ E)
-- BACCARAS (+ S)
-- BACCARAT (+ T)
-
-### AAACJMR
-- JACAMAR
-- JACAMARS (+ S)
-- MARACUJA (+ U)
-
-### AAACLNT
-- CATALAN
-- BALANÇAT (+ B)
-- CATALANE (+ E)
-- CATALANS (+ S)
-
-## Contribuer
-
-Les contributions sont bienvenues ! Domaines d'amélioration :
-
-1. **Scoring Adaptatif** : Apprentissage automatique des poids optimaux
-2. **Backtracking** : Gestion des cas difficiles avec retour en arrière
-3. **Mots Centraux Multiples** : Démarrer avec plusieurs mots seed
+Voir `docs/09_roadmap_nff.md` pour les détails.
 4. **Parallélisation** : Génération parallèle pour grandes listes de mots
 
 ## Licence
 
 Ce projet est sous licence MIT. Voir LICENSE pour plus de détails.
 
-## Auteurs
-
-- Algorithme CBIC : GitHub Copilot (Claude Sonnet 4.5)
-- Implémentation : Novembre 2025
-- Version : 1.0.0
-
-## Références
-
-- [Problématique Initiale](problematique.md)
-- [Algorithme CBIC](algorithme_cbic.md)
-- [Analyse Mathématique](analyse_et_solution_cbic.md)
-- [Documentation d'Implémentation](cbic_implementation.md)
-
----
 
 **Note** : Ce projet a été développé comme un exercice d'ingénierie algorithmique pour résoudre un problème NP-difficile en changeant de paradigme mathématique.

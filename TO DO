@@ -1,9 +1,0 @@
-
-
-
-Résolu
-Le problème est plus subtil : quand on place un mot, on doit aussi vérifier qu'il ne "fusionne" pas avec des lettres avant/après dans la même direction pour créer un mot invalide.
-
-mais il suffit de vérifier tous les mots formés de la grille ppartant du principe que la grille ne saurait exister si les anciens mots n'étaine pas bons et qu'on peut rejeter ce nouveau mot
-si dès qu'il est venu, la vérification de tout la grille trouve un seul faux mot...
-bien sûr les sous entendus, il faut s'assurer que dans le système c'est ainsi ou forcer le système à celà...
