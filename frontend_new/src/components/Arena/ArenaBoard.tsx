@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef, useCallback } from 'react';
+import React, { useState, useRef, useCallback } from 'react';
 import { clsx } from 'clsx';
 import { BOARD_SIZE, getBonusType } from '../../constants';
 import { BoardTile } from './BoardTile';
@@ -10,19 +10,19 @@ interface ArenaBoardProps {
     onCellClick: (row: number, col: number) => void;
     onTilePlace?: (char: string, row: number, col: number) => void;
     onTileRemove?: (row: number, col: number) => void;
+    onDropTile?: (rackId: number, row: number, col: number) => void;
 }
 
-// Minimal labels
 const BONUS_LABELS: Record<string, string> = {
-    'TW': '×3', 'DW': '×2', 'TL': '×3', 'DL': '×2', 'CENTER': '★'
+    'TW': 'MT', 'DW': 'MD', 'TL': 'LT', 'DL': 'LD', 'CENTER': '★'
 };
 
-const BONUS_STYLES: Record<string, { bg: string; text: string }> = {
-    'TW': { bg: 'var(--color-bonus-tw)', text: 'text-red-800' },
-    'DW': { bg: 'var(--color-bonus-dw)', text: 'text-orange-800' },
-    'TL': { bg: 'var(--color-bonus-tl)', text: 'text-blue-800' },
-    'DL': { bg: 'var(--color-bonus-dl)', text: 'text-blue-700' },
-    'CENTER': { bg: 'var(--color-bonus-center)', text: 'text-purple-900' }
+const BONUS_TEXT_COLORS: Record<string, string> = {
+    'TW': 'text-red-100',
+    'DW': 'text-rose-900/50',
+    'TL': 'text-sky-100',
+    'DL': 'text-sky-800/50',
+    'CENTER': 'text-rose-900/50'
 };
 
 export const ArenaBoard: React.FC<ArenaBoardProps> = ({
@@ -30,23 +30,21 @@ export const ArenaBoard: React.FC<ArenaBoardProps> = ({
     placedTiles,
     onCellClick,
     onTilePlace,
-    onTileRemove
+    onTileRemove,
+    onDropTile
 }) => {
-    // Interaction state
     const [activeCell, setActiveCell] = useState<{ r: number, c: number } | null>(null);
     const [direction, setDirection] = useState<'H' | 'V'>('H');
+    const [dragOverCell, setDragOverCell] = useState<{ r: number, c: number } | null>(null);
     const boardRef = useRef<HTMLDivElement>(null);
 
-    // Handle cell click
     const handleCellClick = (r: number, c: number) => {
         if (activeCell?.r === r && activeCell?.c === c) {
-            // Toggle direction if clicking same cell
             setDirection(prev => prev === 'H' ? 'V' : 'H');
         } else {
             setActiveCell({ r, c });
         }
         onCellClick(r, c);
-        // Focus board for keyboard events
         boardRef.current?.focus();
     };
 
@@ -66,17 +64,14 @@ export const ArenaBoard: React.FC<ArenaBoardProps> = ({
             case 'Backspace':
                 if (onTileRemove) {
                     onTileRemove(r, c);
-                    // Move back
                     if (direction === 'H') nextC = Math.max(0, c - 1);
                     else nextR = Math.max(0, r - 1);
                 }
                 break;
             default:
-                // Typing a letter
                 if (e.key.length === 1 && e.key.match(/[a-zA-Z]/)) {
                     if (onTilePlace) {
                         onTilePlace(e.key.toUpperCase(), r, c);
-                        // Move forward
                         if (direction === 'H') nextC = Math.min(BOARD_SIZE - 1, c + 1);
                         else nextR = Math.min(BOARD_SIZE - 1, r + 1);
                     }
@@ -90,43 +85,76 @@ export const ArenaBoard: React.FC<ArenaBoardProps> = ({
         }
     }, [activeCell, direction, onTilePlace, onTileRemove]);
 
+    // Drag & drop handlers for cells
+    const handleDragOver = (e: React.DragEvent, r: number, c: number) => {
+        e.preventDefault();
+        e.dataTransfer.dropEffect = 'move';
+        setDragOverCell({ r, c });
+    };
+
+    const handleDragLeave = () => {
+        setDragOverCell(null);
+    };
+
+    const handleDrop = (e: React.DragEvent, r: number, c: number) => {
+        e.preventDefault();
+        setDragOverCell(null);
+        const rackId = parseInt(e.dataTransfer.getData('text/rackId'), 10);
+        const char = e.dataTransfer.getData('text/char');
+        if (!isNaN(rackId) && char && onDropTile) {
+            onDropTile(rackId, r, c);
+        }
+    };
+
     const renderCell = (row: number, col: number) => {
         const bonus = getBonusType(row, col);
+        const isCenter = row === 7 && col === 7;
         const initialTile = initialTiles.find(t => t.row === row && t.col === col);
         const placedTile = placedTiles.find(t => t.row === row && t.col === col);
         const tile = initialTile || placedTile;
 
         const isActive = activeCell?.r === row && activeCell?.c === col;
-        const bonusStyle = bonus ? BONUS_STYLES[bonus] : null;
+        const isDragTarget = dragOverCell?.r === row && dragOverCell?.c === col;
+        const bonusKey = isCenter && !bonus ? 'CENTER' : bonus;
+
+        // Background color
+        let bgColor = 'var(--color-cell-empty)';
+        if (!tile && bonusKey) {
+            bgColor = `var(--color-bonus-${bonusKey === 'CENTER' ? 'center' : bonusKey.toLowerCase()})`;
+        }
 
         return (
             <div
                 key={`${row}-${col}`}
+                data-cell={`${row}-${col}`}
                 onClick={() => handleCellClick(row, col)}
+                onDragOver={(e) => handleDragOver(e, row, col)}
+                onDragLeave={handleDragLeave}
+                onDrop={(e) => handleDrop(e, row, col)}
                 className={clsx(
                     "aspect-square flex items-center justify-center relative select-none cursor-pointer",
-                    "rounded-[3px] transition-all duration-75",
-                    isActive && "z-10 ring-2 ring-blue-400 ring-offset-1 shadow-lg", // Focus ring
-                    !tile && !isActive && "hover:brightness-95"
+                    "rounded-sm transition-all duration-75",
+                    isActive && "z-10 ring-2 ring-amber-400 ring-offset-1",
+                    isDragTarget && !tile && "z-10 ring-2 ring-amber-400 ring-offset-1 brightness-110",
+                    !tile && !isActive && !isDragTarget && "hover:brightness-[0.92]"
                 )}
-                style={{
-                    backgroundColor: !tile && bonusStyle ? bonusStyle.bg : '#f4f4f4',
-                }}
+                style={{ backgroundColor: bgColor }}
             >
-                {/* Direction Indicator on Active Cell */}
+                {/* Direction indicator */}
                 {isActive && !tile && (
-                    <div className="absolute inset-0 flex items-center justify-center opacity-20 pointer-events-none">
-                        {direction === 'H' ? <ArrowRight size={16} /> : <ArrowDown size={16} />}
+                    <div className="absolute inset-0 flex items-center justify-center opacity-25 pointer-events-none">
+                        {direction === 'H' ? <ArrowRight size={14} /> : <ArrowDown size={14} />}
                     </div>
                 )}
 
-                {/* Bonus Label */}
-                {!tile && bonus && (
+                {/* Bonus label — minimal */}
+                {!tile && bonusKey && (
                     <span className={clsx(
-                        "text-[10px] font-bold opacity-80",
-                        bonusStyle?.text
+                        "text-[7px] font-semibold uppercase tracking-wide pointer-events-none",
+                        bonusKey === 'CENTER' ? 'text-[16px] opacity-40' : 'opacity-50',
+                        BONUS_TEXT_COLORS[bonusKey] || 'text-slate-500/50'
                     )}>
-                        {BONUS_LABELS[bonus]}
+                        {BONUS_LABELS[bonusKey]}
                     </span>
                 )}
 
@@ -136,6 +164,14 @@ export const ArenaBoard: React.FC<ArenaBoardProps> = ({
                         letter={tile.char}
                         isAnchor={!!initialTile}
                         isPlaced={!!placedTile}
+                        draggable={!!placedTile}
+                        onDragStart={placedTile ? (e) => {
+                            e.dataTransfer.setData('text/rackId', String(placedTile.rackId));
+                            e.dataTransfer.setData('text/char', placedTile.char);
+                            e.dataTransfer.setData('text/fromBoard', 'true');
+                            e.dataTransfer.setData('text/fromRow', String(row));
+                            e.dataTransfer.setData('text/fromCol', String(col));
+                        } : undefined}
                     />
                 )}
             </div>
@@ -145,19 +181,19 @@ export const ArenaBoard: React.FC<ArenaBoardProps> = ({
     return (
         <div
             ref={boardRef}
-            tabIndex={0} // Make focusable
+            tabIndex={0}
             onKeyDown={handleKeyDown}
-            className="bg-white p-3 rounded-xl inline-block outline-none"
+            className="rounded-xl inline-block outline-none p-2 bg-[var(--color-board-gap)]"
             style={{
-                boxShadow: '0 4px 20px rgba(0,0,0,0.1)',
-                border: '1px solid #e2e8f0'
+                boxShadow: 'var(--box-shadow-board)',
+                border: '2px solid var(--color-board-border)'
             }}
         >
             <div
-                className="grid gap-[2px] rounded-lg overflow-hidden bg-[#d9d9d9] border border-[#d9d9d9]"
+                className="grid gap-[1.5px] rounded-lg overflow-hidden"
                 style={{
-                    gridTemplateColumns: `repeat(${BOARD_SIZE}, minmax(24px, 34px))`,
-                    gridTemplateRows: `repeat(${BOARD_SIZE}, minmax(24px, 34px))`,
+                    gridTemplateColumns: `repeat(${BOARD_SIZE}, minmax(22px, 32px))`,
+                    gridTemplateRows: `repeat(${BOARD_SIZE}, minmax(22px, 32px))`,
                 }}
             >
                 {Array.from({ length: BOARD_SIZE * BOARD_SIZE }).map((_, i) => {

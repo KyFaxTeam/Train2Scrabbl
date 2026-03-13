@@ -3,29 +3,31 @@
 @tailwind utilities;
 
 :root {
-  /* Board shadows */
-  --box-shadow-raised: inset -2px -2px 2px -1px rgba(34, 34, 34, 0.7);
-  --box-shadow-raised-subtle: inset -1px -1px 1px 0 rgba(34, 34, 34, 0.6);
-  --box-shadow-board: 0 0 8px 1px rgba(0, 0, 0, 0.15);
+  /* Board */
+  --box-shadow-board: 0 4px 20px rgba(0, 0, 0, 0.1);
+  --color-board-border: #D6CFC5;
+  --color-board-gap: #C9C2B8;
+  --color-cell-empty: #EFEBE5;
 
-  /* Bonus cell colors (pastel) */
-  --color-bonus-dl: #b8d5ed;
-  --color-bonus-tl: #86aed1;
-  --color-bonus-dw: #fbc997;
-  --color-bonus-tw: #f19393;
-  --color-bonus-center: #b284b8;
+  /* Bonus cells — inspired by official Scrabble board */
+  --color-bonus-dl: #BBDDE6;
+  --color-bonus-tl: #4A90B8;
+  --color-bonus-dw: #E8A7A0;
+  --color-bonus-tw: #D1443C;
+  --color-bonus-center: #E8A7A0;
 
-  /* Tile colors by points */
-  --color-tile-1pt: #efe3ae;
-  --color-tile-2pt: #bae3ba;
-  --color-tile-3pt: #c7d8f9;
-  --color-tile-5pt: #f7c2aa;
+  /* Tiles — hybrid modern */
+  --color-tile-anchor: #E2E8F0;
+  --color-tile-anchor-text: #475569;
+  --color-tile-placed: #F59E0B;
+  --color-tile-placed-text: #78350F;
+  --color-tile-placed-shadow: 0 3px 8px rgba(245, 158, 11, 0.4);
 
   /* Focus */
-  --color-focus: rgba(38, 143, 255, 0.5);
+  --color-focus: rgba(245, 158, 11, 0.5);
 
   /* Border */
-  --border-radius: 5px;
+  --border-radius: 4px;
 }
 
 @layer base {
