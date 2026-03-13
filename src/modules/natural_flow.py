@@ -793,28 +793,72 @@ def _placer_mot_initial(
     anchor: AnchorPoint,
     gaddag: GADDAG
 ) -> None:
-    """Place le mot initial sur la grille en passant par l'ancre."""
-    # Trouver où est la lettre d'appui dans le mot
-    for i, lettre in enumerate(mot):
-        if lettre == anchor.letter:
-            # Choisir direction aléatoire
-            if random.random() < 0.5:
-                # Horizontal
+    """Place le mot initial sur la grille en passant par l'ancre ET le centre (7,7).
+
+    Règle du Scrabble : le premier mot doit traverser la case centrale.
+    """
+    center = grille.size // 2  # 7
+
+    # Trouver toutes les positions de la lettre d'appui dans le mot
+    anchor_positions = [i for i, l in enumerate(mot) if l == anchor.letter]
+
+    if not anchor_positions:
+        # Fallback: placer la lettre seule au centre
+        grille.place_letter(center, center, anchor.letter)
+        anchor.row = center
+        anchor.col = center
+        return
+
+    # Essayer les deux directions en ordre aléatoire
+    directions = ['H', 'V'] if random.random() < 0.5 else ['V', 'H']
+
+    for direction in directions:
+        for i in anchor_positions:
+            if direction == 'H':
+                # Le mot est sur la rangée du centre (center)
+                # On veut que row == center ET que le mot couvre col == center
                 start_col = anchor.col - i
+                # Vérifier que le mot couvre la case centrale (center, center)
+                if not (start_col <= center < start_col + len(mot)):
+                    # Ajuster pour couvrir le centre
+                    start_col = center - random.randint(0, len(mot) - 1)
+
+                row = center
                 if start_col >= 0 and start_col + len(mot) <= grille.size:
                     for j, l in enumerate(mot):
-                        grille.place_letter(anchor.row, start_col + j, l)
+                        grille.place_letter(row, start_col + j, l)
+                    # Mettre à jour l'ancre pour refléter la vraie position
+                    anchor.row = row
+                    anchor.col = start_col + i
                     return
             else:
-                # Vertical
+                # Vertical: colonne du centre
                 start_row = anchor.row - i
+                # Vérifier que le mot couvre la case centrale
+                if not (start_row <= center < start_row + len(mot)):
+                    start_row = center - random.randint(0, len(mot) - 1)
+
+                col = center
                 if start_row >= 0 and start_row + len(mot) <= grille.size:
                     for j, l in enumerate(mot):
-                        grille.place_letter(start_row + j, anchor.col, l)
+                        grille.place_letter(start_row + j, col, l)
+                    anchor.row = start_row + i
+                    anchor.col = col
                     return
-    
-    # Fallback: placer la lettre seule
-    grille.place_letter(anchor.row, anchor.col, anchor.letter)
+
+    # Fallback ultime: placer le mot centré horizontalement sur (7,7)
+    start_col = center - len(mot) // 2
+    if start_col >= 0 and start_col + len(mot) <= grille.size:
+        for j, l in enumerate(mot):
+            grille.place_letter(center, start_col + j, l)
+        # Trouver la position de l'ancre dans le mot
+        if anchor_positions:
+            anchor.row = center
+            anchor.col = start_col + anchor_positions[0]
+    else:
+        grille.place_letter(center, center, anchor.letter)
+        anchor.row = center
+        anchor.col = center
 
 
 def _evaluer_naturalite(
