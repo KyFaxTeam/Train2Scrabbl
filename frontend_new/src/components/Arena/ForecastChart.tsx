@@ -67,7 +67,7 @@ export const ForecastChart: React.FC<ForecastChartProps> = ({
             {/* Chart */}
             <div className="h-48">
                 <ResponsiveContainer width="100%" height="100%">
-                    <BarChart data={chartData} margin={{ top: 5, right: 5, bottom: 5, left: -20 }}>
+                    <BarChart data={chartData} margin={{ top: 5, right: 5, bottom: 5, left: 0 }}>
                         <XAxis
                             dataKey="label"
                             tick={{ fontSize: 10, fill: '#64748b' }}

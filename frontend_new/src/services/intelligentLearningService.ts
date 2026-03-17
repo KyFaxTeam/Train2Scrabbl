@@ -9,6 +9,7 @@ import {
     updateWordMastery,
     getDueForReview,
     getWordMasteriesByDraw,
+    getWordMasteriesByLevel,
 } from './learningStore';
 
 /**
@@ -151,6 +152,7 @@ class IntelligentLearningService {
         const dueWords = await getDueForReview();
 
         // Limiter et prioriser
+        const dueSlots = Math.floor(maxWords * 0.7); // 70% révision
         const sortedDue = dueWords
             .sort((a, b) => {
                 // Prioriser par date due (plus ancien d'abord)
@@ -158,11 +160,16 @@ class IntelligentLearningService {
                 if (!b.dueDate) return -1;
                 return a.dueDate.localeCompare(b.dueDate);
             })
-            .slice(0, Math.floor(maxWords * 0.7)); // 70% révision
+            .slice(0, dueSlots);
+
+        // 30% nouveaux mots : vus dans le Codex (EXPOSED) mais jamais testés
+        const newSlots = maxWords - sortedDue.length;
+        const exposedWords = await getWordMasteriesByLevel(MasteryLevel.EXPOSED);
+        const newWords = exposedWords.slice(0, newSlots);
 
         return {
             dueWords: sortedDue,
-            newWords: [], // Sera rempli depuis le Codex
+            newWords,
         };
     }
 
@@ -174,11 +181,18 @@ class IntelligentLearningService {
         let extensionsMastered = 0;
         let totalCorrect = 0;
         let totalTests = 0;
+        let entriesMastered = 0;
 
         for (const drawId of allDrawIds) {
             if (drawId.startsWith(prefix)) {
                 const masteries = await getWordMasteriesByDraw(drawId);
                 extensionsTotal += masteries.length || 1; // Au moins 1 si pas encore vu
+
+                // Une entrée est maîtrisée si toutes ses extensions sont MASTERED ou BURNED
+                const allMastered = masteries.length > 0 && masteries.every(
+                    m => m.masteryLevel === MasteryLevel.MASTERED || m.masteryLevel === MasteryLevel.BURNED
+                );
+                if (allMastered) entriesMastered++;
 
                 for (const m of masteries) {
                     if (m.masteryLevel === MasteryLevel.MASTERED || m.masteryLevel === MasteryLevel.BURNED) {
@@ -193,7 +207,7 @@ class IntelligentLearningService {
         return {
             prefix,
             entriesTotal: allDrawIds.filter(d => d.startsWith(prefix)).length,
-            entriesMastered: 0, // TODO: calculer basé sur toutes les extensions d'une entrée
+            entriesMastered,
             extensionsTotal,
             extensionsMastered,
             averageAccuracy: totalTests > 0 ? totalCorrect / totalTests : 0,

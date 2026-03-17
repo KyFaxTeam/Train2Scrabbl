@@ -13,6 +13,7 @@ import {
     addXP as addXPToDb,
     updateStreak,
 } from '../services/learningStore';
+import { recordDailyActivity } from '../services/statsService';
 
 interface LearningState {
     // État en mémoire (cache)
@@ -155,6 +156,12 @@ export const useLearningStore = create<LearningState>()(
                     await updateUserProgress(progress);
                     set({ userProgress: progress });
                 }
+
+                // Enregistrer l'activité quotidienne (alimente heatmap, forecast, stats)
+                const sessionDuration = state.sessionStartTime
+                    ? Math.round((Date.now() - state.sessionStartTime) / 1000)
+                    : 0;
+                await recordDailyActivity(1, correct ? 1 : 0, sessionDuration);
 
                 return { mastery, xp };
             },

@@ -206,9 +206,24 @@ export async function getRetentionStats(): Promise<RetentionStats> {
     const youngTests = youngMasteries.reduce((sum, m) => sum + m.testCount, 0);
     const youngRetention = youngTests > 0 ? (youngCorrect / youngTests) * 100 : 0;
 
-    // By world (we don't have world info in WordMastery, so return empty for now)
-    // This could be enhanced by joining with draw data
+    // By world: aggregate from dailyActivity records which track per-world stats
+    const activities = await getAllDailyActivity();
     const retentionByWorld: Partial<Record<WorldType, number>> = {};
+    const worlds: WorldType[] = ['essentials', 'premium', 'vowels', 'explorer'];
+
+    for (const world of worlds) {
+        let worldReviewed = 0;
+        let worldCorrect = 0;
+        for (const activity of activities) {
+            if (activity.worlds[world]) {
+                worldReviewed += activity.worlds[world]!.reviewed;
+                worldCorrect += activity.worlds[world]!.correct;
+            }
+        }
+        if (worldReviewed > 0) {
+            retentionByWorld[world] = Math.round((worldCorrect / worldReviewed) * 1000) / 10;
+        }
+    }
 
     return {
         overallRetention: Math.round(overallRetention * 10) / 10,

@@ -136,3 +136,21 @@ export const searchDictionary = async (query: string): Promise<DictionaryCategor
     return results;
 };
 
+export const getAvailableFirstLetters = async (): Promise<string[]> => {
+    const dict = await getDictionary();
+    const letters = new Set<string>();
+    for (const cat of dict) {
+        if (cat.prefix) {
+            letters.add(cat.prefix[0]);
+        }
+    }
+    return Array.from(letters).sort();
+};
+
+export const getCategoriesByFirstLetter = async (letter: string): Promise<DictionaryCategory[]> => {
+    const dict = await getDictionary();
+    const prefix = letter.toUpperCase();
+    return dict.filter(cat => cat.prefix.startsWith(prefix));
+};
+
+

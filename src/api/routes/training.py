@@ -18,8 +18,7 @@ from fastapi import APIRouter, HTTPException, Query
 from pydantic import BaseModel
 from typing import Optional
 
-# Import app_state from main
-from src.api.main import app_state
+# Import app_state from main inside functions to avoid circular import
 
 
 # Pydantic models defined locally to avoid circular imports
@@ -75,7 +74,8 @@ def generate_puzzle_internal(target_word: str, tirage: Optional[List[str]] = Non
     import uuid
     from src.modules.natural_flow import generer_situation_naturelle
     from src.services.word_pool import WordPool
-    
+    from src.api.main import app_state
+
     gaddag = app_state["gaddag"]
     all_words = app_state["all_words"]
     
@@ -157,6 +157,7 @@ def generate_puzzle_internal(target_word: str, tirage: Optional[List[str]] = Non
 @router.get("/puzzle", response_model=PuzzleResponse)
 async def get_puzzle():
     """Get a random training puzzle."""
+    from src.api.main import app_state
     if not app_state["ready"]:
         raise HTTPException(status_code=503, detail="API not ready, GADDAG still loading")
     
@@ -181,6 +182,7 @@ async def get_puzzle():
 @router.post("/generate", response_model=PuzzleResponse)
 async def generate_for_word(request: GenerateRequest):
     """Generate a puzzle for a specific word."""
+    from src.api.main import app_state
     if not app_state["ready"]:
         raise HTTPException(status_code=503, detail="API not ready, GADDAG still loading")
     
@@ -204,6 +206,7 @@ async def generate_for_word(request: GenerateRequest):
 @router.get("/batch", response_model=BatchResponse)
 async def get_batch(size: int = Query(default=5, ge=1, le=20)):
     """Get a batch of training puzzles."""
+    from src.api.main import app_state
     if not app_state["ready"]:
         raise HTTPException(status_code=503, detail="API not ready, GADDAG still loading")
     
