@@ -100,7 +100,7 @@ export const useLearningStore = create<LearningState>()(
             initialize: async () => {
                 set({ isLoading: true });
                 try {
-                    const progress = await getUserProgress();
+                    await getUserProgress();
                     await updateStreak(); // Met à jour le streak si nouveau jour
                     const updatedProgress = await getUserProgress();
                     set({ userProgress: updatedProgress, isLoading: false });

@@ -1,4 +1,4 @@
-import type { DictionaryCategory, DrawEntry, WorldType, SubCategory } from '../types/dictionary';
+import type { DictionaryCategory, DrawEntry } from '../types/dictionary';
 import { loadDictionary } from './loadDictionary';
 import {
     enrichAllEntries,
@@ -151,6 +151,16 @@ export const getCategoriesByFirstLetter = async (letter: string): Promise<Dictio
     const dict = await getDictionary();
     const prefix = letter.toUpperCase();
     return dict.filter(cat => cat.prefix.startsWith(prefix));
+};
+
+export const getEntryById = (entryId: string): DrawEntry | null => {
+    // Search through all indexed entries
+    for (const { entry } of drawIndex.values()) {
+        if (entry.id === entryId) {
+            return entry;
+        }
+    }
+    return null;
 };
 
 

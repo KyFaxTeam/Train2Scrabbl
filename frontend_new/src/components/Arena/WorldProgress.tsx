@@ -1,7 +1,7 @@
 ﻿import React from 'react';
 import { motion } from 'framer-motion';
 import { clsx } from 'clsx';
-import { TrendingUp, Eye, CheckCircle, Flame, Target } from 'lucide-react';
+import { Eye, CheckCircle, Flame, Target } from 'lucide-react';
 import type { WorldProgress } from '../../services/progressService';
 
 interface WorldProgressBarProps {

@@ -1,6 +1,6 @@
 ﻿import React from 'react';
 import { motion } from 'framer-motion';
-import { Trophy, Eye, CheckCircle, Flame, Target, Zap, TrendingUp } from 'lucide-react';
+import { Eye, CheckCircle, Flame, Target, Zap, TrendingUp } from 'lucide-react';
 import { clsx } from 'clsx';
 
 interface ArenaStatsProps {

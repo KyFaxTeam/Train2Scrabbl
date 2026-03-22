@@ -1,6 +1,6 @@
 import React from 'react';
 import { Link, useLocation } from 'react-router-dom';
-import { BookOpen, Swords, BarChart2, Settings, ChevronLeft, ChevronRight, Compass } from 'lucide-react';
+import { BookOpen, Swords, BarChart2, ChevronLeft, ChevronRight, Compass } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { useAppStore } from '../../store/useAppStore';
 import { clsx } from 'clsx';

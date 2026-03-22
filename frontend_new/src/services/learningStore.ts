@@ -38,7 +38,7 @@ let dbPromise: Promise<IDBPDatabase<LearningDB>> | null = null;
 export const getDB = async (): Promise<IDBPDatabase<LearningDB>> => {
     if (!dbPromise) {
         dbPromise = openDB<LearningDB>(DB_NAME, DB_VERSION, {
-            upgrade(db, oldVersion) {
+            upgrade(db, _oldVersion) {
                 // Store pour les WordMastery
                 if (!db.objectStoreNames.contains('wordMasteries')) {
                     const wordStore = db.createObjectStore('wordMasteries', {

@@ -22,7 +22,7 @@ const MASTERY_CONFIG: Record<MasteryLevel, { color: string; bg: string; label: s
 
 const StatsPage: React.FC = () => {
     const navigate = useNavigate();
-    const { userProgress: storeProgress } = useLearningStore();
+    useLearningStore(); // Keep store subscription for reactivity
 
     const [progress, setProgress] = useState<UserProgress | null>(null);
     const [masteryCounts, setMasteryCounts] = useState<Record<MasteryLevel, number> | null>(null);

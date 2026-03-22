@@ -1,8 +1,9 @@
-import type { DictionaryCategory, DrawEntry, Extension } from '../types/dictionary';
+import type { DictionaryCategory, DrawEntry } from '../types/dictionary';
 
 export async function loadDictionary(): Promise<DictionaryCategory[]> {
     try {
-        const response = await fetch('/data/scrabble_dict.txt');
+        const basePath = import.meta.env.BASE_URL || '/';
+        const response = await fetch(`${basePath}data/scrabble_dict.txt`);
         if (!response.ok) {
             throw new Error(`Failed to load dictionary: ${response.statusText}`);
         }

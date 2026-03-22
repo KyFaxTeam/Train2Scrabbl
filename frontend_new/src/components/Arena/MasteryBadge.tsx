@@ -1,7 +1,7 @@
 ﻿import React from 'react';
 import { clsx } from 'clsx';
 import { MasteryLevel } from '../../types';
-import { Star, Eye, BookOpen, CheckCircle, Award, Flame } from 'lucide-react';
+import { Star, Eye, BookOpen, CheckCircle, Flame } from 'lucide-react';
 
 interface MasteryBadgeProps {
     level: MasteryLevel;

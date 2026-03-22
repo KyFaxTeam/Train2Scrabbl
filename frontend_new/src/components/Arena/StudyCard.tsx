@@ -1,6 +1,5 @@
 ﻿import React, { useState, useEffect } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
-import { RotateCcw, Clock, Eye } from 'lucide-react';
+import { Clock, Eye } from 'lucide-react';
 import { clsx } from 'clsx';
 import type { DrawEntry, StudyRating } from '../../types/dictionary';
 import { RATING_CONFIG } from '../../services/arenaSessionService';
@@ -31,7 +30,6 @@ export const StudyCard: React.FC<StudyCardProps> = ({ entry, onRate, onFlip }) =
     };
 
     const handleRate = (rating: StudyRating) => {
-        const responseTime = Date.now() - startTime;
         onRate(rating);
         // Reset for next card
         setIsFlipped(false);

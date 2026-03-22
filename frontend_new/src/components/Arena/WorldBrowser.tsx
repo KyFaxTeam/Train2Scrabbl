@@ -1,8 +1,7 @@
 ﻿import React, { useState, useEffect, useMemo } from 'react';
 import { motion } from 'framer-motion';
 import { ArrowLeft, Search, Filter } from 'lucide-react';
-import { clsx } from 'clsx';
-import type { DrawEntry, WorldType, SubCategory } from '../../types/dictionary';
+import type { DrawEntry, WorldType } from '../../types/dictionary';
 import { getSubcategories } from '../../services/dictionaryService';
 import { getWorldProgress, type WorldProgress } from '../../services/progressService';
 import EntryCard from './EntryCard';

@@ -17,11 +17,8 @@ import type {
     IntervalDistribution,
     WorldType
 } from '../types/dictionary';
-import type { WordMastery } from '../types';
-import { MasteryLevel } from '../types';
 import {
     getAllDailyActivity,
-    getDailyActivityRange,
     updateDailyActivityWithSession,
     getUserProgress,
     getDB
