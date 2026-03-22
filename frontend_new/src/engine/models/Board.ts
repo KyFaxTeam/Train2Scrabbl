@@ -76,7 +76,7 @@ export class Board {
     }
 
     public getSquareType(row: number, col: number): SquareType {
-        // const pos = [row, col];
+        const pos = [row, col];
         const isMatch = (arr: number[][]) => arr.some(p => p[0] === row && p[1] === col);
 
         if (row === this.center && col === this.center) return SquareType.START;
@@ -140,3 +140,4 @@ export class Board {
         this.total_score += score;
     }
 }
+

@@ -188,3 +188,4 @@ export const getRandomPuzzle = async (): Promise<Puzzle> => {
     return batch[0];
 };
 
+

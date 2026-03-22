@@ -72,3 +72,5 @@ export class EngineWorkerClient {
         });
     }
 }
+
+if (typeof window !== 'undefined') { (window as any).engineWorker = window.engineWorker || null; }

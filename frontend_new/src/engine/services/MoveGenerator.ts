@@ -35,7 +35,7 @@ export class MoveGenerator {
             for (const [direction, validLetters] of Object.entries(directions)) {
                 const dirEnum = direction as Direction;
                 const prefix = this._getPrefix(row, col, dirEnum);
-                // const suffix = this._getSuffix(row, col, dirEnum);
+                const suffix = this._getSuffix(row, col, dirEnum);
 
                 let startNode = 0;
 
@@ -143,7 +143,7 @@ export class MoveGenerator {
         let validLetters = new Set("ABCDEFGHIJKLMNOPQRSTUVWXYZ".split(''));
 
         const prefix = this._getPrefix(row, col, direction);
-        // const suffix = this._getSuffix(row, col, direction);
+        const suffix = this._getSuffix(row, col, direction);
 
         if (prefix || suffix) {
             let node = 0;
@@ -263,3 +263,4 @@ export class MoveGenerator {
         return words;
     }
 }
+

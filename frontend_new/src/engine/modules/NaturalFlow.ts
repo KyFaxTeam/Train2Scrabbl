@@ -379,7 +379,7 @@ export class NaturalFlow {
     ): Placement[] {
         const placements: Placement[] = [];
         const [row, col] = posAppui;
-        const _la = grille.getLetter(row, col);
+        const lettreAppui = grille.getLetter(row, col);
 
         if (!lettreAppui) return placements;
 
@@ -444,7 +444,7 @@ export class NaturalFlow {
         for (let t = 0; t < config.maxTentatives; t++) {
             const grille = new Board();
             const posLettre = Math.floor(Math.random() * motCible.length);
-            const _la = motCible[posLettre];
+            const lettreAppui = motCible[posLettre];
 
             const anchor = NaturalFlow.phaseAnchor(motCible, lettreAppui, grille);
             const motInitial = NaturalFlow._trouverMotInitialAvecAncre(lettreAppui, wordPool);
@@ -480,4 +480,5 @@ export class NaturalFlow {
         return null;
     }
 }
+
 
