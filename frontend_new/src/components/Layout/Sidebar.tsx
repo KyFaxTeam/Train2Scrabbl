@@ -10,7 +10,7 @@ export const Sidebar: React.FC = () => {
     const { isSidebarOpen, toggleSidebar } = useAppStore();
 
     const navItems = [
-        { path: '/', icon: BookOpen, label: 'The Codex' },
+        { path: '/codex', icon: BookOpen, label: 'The Codex' },
         { path: '/arena', icon: Compass, label: 'The Arena' },
         { path: '/training', icon: Swords, label: 'Training' },
         { path: '/stats', icon: BarChart2, label: 'Stats' },
