@@ -1,5 +1,6 @@
 ﻿import React from 'react';
 import { clsx } from 'clsx';
+import { Info } from 'lucide-react';
 import type { DrawTags } from '../../types/dictionary';
 
 interface TagsDisplayProps {
@@ -34,7 +35,7 @@ export const TagsDisplay: React.FC<TagsDisplayProps> = ({
                 <span className="inline-flex items-center px-1.5 py-0.5 rounded text-xs font-medium bg-blue-50 text-blue-700">
                     {tags.vowelCount}V
                 </span>
-                
+
                 {/* Valeur */}
                 <span className={clsx(
                     "inline-flex items-center px-1.5 py-0.5 rounded text-xs font-medium",
@@ -42,17 +43,20 @@ export const TagsDisplay: React.FC<TagsDisplayProps> = ({
                 )}>
                     {tags.totalValue}pts
                 </span>
-                
+
                 {/* Lettres premium */}
                 {tags.hasPremium && (
                     <span className="inline-flex items-center px-1.5 py-0.5 rounded text-xs font-medium bg-purple-50 text-purple-700">
                         {tags.premiumLetters.join('')}
                     </span>
                 )}
-                
+
                 {/* Rank probabilité */}
                 {tags.probabilityRank && tags.probabilityRank <= 1000 && (
-                    <span className="inline-flex items-center px-1.5 py-0.5 rounded text-xs font-medium bg-amber-50 text-amber-700">
+                    <span
+                        className="inline-flex items-center px-1.5 py-0.5 rounded text-xs font-medium bg-amber-50 text-amber-700 cursor-help"
+                        title={"Top probabilité #" + tags.probabilityRank + " calculée selon la fréquence d'apparition des lettres"}
+                    >
                         #{tags.probabilityRank}
                     </span>
                 )}
@@ -73,7 +77,7 @@ export const TagsDisplay: React.FC<TagsDisplayProps> = ({
                     <span className="text-slate-500">Consonnes</span>
                     <span className="font-medium text-slate-700">{tags.consonantCount}</span>
                 </div>
-                
+
                 {/* Valeur */}
                 <div className="flex items-center justify-between">
                     <span className="text-slate-500">Valeur</span>
@@ -86,18 +90,24 @@ export const TagsDisplay: React.FC<TagsDisplayProps> = ({
                         {tags.totalValue} pts ({VALUE_LABELS[tags.valueCategory]})
                     </span>
                 </div>
-                
+
                 {/* Probabilité */}
                 {tags.probabilityRank && (
                     <div className="flex items-center justify-between">
-                        <span className="text-slate-500">Probabilité</span>
+                        <span className="text-slate-500 flex items-center gap-1 group relative cursor-help">
+                            Probabilité
+                            <Info className="w-3.5 h-3.5 text-slate-400 group-hover:text-blue-500 transition-colors" />
+                            <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 px-2 py-1 bg-slate-800 text-white text-xs rounded opacity-0 group-hover:opacity-100 whitespace-nowrap pointer-events-none transition-opacity z-10">
+                                Calculée selon la fréquence d'apparition<br />des lettres au Scrabble
+                            </div>
+                        </span>
                         <span className="font-medium text-amber-600">
                             Rank #{tags.probabilityRank.toLocaleString()}
                         </span>
                     </div>
                 )}
             </div>
-            
+
             {/* Lettres premium */}
             {tags.hasPremium && (
                 <div className="pt-2 border-t border-slate-200">

@@ -21,9 +21,9 @@ export const WorldProgressBar: React.FC<WorldProgressBarProps> = ({
             </div>
         );
     }
-    
+
     if (!progress) return null;
-    
+
     return (
         <div className="px-4 py-2 bg-gradient-to-r from-slate-50 to-white border-b border-slate-200">
             <div className="flex items-center gap-4">
@@ -50,7 +50,7 @@ export const WorldProgressBar: React.FC<WorldProgressBarProps> = ({
                         </div>
                     )}
                 </div>
-                
+
                 {/* Barre de progression */}
                 <div className="flex-1 h-2 bg-slate-200 rounded-full overflow-hidden">
                     <motion.div
@@ -60,7 +60,7 @@ export const WorldProgressBar: React.FC<WorldProgressBarProps> = ({
                         className="h-full bg-gradient-to-r from-emerald-400 to-emerald-500 rounded-full"
                     />
                 </div>
-                
+
                 {/* Pourcentage */}
                 <span className="text-xs font-medium text-slate-600 min-w-[3rem] text-right">
                     {progress.percentMastered}%
@@ -89,7 +89,7 @@ export const WorldProgressCard: React.FC<WorldProgressCardProps> = ({
                     {progress.masteredEntries}/{progress.totalEntries}
                 </span>
             </div>
-            
+
             {/* Barre de progression */}
             <div className="h-3 bg-slate-100 rounded-full overflow-hidden mb-3">
                 <motion.div
@@ -99,7 +99,7 @@ export const WorldProgressCard: React.FC<WorldProgressCardProps> = ({
                     className="h-full bg-gradient-to-r from-emerald-400 to-emerald-500 rounded-full"
                 />
             </div>
-            
+
             {/* Stats détaillées */}
             <div className="grid grid-cols-3 gap-2 text-center text-xs">
                 <div className="bg-blue-50 rounded-lg p-2">

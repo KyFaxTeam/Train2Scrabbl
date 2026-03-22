@@ -16,10 +16,10 @@ interface ArenaStatsProps {
 
 export const ArenaStats: React.FC<ArenaStatsProps> = ({ stats, totalEntries }) => {
     if (!stats) return null;
-    
+
     const percentViewed = Math.round((stats.totalViewed / Math.max(totalEntries, 1)) * 100);
     const percentMastered = Math.round((stats.totalMastered / Math.max(totalEntries, 1)) * 100);
-    
+
     return (
         <motion.div
             initial={{ opacity: 0, y: 20 }}
@@ -32,7 +32,7 @@ export const ArenaStats: React.FC<ArenaStatsProps> = ({ stats, totalEntries }) =
                     <h3 className="font-semibold text-slate-800">Ma Progression</h3>
                 </div>
             </div>
-            
+
             <div className="p-4">
                 {/* Barre de progression globale */}
                 <div className="mb-4">
@@ -67,7 +67,7 @@ export const ArenaStats: React.FC<ArenaStatsProps> = ({ stats, totalEntries }) =
                         </span>
                     </div>
                 </div>
-                
+
                 {/* Stats grid */}
                 <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
                     <StatCard
@@ -95,7 +95,7 @@ export const ArenaStats: React.FC<ArenaStatsProps> = ({ stats, totalEntries }) =
                         color="purple"
                     />
                 </div>
-                
+
                 {/* Streak */}
                 {stats.streakDays > 0 && (
                     <div className="mt-4 flex items-center justify-center gap-2 p-2 bg-amber-50 rounded-lg">
@@ -124,7 +124,7 @@ const StatCard: React.FC<StatCardProps> = ({ icon, value, label, color }) => {
         amber: 'bg-amber-50 text-amber-600',
         purple: 'bg-purple-50 text-purple-600',
     };
-    
+
     return (
         <div className={clsx("rounded-lg p-3 text-center", colors[color])}>
             <div className="flex justify-center mb-1">{icon}</div>

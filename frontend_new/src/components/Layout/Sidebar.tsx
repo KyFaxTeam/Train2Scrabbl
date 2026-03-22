@@ -24,8 +24,8 @@ export const Sidebar: React.FC = () => {
         >
             {/* Header */}
             <div className="p-6 flex items-center gap-3 border-b border-slate-100 h-[80px]">
-                <div className="w-8 h-8 bg-lexis-emerald rounded-lg flex items-center justify-center text-white font-bold shadow-lg shadow-lexis-emerald/20 shrink-0">
-                    L
+                <div className="w-8 h-8 rounded-lg flex items-center justify-center shrink-0">
+                    <img src={`${import.meta.env.BASE_URL}logo.svg`} alt="Faizers Logo" className="w-full h-full object-contain" />
                 </div>
                 {isSidebarOpen && (
                     <motion.span

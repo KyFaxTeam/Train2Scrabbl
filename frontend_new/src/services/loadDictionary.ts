@@ -18,7 +18,7 @@ export async function loadDictionary(): Promise<DictionaryCategory[]> {
 export function parseDictionaryFormat(text: string): DictionaryCategory[] {
     const categories: DictionaryCategory[] = [];
     const lines = text.split('\n');
-    
+
     let currentCategory: DictionaryCategory | null = null;
     let currentEntry: DrawEntry | null = null;
     let currentPrefix = '';
@@ -57,19 +57,19 @@ export function parseDictionaryFormat(text: string): DictionaryCategory[] {
                 };
                 categories.push(currentCategory);
             }
-            
+
             currentEntry = {
                 id: line,
                 draw: line,
                 solutions: [],
                 extensions: []
             };
-            
+
             if (currentCategory) {
                 currentCategory.entries.push(currentEntry);
             }
         }
     }
-    
+
     return categories;
 }

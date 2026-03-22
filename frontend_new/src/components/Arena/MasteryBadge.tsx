@@ -59,17 +59,17 @@ export const MasteryBadge: React.FC<MasteryBadgeProps> = ({
     showLabel = false
 }) => {
     const config = MASTERY_CONFIG[level];
-    
+
     const sizeClasses = {
         xs: 'p-0.5',
         sm: 'p-1',
         md: 'p-1.5',
     };
-    
+
     if (level === MasteryLevel.UNSEEN) {
         return null; // Ne pas afficher pour les non vus
     }
-    
+
     return (
         <div className={clsx(
             "inline-flex items-center gap-1 rounded-full",
