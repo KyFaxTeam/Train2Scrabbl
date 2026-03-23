@@ -73,4 +73,4 @@ export class EngineWorkerClient {
     }
 }
 
-if (typeof window !== 'undefined') { (window as any).engineWorker = window.engineWorker || null; }
+if (typeof window !== 'undefined') { (window as any).engineWorker = (window as any).engineWorker || null; }
