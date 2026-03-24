@@ -1,17 +1,27 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { ChevronRight, Minus, AlertCircle, ChevronLeft, Flag } from 'lucide-react';
+import { ChevronRight, AlertCircle, ChevronLeft, Flag } from 'lucide-react';
 import { clsx } from 'clsx';
 import type { DrawEntry } from '../../types/dictionary';
-import type { ReviewRating } from '../../types/learning';
+import type { StudyRating } from '../../types/dictionary';
 import Tile from '../Tile';
 import TagsDisplay from './TagsDisplay';
-import RatingButtons from '../Learning/RatingButtons';
+
 import { useLearningStore } from '../../store/useLearningStore';
+
+
+const RatingButtons: React.FC<{ onRate: (rating: StudyRating) => void; disabled?: boolean; className?: string; }> = ({ onRate, disabled }) => (
+    <div className="flex gap-2 justify-center mt-4">
+        <button disabled={disabled} onClick={() => onRate('again')} className="p-2 bg-red-100">Again</button>
+        <button disabled={disabled} onClick={() => onRate('hard')} className="p-2 bg-orange-100">Hard</button>
+        <button disabled={disabled} onClick={() => onRate('good')} className="p-2 bg-green-100">Good</button>
+        <button disabled={disabled} onClick={() => onRate('easy')} className="p-2 bg-blue-100">Easy</button>
+    </div>
+);
 
 interface StudyCardProps {
     entry: DrawEntry;
-    onRate: (rating: ReviewRating) => void;
+    onRate: (rating: StudyRating) => void;
     showTags?: boolean;
     autoExpand?: boolean;
 }
@@ -28,7 +38,7 @@ export const StudyCard: React.FC<StudyCardProps> = ({
     const [page, setPage] = useState(0);
     const [viewedPages, setViewedPages] = useState<Set<number>>(new Set());
     const [showWarning, setShowWarning] = useState(false);
-    const [pendingRating, setPendingRating] = useState<ReviewRating | null>(null);
+    const [pendingRating, setPendingRating] = useState<StudyRating | null>(null);
 
     const trackExtensionView = useLearningStore(state => state.trackExtensionView);
     const hasTracked = useRef(new Set<number>());
@@ -57,7 +67,7 @@ export const StudyCard: React.FC<StudyCardProps> = ({
         if (page > 0) setPage(p => p - 1);
     };
 
-    const handleRateClick = (rating: ReviewRating) => {
+    const handleRateClick = (rating: StudyRating) => {
         if (entry.extensions.length > 0 && viewedPages.size < totalPages) {
             setPendingRating(rating);
             setShowWarning(true);
