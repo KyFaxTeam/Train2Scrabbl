@@ -43,22 +43,19 @@ export const EntryCard: React.FC<EntryCardProps> = ({
         [entry, family]
     );
 
-    // ... et une fois la carte ouverte, elle doit etre sur la premiere page :
-    // ATONIQUE etait la 13e des 32 rallonges de AEINOTU, donc invisible.
     const matched = useMemo(
         () => new Set(evidence?.extensions.map(e => e.word) ?? []),
         [evidence]
     );
 
-    // Memoise : `currentExtensions` sert de dependance a l'effet de suivi, et
-    // un tableau recree a chaque rendu le relancerait sans arret.
-    const currentExtensions = useMemo(() => {
-        const ordered = matched.size > 0
-            ? [...entry.extensions].sort((a, b) =>
-                Number(matched.has(b.word)) - Number(matched.has(a.word)))
-            : entry.extensions;
-        return ordered.slice(page * ITEMS_PER_PAGE, (page + 1) * ITEMS_PER_PAGE);
-    }, [entry.extensions, matched, page]);
+    // L'ordre des rallonges ne bouge PAS quand une famille est filtree : on les
+    // apprend lettre par lettre, et remonter celle de la famille en tete ferait
+    // croire a une liste triee par pertinence. La rallonge qui justifie la
+    // famille est nommee dans l'en-tete et surlignee la ou elle se trouve.
+    const currentExtensions = useMemo(
+        () => entry.extensions.slice(page * ITEMS_PER_PAGE, (page + 1) * ITEMS_PER_PAGE),
+        [entry.extensions, page]
+    );
 
     useEffect(() => {
         if (!expanded || entry.extensions.length === 0) return;
@@ -225,7 +222,17 @@ export const EntryCard: React.FC<EntryCardProps> = ({
                             {entry.extensions.length > 0 && (
                                 <div className="mt-3">
                                     <h4 className="text-xs font-medium text-slate-500 mb-1.5 flex justify-between items-center">
-                                        <span>Extensions +1 ({entry.extensions.length})</span>
+                                        <span>
+                                            Extensions +1 ({entry.extensions.length})
+                                            {evidence && evidence.extensions.length > 0 && (
+                                                <span className="ml-1.5 text-rose-600 font-semibold">
+                                                    dont {family && formatFamilyLabel(family)} :{' '}
+                                                    {evidence.extensions
+                                                        .map(e => `+${e.letter} ${e.word}`)
+                                                        .join(', ')}
+                                                </span>
+                                            )}
+                                        </span>
                                         {totalPages > 1 && (
                                             <span className="text-[10px] text-slate-400 bg-slate-100 px-2 py-0.5 rounded-full font-medium">
                                                 {progressPercent}% vu{progressPercent === 100 ? ' ✅' : ''}
