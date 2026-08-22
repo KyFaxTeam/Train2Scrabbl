@@ -25,6 +25,20 @@
       ],
       "cwd": "frontend_new",
       "port": 5180
+    },
+    {
+      "name": "preview-5181",
+      "runtimeExecutable": "npm",
+      "runtimeArgs": [
+        "run",
+        "preview",
+        "--",
+        "--port",
+        "5181",
+        "--strictPort"
+      ],
+      "cwd": "frontend_new",
+      "port": 5181
     }
   ]
 }
