@@ -163,9 +163,18 @@ const TrainingPage: React.FC = () => {
         const isCorrect = placedWord.toUpperCase() === expectedWord.toUpperCase();
         const responseTime = Date.now() - puzzleStartTime;
 
-        const draw = puzzle.rack.sort().join('');
-        const appuiLetter = puzzle.boardConfig.initialTiles[0]?.char || 'X';
-        const wordId = `${draw}-${appuiLetter}-${expectedWord}`;
+        // Cle de repetition espacee. Elle DOIT etre stable d'une session a
+        // l'autre, sinon chaque revision cree une nouvelle fiche et la memoire
+        // du joueur n'est jamais mesuree. Deux pieges evites ici :
+        //   - `puzzle.rack.sort()` trie EN PLACE : le chevalet affiche se
+        //     reordonnait sous les doigts du joueur a chaque validation ;
+        //   - l'ancienne cle incluait `initialTiles[0].char`, c'est-a-dire la
+        //     premiere lettre rencontree en balayant le plateau. Tant que le
+        //     plateau ne portait qu'un jeton, cette lettre etait l'appui et
+        //     restait constante ; maintenant que le plateau est reellement
+        //     meuble, elle change a chaque generation - et avec elle la cle.
+        const draw = [...puzzle.rack].sort().join('');
+        const wordId = `${draw}-${expectedWord}`;
 
         const { mastery, xp } = await recordTestResult(wordId, isCorrect, responseTime);
 
