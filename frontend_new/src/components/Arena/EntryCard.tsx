@@ -48,14 +48,18 @@ export const EntryCard: React.FC<EntryCardProps> = ({
         [evidence]
     );
 
-    // L'ordre des rallonges ne bouge PAS quand une famille est filtree : on les
-    // apprend lettre par lettre, et remonter celle de la famille en tete ferait
-    // croire a une liste triee par pertinence. La rallonge qui justifie la
-    // famille est nommee dans l'en-tete et surlignee la ou elle se trouve.
-    const currentExtensions = useMemo(
-        () => entry.extensions.slice(page * ITEMS_PER_PAGE, (page + 1) * ITEMS_PER_PAGE),
-        [entry.extensions, page]
-    );
+    // Les rallonges de la famille filtree passent en page 1 - et UNIQUEMENT
+    // dans ce cas : hors filtre, l'ordre par lettre est celui dans lequel on
+    // apprend les rallonges, on n'y touche pas. Rien n'est retire ici : les
+    // rallonges restantes suivent, la pagination et le suivi de lecture
+    // portent toujours sur la liste complete.
+    const currentExtensions = useMemo(() => {
+        const ordered = matched.size > 0
+            ? [...entry.extensions].sort((a, b) =>
+                Number(matched.has(b.word)) - Number(matched.has(a.word)))
+            : entry.extensions;
+        return ordered.slice(page * ITEMS_PER_PAGE, (page + 1) * ITEMS_PER_PAGE);
+    }, [entry.extensions, matched, page]);
 
     useEffect(() => {
         if (!expanded || entry.extensions.length === 0) return;
