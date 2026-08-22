@@ -168,7 +168,11 @@ self.onmessage = async (e: MessageEvent) => {
 
             const checker = new MoveChecker(lexicon, initialTiles);
             const verdict = checker.check(placedTiles);
-            const meilleur = checker.findPlacements(expectedWord, rack)[0] ?? null;
+            // La reference est le meilleur SCRABBLE : un collage qui reutilise
+            // une lettre du plateau n'est pas ce qu'on demande au joueur.
+            const meilleur = checker
+                .findPlacements(expectedWord, rack)
+                .find(p => p.tilesUsed === rack.length) ?? null;
 
             self.postMessage({
                 type: 'CHECK_SUCCESS',

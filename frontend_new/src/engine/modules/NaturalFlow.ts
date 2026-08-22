@@ -2,107 +2,187 @@ import { Board } from '../models/Board';
 import type { Lexicon } from '../models/Lexicon';
 import { Direction } from '../models/Types';
 import type {
-    AnchorPoint,
     NaturalFlowConfig,
     Placement,
     SituationEntrainement,
     Solution,
 } from '../models/Situation';
 import { MoveChecker } from '../services/MoveChecker';
-import { ScoreCalculator } from '../services/ScoreCalculator';
 import { WordValidator } from '../services/WordValidator';
 import { WordPool } from '../services/WordPool';
 
+/** Le couloir reserve au mot cible : sept cases vides, et rien qui le prolonge. */
+interface Couloir {
+    row: number;
+    col: number;
+    direction: 'H' | 'V';
+    /** Cases du couloir + les deux cases qui le prolongeraient, interdites au decor. */
+    interdites: Set<string>;
+}
+
+const cle = (row: number, col: number) => `${row},${col}`;
+
 /**
- * Construction d'un plateau d'entrainement en trois temps :
+ * Construction d'un plateau d'entrainement.
  *
- *   ANCRE       on choisit une lettre du mot cible et une case ou elle tiendra,
- *               avec assez de place autour pour que le mot cible y rentre ;
- *   RESPIRATION on meuble le plateau de mots de decor, en verifiant apres
- *               chaque pose que le mot cible reste jouable ;
- *   COLLAGE     on enumere tous les placements legaux du mot cible et on garde
- *               le meilleur comme reference.
+ * Le mot cible doit se poser en SCRABBLE : les sept jetons du chevalet sur sept
+ * cases vides, prime de 50 comprise. C'est ce que promettent le nom du mode et
+ * son lien avec l'Arene, qui enseigne des tirages et leurs scrabbles.
  *
- * Le fichier ne porte plus `@ts-nocheck` : il etait passe a travers le build
- * sans le moindre controle, ce qui a deja laisse passer une variable supprimee
- * mais encore lue.
+ * L'ancienne construction ne le permettait pas. Elle tirait une lettre du mot
+ * cible, la plantait sur le plateau, et ne verifiait ensuite qu'une chose : que
+ * le mot reste posable EN PASSANT PAR cette case. Le chevauchement etait donc
+ * garanti par construction. Mesure sur 200 exercices de l'ancien generateur :
+ *
+ *   26 %   des exercices n'admettaient AUCUN placement a sept jetons : vider le
+ *          chevalet y etait impossible, l'exercice ne pouvait pas etre reussi ;
+ *   26 %   annoncaient une solution qui laissait un jeton au chevalet et
+ *          perdait la prime - 23 points en moyenne, contre 84 pour un scrabble ;
+ *   100 %  offraient au moins un placement a six jetons ou moins, que l'ancienne
+ *          validation acceptait comme une reussite.
+ *
+ * (Un commentaire precedent avancait 85 % : le chiffre ne se reproduit pas,
+ * c'est 26 % sur 200 exercices, banc `bench` sur le chemin de code du worker.)
+ *
+ * On procede maintenant a l'envers :
+ *
+ *   COULOIR      on reserve les sept cases ou le mot se posera, plus les deux
+ *                cases qui le prolongeraient ;
+ *   ACCROCHE     on plante un mot de decor perpendiculaire, colle au couloir,
+ *                choisi pour que la soudure soit un mot (mesure : aucun des
+ *                300 mots de sept lettres testes n'est sans accroche possible,
+ *                mediane 22 911 candidates) ;
+ *   RESPIRATION  on meuble le reste du plateau, le couloir restant interdit.
+ *
+ * Tout se joue sur DEUX plateaux menes de front : celui que verra le joueur, et
+ * le meme avec le mot cible en place. Chaque mot de decor doit etre valide sur
+ * les deux.
+ *
+ * Ce n'est pas une precaution theorique. En ne validant que le plateau AVEC le
+ * mot cible, on obtenait ceci : trois mots verticaux formaient incidemment
+ * P-O-R-E sur une ligne, le E etant une lettre du mot cible ; PORE est un mot,
+ * le decor passait. Le mot cible retire, la ligne se lisait POR - un plateau
+ * livre au joueur avec un mot qui n'existe pas. Mesure : 2 plateaux sur 60.
+ *
+ * Valider les deux plateaux ferme les deux cotes : le plateau livre ne contient
+ * que des mots, et le coup du joueur n'en formera que des mots.
  */
 export class NaturalFlow {
-    static phaseAnchor(motCible: string, lettreAppui: string, grille: Board): AnchorPoint {
-        const positionsCandidates: { row: number; col: number; score: number }[] = [];
+    // ------------------------------------------------------------------
+    // Couloir
+    // ------------------------------------------------------------------
 
-        for (let row = 0; row < grille.size; row++) {
-            for (let col = 0; col < grille.size; col++) {
-                const score = NaturalFlow._evaluerPositionAppui(grille, row, col, motCible);
-                if (score > 0) {
-                    positionsCandidates.push({ row, col, score });
+    private static _choisirCouloir(longueur: number, taille: number): Couloir {
+        const direction: 'H' | 'V' = Math.random() < 0.5 ? 'H' : 'V';
+        const vertical = direction === 'V';
+
+        // Le couloir reste dans la zone centrale : un scrabble colle au bord
+        // n'a presque aucune facon de s'accrocher.
+        const debut = 2 + Math.floor(Math.random() * (taille - longueur - 3));
+        const fixe = 3 + Math.floor(Math.random() * (taille - 6));
+
+        const row = vertical ? debut : fixe;
+        const col = vertical ? fixe : debut;
+
+        const interdites = new Set<string>();
+        for (let i = -1; i <= longueur; i++) {
+            const r = row + (vertical ? i : 0);
+            const c = col + (vertical ? 0 : i);
+            if (r >= 0 && r < taille && c >= 0 && c < taille) interdites.add(cle(r, c));
+        }
+
+        return { row, col, direction, interdites };
+    }
+
+    /**
+     * Plante le mot de decor qui servira d'accroche : perpendiculaire au
+     * couloir, colle a l'une de ses lettres, et tel que la soudure soit un mot.
+     *
+     * Exemple : le couloir porte un E en (7,9) ; on pose CHAT au-dessus, dans la
+     * colonne 9, de sorte que la colonne se lise CHAT + E = CHATE... ou plutot
+     * un mot qui existe - c'est le lexique qui tranche, pas nous.
+     */
+    private static _poserAccroche(
+        grille: Board,
+        avecCible: Board,
+        lexicon: Lexicon,
+        wordPool: WordPool,
+        couloir: Couloir,
+        motCible: string
+    ): string | null {
+        const vertical = couloir.direction === 'V';
+        const taille = grille.size;
+        const candidats = wordPool.getMotsCourts(60).concat(wordPool.getMotsMoyens(40));
+
+        const positions = Array.from({ length: motCible.length }, (_, i) => i);
+        for (let i = positions.length - 1; i > 0; i--) {
+            const j = Math.floor(Math.random() * (i + 1));
+            [positions[i], positions[j]] = [positions[j], positions[i]];
+        }
+
+        for (const mot of candidats) {
+            for (const i of positions) {
+                const hookRow = couloir.row + (vertical ? i : 0);
+                const hookCol = couloir.col + (vertical ? 0 : i);
+                const lettre = motCible[i];
+
+                for (const avant of [true, false]) {
+                    // `avant` : le decor precede la lettre du couloir, la soudure
+                    // se lit `mot + lettre`. Sinon elle se lit `lettre + mot`.
+                    const soudure = avant ? mot + lettre : lettre + mot;
+                    if (!lexicon.has(soudure)) continue;
+
+                    // Le decor s'etend perpendiculairement au couloir.
+                    const pas = avant ? -1 : 1;
+                    const debutRow = vertical ? hookRow : hookRow + pas * (avant ? mot.length : 1);
+                    const debutCol = vertical ? hookCol + pas * (avant ? mot.length : 1) : hookCol;
+
+                    const finRow = vertical ? debutRow : debutRow + mot.length - 1;
+                    const finCol = vertical ? debutCol + mot.length - 1 : debutCol;
+                    if (debutRow < 0 || debutCol < 0 || finRow >= taille || finCol >= taille) continue;
+
+                    // La case qui prolongerait la soudure doit rester libre de
+                    // bord : sinon le mot de decor deborderait du plateau.
+                    const placement: Placement = {
+                        mot,
+                        position: [debutRow, debutCol],
+                        direction: vertical ? 'H' : 'V',
+                    };
+
+                    let libre = true;
+                    for (let k = 0; k < mot.length; k++) {
+                        const r = debutRow + (vertical ? 0 : k);
+                        const c = debutCol + (vertical ? k : 0);
+                        if (couloir.interdites.has(cle(r, c)) || grille.getLetter(r, c) !== null) {
+                            libre = false;
+                            break;
+                        }
+                    }
+                    if (!libre) continue;
+
+                    NaturalFlow._appliquerPlacement(grille, placement);
+                    NaturalFlow._appliquerPlacement(avecCible, placement);
+                    return mot;
                 }
             }
         }
 
-        positionsCandidates.sort((a, b) => b.score - a.score);
-
-        if (positionsCandidates.length === 0) {
-            const center = Math.floor(grille.size / 2);
-            return { row: center, col: center, letter: lettreAppui };
-        }
-
-        const topCandidates = positionsCandidates.slice(0, 5);
-        const best = topCandidates[Math.floor(Math.random() * topCandidates.length)];
-
-        return { row: best.row, col: best.col, letter: lettreAppui };
+        return null;
     }
 
-    private static _evaluerPositionAppui(grille: Board, row: number, col: number, motCible: string): number {
-        let score = 0;
-        const motLen = motCible.length;
-
-        const espaceH = grille.size;
-        const espaceV = grille.size;
-        if (espaceH < motLen && espaceV < motLen) return 0;
-
-        score += Math.max(espaceH, espaceV) * 2;
-        score += NaturalFlow._compterMultiplicateursAccessibles(grille, row, col, motLen) * 15;
-
-        const center = Math.floor(grille.size / 2);
-        score -= (Math.abs(row - center) + Math.abs(col - center)) * 0.5;
-
-        if (row >= 3 && row <= 11 && col >= 3 && col <= 11) score += 10;
-
-        const mult = grille.getSquareMultipliers(row, col);
-        if (mult.wordMultiplier > 1) score += 20;
-        if (mult.letterMultiplier > 1) score += 10;
-
-        return score;
-    }
-
-    private static _compterMultiplicateursAccessibles(grille: Board, row: number, col: number, motLen: number): number {
-        let count = 0;
-
-        for (let c = Math.max(0, col - motLen + 1); c < Math.min(grille.size, col + motLen); c++) {
-            const mult = grille.getSquareMultipliers(row, c);
-            if (mult.wordMultiplier > 1 || mult.letterMultiplier > 1) count++;
-        }
-
-        for (let r = Math.max(0, row - motLen + 1); r < Math.min(grille.size, row + motLen); r++) {
-            const mult = grille.getSquareMultipliers(r, col);
-            if (mult.wordMultiplier > 1 || mult.letterMultiplier > 1) count++;
-        }
-
-        return count;
-    }
+    // ------------------------------------------------------------------
+    // Respiration
+    // ------------------------------------------------------------------
 
     static phaseBreathe(
         grille: Board,
-        anchor: AnchorPoint,
+        avecCible: Board,
         lexicon: Lexicon,
         wordPool: WordPool,
-        motCible: string,
-        tirage: string[],
+        interdites: Set<string>,
         profondeur: number = 8
-    ): { grille: Board; motsPlaces: string[] } {
+    ): string[] {
         const motsPlaces: string[] = [];
-        const scoreCalc = new ScoreCalculator(grille);
 
         const distribution = [
             { category: 'court', proba: 0.50 },
@@ -122,34 +202,21 @@ export class NaturalFlow {
 
             if (candidats.length === 0) continue;
 
-            const validator = new WordValidator(lexicon, grille);
-            const placement = NaturalFlow._trouverPlacementNaturel(grille, validator, candidats, anchor);
+            const placement = NaturalFlow._trouverPlacementNaturel(
+                grille,
+                new WordValidator(lexicon, grille),
+                new WordValidator(lexicon, avecCible),
+                candidats,
+                interdites
+            );
             if (!placement) continue;
 
-            const grilleBackup = grille.grid.map(row => [...row]);
             NaturalFlow._appliquerPlacement(grille, placement);
-
-            if (!NaturalFlow._ancreToujoursAccessible(grille, anchor, motCible.length)) {
-                grille.grid = grilleBackup;
-                continue;
-            }
-
-            // Apres chaque mot de decor, le mot cible doit rester jouable :
-            // sans cette verification on fabrique des plateaux insolubles.
-            const validatorNew = new WordValidator(lexicon, grille);
-            const placementsCible = NaturalFlow._genererPlacementsPourMotCible(
-                grille, motCible, [anchor.row, anchor.col], tirage, validatorNew, scoreCalc
-            );
-
-            if (placementsCible.length === 0) {
-                grille.grid = grilleBackup;
-                continue;
-            }
-
+            NaturalFlow._appliquerPlacement(avecCible, placement);
             motsPlaces.push(placement.mot);
         }
 
-        return { grille, motsPlaces };
+        return motsPlaces;
     }
 
     private static _choisirCategorie(distribution: { category: string; proba: number }[]): string {
@@ -165,15 +232,14 @@ export class NaturalFlow {
     private static _trouverPlacementNaturel(
         grille: Board,
         validator: WordValidator,
+        validatorAvecCible: WordValidator,
         candidats: string[],
-        anchor: AnchorPoint
+        interdites: Set<string>
     ): Placement | null {
         const placementsValides: { placement: Placement; score: number }[] = [];
 
         for (const mot of candidats) {
-            const placements = NaturalFlow._genererPlacementsPourMot(mot, grille, validator);
-            for (const placement of placements) {
-                if (NaturalFlow._bloqueAncre(placement, anchor)) continue;
+            for (const placement of NaturalFlow._genererPlacementsPourMot(mot, grille, validator, validatorAvecCible, interdites)) {
                 placementsValides.push({ placement, score: NaturalFlow._scoreNaturalitePlacement(placement, grille) });
             }
         }
@@ -185,45 +251,61 @@ export class NaturalFlow {
         return topK[Math.floor(Math.random() * topK.length)].placement;
     }
 
-    private static _genererPlacementsPourMot(mot: string, grille: Board, validator: WordValidator): Placement[] {
+    private static _genererPlacementsPourMot(
+        mot: string,
+        grille: Board,
+        validator: WordValidator,
+        validatorAvecCible: WordValidator,
+        interdites: Set<string>
+    ): Placement[] {
         const placements: Placement[] = [];
         const casesOccupees = NaturalFlow._getOccupiedCells(grille);
 
-        // Le placement n'est retenu que si le mot forme est EXACTEMENT `mot` :
-        // un placement qui le prolonge en autre chose ecrit sur le plateau un
-        // mot que personne n'a choisi.
         const retenir = (row: number, col: number, direction: 'H' | 'V') => {
-            const dirEnum = direction === 'H' ? Direction.HORIZONTAL : Direction.VERTICAL;
-            const check = validator.validatePlacementComplete(
-                { word: mot, row, col, direction: dirEnum, score: 0 },
-                casesOccupees.length > 0
-            );
-            if (check.isValid && check.mainWord === mot) {
-                placements.push({ mot, position: [row, col], direction });
+            const vertical = direction === 'V';
+
+            // Le couloir du mot cible est intouchable : une seule lettre de
+            // decor dedans, et le scrabble ne se pose plus.
+            for (let k = 0; k < mot.length; k++) {
+                const r = row + (vertical ? k : 0);
+                const c = col + (vertical ? 0 : k);
+                if (interdites.has(cle(r, c))) return;
             }
+
+            const coup = {
+                word: mot,
+                row,
+                col,
+                direction: vertical ? Direction.VERTICAL : Direction.HORIZONTAL,
+                score: 0,
+            };
+
+            // Le placement n'est retenu que si le mot forme est EXACTEMENT `mot`
+            // - un placement qui le prolonge en autre chose ecrit sur le plateau
+            // un mot que personne n'a choisi - ET si c'est vrai sur les deux
+            // plateaux : celui que verra le joueur, et le meme avec le mot cible
+            // en place. Voir l'exemple POR/PORE en tete de fichier.
+            const check = validator.validatePlacementComplete(coup, true);
+            if (!check.isValid || check.mainWord !== mot) return;
+
+            const checkAvecCible = validatorAvecCible.validatePlacementComplete(coup, true);
+            if (!checkAvecCible.isValid || checkAvecCible.mainWord !== mot) return;
+
+            placements.push({ mot, position: [row, col], direction });
         };
 
-        if (casesOccupees.length === 0) {
-            const center = Math.floor(grille.size / 2);
-            const start = center - Math.floor(mot.length / 2);
-            if (start >= 0 && start + mot.length <= grille.size) {
-                retenir(center, start, 'H');
-                retenir(start, center, 'V');
-            }
-            return placements;
-        }
-
-        for (const [anchorRow, anchorCol] of casesOccupees) {
-            const lettreAncre = grille.getLetter(anchorRow, anchorCol);
+        for (const [ancreRow, ancreCol] of casesOccupees) {
+            if (interdites.has(cle(ancreRow, ancreCol))) continue; // pas d'appui sur le mot cible
+            const lettreAncre = grille.getLetter(ancreRow, ancreCol);
 
             for (let i = 0; i < mot.length; i++) {
                 if (mot[i] !== lettreAncre) continue;
 
-                const startCol = anchorCol - i;
-                if (startCol >= 0 && startCol + mot.length <= grille.size) retenir(anchorRow, startCol, 'H');
+                const startCol = ancreCol - i;
+                if (startCol >= 0 && startCol + mot.length <= grille.size) retenir(ancreRow, startCol, 'H');
 
-                const startRow = anchorRow - i;
-                if (startRow >= 0 && startRow + mot.length <= grille.size) retenir(startRow, anchorCol, 'V');
+                const startRow = ancreRow - i;
+                if (startRow >= 0 && startRow + mot.length <= grille.size) retenir(startRow, ancreCol, 'V');
             }
         }
 
@@ -238,18 +320,6 @@ export class NaturalFlow {
             }
         }
         return occupied;
-    }
-
-    private static _bloqueAncre(placement: Placement, anchor: AnchorPoint): boolean {
-        for (let i = 0; i < placement.mot.length; i++) {
-            const posRow = placement.direction === 'H' ? placement.position[0] : placement.position[0] + i;
-            const posCol = placement.direction === 'H' ? placement.position[1] + i : placement.position[1];
-
-            if (posRow === anchor.row && posCol === anchor.col && placement.mot[i] !== anchor.letter) {
-                return true;
-            }
-        }
-        return false;
     }
 
     private static _scoreNaturalitePlacement(placement: Placement, grille: Board): number {
@@ -285,95 +355,6 @@ export class NaturalFlow {
         }
     }
 
-    private static _ancreToujoursAccessible(grille: Board, anchor: AnchorPoint, motLen: number): boolean {
-        const { row, col } = anchor;
-
-        let espaceH = 0;
-        for (let c = col; c >= 0 && (grille.getLetter(row, c) === null || c === col); c--) espaceH++;
-        for (let c = col + 1; c < grille.size && grille.getLetter(row, c) === null; c++) espaceH++;
-
-        let espaceV = 0;
-        for (let r = row; r >= 0 && (grille.getLetter(r, col) === null || r === row); r--) espaceV++;
-        for (let r = row + 1; r < grille.size && grille.getLetter(r, col) === null; r++) espaceV++;
-
-        return espaceH >= motLen || espaceV >= motLen;
-    }
-
-    private static _genererPlacementsPourMotCible(
-        grille: Board,
-        motCible: string,
-        posAppui: [number, number],
-        tirage: string[],
-        validator: WordValidator,
-        scoreCalc: ScoreCalculator
-    ): Placement[] {
-        const placements: Placement[] = [];
-        const [row, col] = posAppui;
-        const lettreAppui = grille.getLetter(row, col);
-
-        if (!lettreAppui) return placements;
-
-        for (let i = 0; i < motCible.length; i++) {
-            if (motCible[i] !== lettreAppui) continue;
-
-            const startColH = col - i;
-            if (startColH >= 0 && startColH + motCible.length <= grille.size
-                && NaturalFlow._peutJouerAvecTirage(motCible, grille, row, startColH, 'H', tirage)) {
-                const check = validator.validatePlacementComplete(
-                    { word: motCible, row, col: startColH, direction: Direction.HORIZONTAL, score: 0 }
-                );
-                if (check.isValid && check.mainWord === motCible) {
-                    const score = scoreCalc.simulateMoveScore(
-                        { word: motCible, row, col: startColH, direction: Direction.HORIZONTAL, score: 0 }
-                    );
-                    placements.push({ mot: motCible, position: [row, startColH], direction: 'H', score });
-                }
-            }
-
-            const startRowV = row - i;
-            if (startRowV >= 0 && startRowV + motCible.length <= grille.size
-                && NaturalFlow._peutJouerAvecTirage(motCible, grille, startRowV, col, 'V', tirage)) {
-                const check = validator.validatePlacementComplete(
-                    { word: motCible, row: startRowV, col, direction: Direction.VERTICAL, score: 0 }
-                );
-                if (check.isValid && check.mainWord === motCible) {
-                    const score = scoreCalc.simulateMoveScore(
-                        { word: motCible, row: startRowV, col, direction: Direction.VERTICAL, score: 0 }
-                    );
-                    placements.push({ mot: motCible, position: [startRowV, col], direction: 'V', score });
-                }
-            }
-        }
-
-        return placements;
-    }
-
-    private static _peutJouerAvecTirage(
-        mot: string,
-        grille: Board,
-        row: number,
-        col: number,
-        direction: 'H' | 'V',
-        tirage: string[]
-    ): boolean {
-        const dispo = [...tirage];
-        for (let i = 0; i < mot.length; i++) {
-            const r = row + (direction === 'V' ? i : 0);
-            const c = col + (direction === 'H' ? i : 0);
-            const currentLettre = grille.getLetter(r, c);
-
-            if (currentLettre) {
-                if (currentLettre !== mot[i]) return false;
-            } else {
-                const idx = dispo.indexOf(mot[i]);
-                if (idx !== -1) dispo.splice(idx, 1);
-                else if (dispo.includes('_')) dispo.splice(dispo.indexOf('_'), 1);
-                else return false;
-            }
-        }
-        return true;
-    }
-
     /** Les mots de deux lettres ou plus reellement lisibles sur le plateau. */
     static motsLisibles(grid: (string | null)[][]): string[] {
         const mots: string[] = [];
@@ -394,6 +375,10 @@ export class NaturalFlow {
         return mots;
     }
 
+    // ------------------------------------------------------------------
+    // Assemblage
+    // ------------------------------------------------------------------
+
     static genererSituationNaturelle(
         motCible: string,
         tirage: string[],
@@ -406,25 +391,39 @@ export class NaturalFlow {
         }
     ): SituationEntrainement | null {
         const jetonsMinimum = config.jetonsMinimum ?? 12;
+        if (motCible.length < 2) return null;
 
         for (let tentative = 1; tentative <= config.maxTentatives; tentative++) {
+            // Deux plateaux menes de front : `grille` est celui que verra le
+            // joueur, `avecCible` porte en plus le mot a trouver. Chaque mot de
+            // decor doit etre valide sur les deux.
             const grille = new Board();
-            const lettreAppui = motCible[Math.floor(Math.random() * motCible.length)];
-            const anchor = NaturalFlow.phaseAnchor(motCible, lettreAppui, grille);
+            const avecCible = new Board();
+            const couloir = NaturalFlow._choisirCouloir(motCible.length, grille.size);
 
-            NaturalFlow._poserMotInitial(grille, anchor, wordPool);
+            NaturalFlow._appliquerPlacement(avecCible, {
+                mot: motCible,
+                position: [couloir.row, couloir.col],
+                direction: couloir.direction,
+            });
+
+            const accroche = NaturalFlow._poserAccroche(grille, avecCible, lexicon, wordPool, couloir, motCible);
+            if (!accroche) continue;
 
             NaturalFlow.phaseBreathe(
-                grille, anchor, lexicon, wordPool, motCible, tirage, config.profondeurRespiration
+                grille, avecCible, lexicon, wordPool, couloir.interdites, config.profondeurRespiration
             );
 
             const jetons = NaturalFlow._getOccupiedCells(grille).length;
             if (jetons < jetonsMinimum) continue;
 
-            // Enumeration exhaustive : la solution de reference est le MEILLEUR
-            // collage possible, pas le premier trouve autour de l'appui.
+            // Seuls les collages qui posent TOUT le chevalet comptent : c'est la
+            // definition d'un scrabble, et la prime de 50 en depend.
             const checker = MoveChecker.fromGrid(lexicon, grille.grid);
-            const collages = checker.findPlacements(motCible, tirage);
+            const collages = checker
+                .findPlacements(motCible, tirage)
+                .filter(p => p.tilesUsed === tirage.length);
+
             if (collages.length === 0) continue;
 
             const solutions: Solution[] = collages.map(c => ({
@@ -444,43 +443,12 @@ export class NaturalFlow {
                     jetonsPlateau: jetons,
                     motsPlateau: NaturalFlow.motsLisibles(grille.grid),
                     collagesLegaux: collages.length,
-                    // Distribution mesuree sur 40 plateaux, apres correction du
-                    // validateur : min 1, mediane 3, max 9 collages legaux.
-                    // (Avant correction on en comptait 11 en mediane, mais la
-                    // plupart formaient des mots inexistants.)
-                    difficulte: collages.length <= 1 ? 'difficile' : collages.length <= 4 ? 'moyen' : 'facile',
+                    difficulte: collages.length <= 1 ? 'difficile' : collages.length <= 3 ? 'moyen' : 'facile',
                     tentatives: tentative,
                 },
             };
         }
 
         return null;
-    }
-
-    /**
-     * Premier mot du plateau, pose autour de l'ancre.
-     *
-     * L'ancienne version calculait `anchor.col - shift >= 0 ? anchor.col - shift
-     * : anchor.col` : quand le mot debordait a gauche, la lettre d'appui ne
-     * tombait plus sur l'ancre, et quand il debordait a droite `placeLetter`
-     * levait "Position invalide" - une exception remontee au worker comme un
-     * echec de generation. On borne la position, et a defaut on pose la seule
-     * lettre d'appui.
-     */
-    private static _poserMotInitial(grille: Board, anchor: AnchorPoint, wordPool: WordPool): void {
-        const candidats = wordPool.getMotsContenantLettre(anchor.letter, 3, 5);
-
-        if (candidats.length > 0) {
-            const mot = candidats[Math.floor(Math.random() * candidats.length)];
-            const shift = mot.indexOf(anchor.letter);
-            const startCol = anchor.col - shift;
-
-            if (startCol >= 0 && startCol + mot.length <= grille.size) {
-                NaturalFlow._appliquerPlacement(grille, { mot, position: [anchor.row, startCol], direction: 'H' });
-                return;
-            }
-        }
-
-        grille.placeLetter(anchor.row, anchor.col, anchor.letter);
     }
 }

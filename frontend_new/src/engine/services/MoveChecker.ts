@@ -31,6 +31,12 @@ export interface Placement {
     col: number;
     direction: 'H' | 'V';
     score: number;
+    /**
+     * Jetons du chevalet reellement poses. Un mot de sept lettres pose a travers
+     * une lettre deja presente n'en consomme que six : c'est un coup legal, mais
+     * ce n'est pas un scrabble, et il ne touche pas la prime de 50.
+     */
+    tilesUsed: number;
 }
 
 /**
@@ -173,13 +179,13 @@ export class MoveChecker {
 
     /**
      * Tous les placements legaux du mot cible sur ce plateau avec ce tirage,
-     * du meilleur au moins bon.
+     * du meilleur au moins bon, chacun accompagne du nombre de jetons qu'il
+     * consomme (voir `tilesUsed` : sept = scrabble).
      *
-     * Sert a deux choses : mesurer l'ambiguite de l'exercice (mediane mesuree
-     * sur 40 plateaux : 3 collages legaux, jamais un seul en general - il est
-     * donc faux d'exiger une position precise) et connaitre le MEILLEUR
-     * collage, pour dire au joueur ce que son coup valait face au meilleur
-     * possible.
+     * Sert a deux choses : mesurer l'ambiguite de l'exercice - il y a en general
+     * plusieurs collages legaux du meme mot, il est donc faux d'exiger une
+     * position precise - et connaitre le MEILLEUR collage, pour dire au joueur
+     * ce que son coup valait face au meilleur possible.
      */
     findPlacements(word: string, rack: string[]): Placement[] {
         const found: Placement[] = [];
@@ -219,7 +225,13 @@ export class MoveChecker {
                     // autre coup, pas un collage du mot demande.
                     if (!check.isValid || check.mainWord !== upper) continue;
 
-                    found.push({ row, col, direction, score: this.scoreOf(upper, row, col, dirEnum) });
+                    found.push({
+                        row,
+                        col,
+                        direction,
+                        score: this.scoreOf(upper, row, col, dirEnum),
+                        tilesUsed: placedCells,
+                    });
                 }
             }
         }

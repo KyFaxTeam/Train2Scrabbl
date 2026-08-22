@@ -1,9 +1,3 @@
-export interface AnchorPoint {
-    row: number;
-    col: number;
-    letter: string;
-}
-
 export interface Placement {
     mot: string;
     position: [number, number]; // [row, col]
@@ -44,7 +38,11 @@ export interface SituationMetadata {
     jetonsPlateau: number;
     /** Mots reellement lisibles sur le plateau (lignes et colonnes). */
     motsPlateau: string[];
-    /** Nombre de placements legaux du mot cible : mesure de l'ambiguite. */
+    /**
+     * Nombre de collages legaux du mot cible POSANT LES SEPT JETONS : mesure de
+     * l'ambiguite de l'exercice. Les placements qui reutilisent une lettre du
+     * plateau ne comptent pas - ce ne sont pas des scrabbles.
+     */
     collagesLegaux: number;
     /** Deduite de `collagesLegaux` : moins il y a de collages, plus c'est dur. */
     difficulte: 'facile' | 'moyen' | 'difficile';

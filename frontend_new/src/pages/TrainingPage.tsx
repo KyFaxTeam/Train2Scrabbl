@@ -252,20 +252,36 @@ const TrainingPage: React.FC = () => {
 
         const expected = puzzle.solution.word.toUpperCase();
         const played = (verdict.word ?? '').toUpperCase();
+        const scrabble = verdict.tilesUsed === puzzle.rack.length;
+
+        // L'exercice est de poser un SCRABBLE : les sept jetons du chevalet. Un
+        // mot de sept lettres joue a travers une lettre du plateau n'en consomme
+        // que six - c'est un coup legal, mais pas celui qu'on demande, et il
+        // laisse la prime de 50 sur la table.
+        //
+        // Ce coup-la est traite comme un coup illegal : refuse avec sa raison,
+        // sans rien inscrire dans la repetition espacee. Le joueur a trouve un
+        // mot, il n'a pas trouve LE scrabble - ce n'est pas un echec de memoire,
+        // et l'enregistrer comme tel fausserait le calendrier de revision.
+        if (!scrabble) {
+            const restants = puzzle.rack.length - verdict.tilesUsed;
+            setFeedback('refused');
+            setRefusal(
+                `${played} est jouable (${verdict.score} pts), mais ce n'est pas un scrabble : ` +
+                `${restants} jeton${restants > 1 ? 's' : ''} reste${restants > 1 ? 'nt' : ''} au chevalet. ` +
+                `Un scrabble pose les sept et rapporte la prime de 50.`
+            );
+            return;
+        }
 
         if (played === expected) {
-            await enregistrer(puzzle, true, review, 'Bien collé !');
+            await enregistrer(puzzle, true, review, 'Scrabble !');
             return;
         }
 
-        // Le joueur a pose ses sept jetons et forme un autre mot valide : c'est
-        // un autre scrabble du meme tirage, la competence visee est la meme.
-        if (verdict.tilesUsed === puzzle.rack.length) {
-            await enregistrer(puzzle, true, review, `Autre scrabble accepté : ${played}`);
-            return;
-        }
-
-        await enregistrer(puzzle, false, review, `${played} est jouable, mais ce n'est pas un scrabble`);
+        // Sept jetons poses, autre mot valide : c'est un autre scrabble du meme
+        // tirage, la competence visee est exactement la meme.
+        await enregistrer(puzzle, true, review, `Autre scrabble accepté : ${played}`);
     };
 
     const abandonner = async () => {
@@ -530,10 +546,10 @@ const TrainingPage: React.FC = () => {
 
                     <p className="text-center text-[11px] text-white/35">
                         {revealSolution
-                            ? `Le coup attendu est affiché en vert sur le plateau (${currentPuzzle.solution.score} pts).`
+                            ? `Le scrabble attendu est affiché en vert sur le plateau (${currentPuzzle.solution.score} pts, prime comprise).`
                             : rackRestant === 0
-                                ? 'Tes sept jetons sont posés.'
-                                : `${rackRestant} jeton${rackRestant > 1 ? 's' : ''} à placer — le meilleur collage vaut ${currentPuzzle.solution.score} points.`}
+                                ? `Tes sept jetons sont posés — le meilleur scrabble vaut ${currentPuzzle.solution.score} points.`
+                                : `Pose tes ${rackRestant} jeton${rackRestant > 1 ? 's' : ''} restant${rackRestant > 1 ? 's' : ''} : un scrabble les utilise tous.`}
                     </p>
                 </div>
             </div>
@@ -576,7 +592,7 @@ const TrainingPage: React.FC = () => {
                             )}
                             {lastResult.bestScore !== null && (
                                 <div className="flex items-center justify-between">
-                                    <span className="text-slate-600">Meilleur collage possible</span>
+                                    <span className="text-slate-600">Meilleur scrabble possible</span>
                                     <span className={clsx(
                                         'font-bold',
                                         lastResult.playedScore !== null && lastResult.playedScore >= lastResult.bestScore

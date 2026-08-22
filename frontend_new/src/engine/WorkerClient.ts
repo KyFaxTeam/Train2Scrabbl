@@ -1,5 +1,5 @@
 import type { SituationEntrainement } from './models/Situation';
-import type { MoveVerdict, PlacedTile } from './services/MoveChecker';
+import type { MoveVerdict, PlacedTile, Placement } from './services/MoveChecker';
 
 export interface InitProgress {
     step: string;
@@ -9,8 +9,8 @@ export interface InitProgress {
 
 export interface MoveReview {
     verdict: MoveVerdict;
-    /** Le meilleur collage du mot attendu, pour situer le coup joue. */
-    meilleur: { row: number; col: number; direction: 'H' | 'V'; score: number } | null;
+    /** Le meilleur scrabble du mot attendu, pour situer le coup joue. */
+    meilleur: Placement | null;
 }
 
 /**

@@ -1,0 +1,8 @@
+# Les donnees du moteur sont lues octet par octet, jamais comme du texte de
+# code : `lexicon.txt` est decoupe sur '\n' et chaque ligne devient un mot tel
+# quel. Sur une machine ou `core.autocrlf=true` (Windows par defaut), git
+# convertissait ce fichier en CRLF a la sortie du depot : chaque mot du lexique
+# se terminait alors par un '\r' invisible, `has()` renvoyait false pour tout,
+# et le moteur refusait l'integralite des mots sans un message.
+frontend_new/public/data/*.txt   -text
+frontend_new/public/data/*.json  -text

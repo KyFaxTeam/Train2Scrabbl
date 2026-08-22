@@ -188,9 +188,11 @@ déclenchement ; l'Entraînement, lui, se joue sur le plateau.
   du collage, et la recherche du mot est le travail de l'Arène.
 - La validation est devenue un **arbitrage de coup** (`MoveChecker`) :
   alignement, contiguïté, raccordement au plateau, mot principal prolongé, mots
-  transversaux, score. **Tout collage légal du mot est accepté** — la médiane
+  transversaux, score. Tout collage légal du mot est accepté — la médiane
   mesurée est de 3 collages légaux par exercice, exiger une position précise
   aurait refusé la plupart des bonnes réponses.
+  *(Corrigé le 22/08/2026 au soir : il faut en plus poser les sept jetons.
+  Voir la section « Le coup attendu doit vider le chevalet » ci-dessous.)*
 - Un coup illégal n'est plus une mauvaise réponse : il est **refusé avec sa
   raison**, sans rien inscrire dans la répétition espacée.
 - `naturelScore` (constant à 1) est supprimé. Les métadonnées sont désormais
@@ -252,3 +254,106 @@ fonctionné.
 Retiré de **tous** les fichiers du moteur (`Board`, `NaturalFlow`,
 `ScoreCalculator`, `engine.worker`, `trainingService`). `tsc -b` et `eslint`
 passent sans erreur sur ces fichiers.
+
+---
+
+## Le coup attendu doit vider le chevalet — 22/08/2026 (soir)
+
+> Correction de la décision d'Axe 1 ci-dessus, sur objection du propriétaire du
+> projet : « la solution doit vider notre chevalet, sinon ce n'est pas Scrabble ».
+> Il a raison, et le générateur ne le permettait pas.
+
+### La règle
+
+Un mot de sept lettres posé **à travers** une lettre déjà présente sur le
+plateau ne consomme que six jetons : c'est un coup légal, mais il laisse un
+jeton au chevalet et ne touche pas la prime de 50. Ce n'est pas un scrabble.
+
+L'Arène enseigne des tirages de sept lettres et leurs solutions ;
+l'Entraînement doit apprendre à **poser ce tirage en entier** sur un plateau.
+L'exercice est donc : *former un scrabble*, pas *coller le mot quelque part*.
+
+### Ce que faisait l'ancien générateur
+
+Il tirait une lettre du mot cible, la plantait sur le plateau, puis vérifiait
+seulement que le mot restait posable **en passant par** cette case. Le
+chevauchement était garanti par construction. Mesure sur 200 exercices, banc
+sur le chemin de code du worker :
+
+| | ancien | nouveau |
+|---|---|---|
+| Exercices où **aucun** scrabble n'est possible | **26 %** | **0 %** |
+| Solution annoncée qui n'est pas un scrabble | **26 %** (23 pts moyens) | **0 %** (84 pts moyens) |
+| Exercices où un coup à moins de sept jetons était accepté comme réussite | **100 %** | 0 % (refusé, avec sa raison) |
+| Placements à sept jetons par exercice | méd. 2 | méd. 3 |
+
+Dans un exercice sur quatre, l'objectif annoncé était donc **impossible** : le
+chevalet ne pouvait pas être vidé. Et dans tous les exercices sans exception, le
+joueur pouvait décrocher « Bien collé ! » sans le vider.
+
+### La nouvelle construction
+
+On procède à l'envers — `NaturalFlow` :
+
+1. **Couloir** — on réserve les sept cases vides où le mot se posera, plus les
+   deux cases qui le prolongeraient ;
+2. **Accroche** — on plante un mot de décor perpendiculaire, collé au couloir,
+   choisi pour que la soudure soit un mot du lexique ;
+3. **Respiration** — on meuble le reste du plateau, le couloir restant interdit.
+
+Le tout sur **deux plateaux menés de front** : celui que verra le joueur, et le
+même avec le mot cible en place. Chaque mot de décor doit être valide sur les
+deux. Sans cela, un mot du décor peut s'appuyer sur une lettre du mot cible et
+perdre un caractère au retrait : trois mots verticaux formaient `PORE` avec le
+`E` de la cible, et le plateau livré affichait `POR`. Mesuré à 2 plateaux sur 60
+sur une version intermédiaire, 0 après correction.
+
+### Mesures après (300 exercices)
+
+| | |
+|---|---|
+| Exercices générés | **300/300** |
+| Génération d'un exercice | **6,8 ms** médiane, 10,7 ms p95 |
+| Tentatives internes | médiane 1, max 3 |
+| Jetons sur le plateau | 12 min, 34 médiane, 48 max |
+| Scrabbles possibles par exercice | 1 min, 2 médiane, 8 max |
+| Meilleur score | 65 min, **80 médiane**, 159 max (prime comprise) |
+| Plateaux contenant un mot inexistant | **0** |
+| Solutions injouables | **0** |
+| Solutions qui ne sont pas des scrabbles | **0** |
+
+Les trois dernières lignes sont vérifiées en rejouant chaque solution annoncée
+coup par coup à travers `MoveChecker`, comme le fait la page.
+
+### Un coup légal qui n'est pas un scrabble
+
+Il est traité **comme un coup illégal** : refusé avec sa raison, sans rien
+inscrire dans la répétition espacée.
+
+> CONS est jouable (23 pts), mais ce n'est pas un scrabble : 3 jetons restent au
+> chevalet. Un scrabble pose les sept et rapporte la prime de 50.
+
+Le joueur a trouvé un mot, il n'a pas trouvé *le* scrabble : ce n'est pas un
+échec de mémoire, et l'enregistrer comme tel fausserait le calendrier de
+révision. En revanche, **un autre mot de sept lettres du même tirage est
+accepté** — la compétence visée est exactement la même.
+
+### Vérifié dans le navigateur
+
+À 375 px (cases de 22,2 px) et en 1280 px (cases de 31,9 px, aucun débordement
+horizontal), sur un exercice réel — tirage `CHNOOSY`, cible `CHOYONS` :
+
+- `CONS` posé en (6,5) horizontal : légal, 23 points, **refusé** en bandeau
+  ambre ; `wordMasteries` reste vide — aucun échec inscrit.
+- Un jeton manquant au milieu du mot : « Les lettres posées doivent se suivre,
+  sans case vide entre elles. »
+- `CHOYONS` posé en (10,6) horizontal : **« Scrabble ! »**, 101 points, égal au
+  meilleur scrabble possible, « Mots formés : CHOYONS, APREMS », +16 XP,
+  prochaine révision dans 2 jours, clé `CHNOOSY--CHOYONS` en base.
+
+### Chiffre corrigé
+
+Un commentaire d'une session précédente avançait « 51 exercices sur 60 (85 %) »
+de solutions laissant un jeton au chevalet. Le chiffre ne se reproduit pas : la
+mesure sur 200 exercices donne **26 %**. L'en-tête de `NaturalFlow.ts` a été
+corrigé.
