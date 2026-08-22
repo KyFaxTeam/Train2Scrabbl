@@ -7,6 +7,11 @@ import { ArrowRight, ArrowDown } from 'lucide-react';
 interface ArenaBoardProps {
     initialTiles: { row: number; col: number; char: string }[];
     placedTiles: { row: number; col: number; char: string; rackId: number }[];
+    /**
+     * La correction : le coup attendu, montré sur le plateau après validation.
+     * Voir le mot écrit dans une fenêtre n'apprend pas où il se collait.
+     */
+    solutionTiles?: { row: number; col: number; char: string }[];
     onCellClick: (row: number, col: number) => void;
     onTilePlace?: (char: string, row: number, col: number) => void;
     onTileRemove?: (row: number, col: number) => void;
@@ -28,6 +33,7 @@ const BONUS_TEXT_COLORS: Record<string, string> = {
 export const ArenaBoard: React.FC<ArenaBoardProps> = ({
     initialTiles,
     placedTiles,
+    solutionTiles,
     onCellClick,
     onTilePlace,
     onTileRemove,
@@ -111,7 +117,8 @@ export const ArenaBoard: React.FC<ArenaBoardProps> = ({
         const isCenter = row === 7 && col === 7;
         const initialTile = initialTiles.find(t => t.row === row && t.col === col);
         const placedTile = placedTiles.find(t => t.row === row && t.col === col);
-        const tile = initialTile || placedTile;
+        const solutionTile = solutionTiles?.find(t => t.row === row && t.col === col);
+        const tile = solutionTile || initialTile || placedTile;
 
         const isActive = activeCell?.r === row && activeCell?.c === col;
         const isDragTarget = dragOverCell?.r === row && dragOverCell?.c === col;
@@ -150,8 +157,8 @@ export const ArenaBoard: React.FC<ArenaBoardProps> = ({
                 {/* Bonus label — minimal */}
                 {!tile && bonusKey && (
                     <span className={clsx(
-                        "text-[7px] font-semibold uppercase tracking-wide pointer-events-none",
-                        bonusKey === 'CENTER' ? 'text-[16px] opacity-40' : 'opacity-50',
+                        "text-[1.7cqw] font-semibold uppercase tracking-wide pointer-events-none leading-none",
+                        bonusKey === 'CENTER' ? 'text-[3.6cqw] opacity-40' : 'opacity-50',
                         BONUS_TEXT_COLORS[bonusKey] || 'text-slate-500/50'
                     )}>
                         {BONUS_LABELS[bonusKey]}
@@ -164,7 +171,8 @@ export const ArenaBoard: React.FC<ArenaBoardProps> = ({
                         letter={tile.char}
                         isAnchor={!!initialTile}
                         isPlaced={!!placedTile}
-                        draggable={!!placedTile}
+                        isSolution={!!solutionTile}
+                        draggable={!!placedTile && !solutionTile}
                         onDragStart={placedTile ? (e) => {
                             e.dataTransfer.setData('text/rackId', String(placedTile.rackId));
                             e.dataTransfer.setData('text/char', placedTile.char);
@@ -178,22 +186,28 @@ export const ArenaBoard: React.FC<ArenaBoardProps> = ({
         );
     };
 
+    // Grille fluide : elle occupe la largeur disponible au lieu d'être dessinée
+    // à taille fixe puis réduite par une transformation CSS. À 375 px, l'ancien
+    // `scale-[0.78]` ramenait les cases à 17 px de côté, jetons flous compris.
     return (
         <div
             ref={boardRef}
             tabIndex={0}
             onKeyDown={handleKeyDown}
-            className="rounded-xl inline-block outline-none p-2 bg-[var(--color-board-gap)]"
+            className="rounded-xl outline-none p-1 sm:p-2 bg-[var(--color-board-gap)] w-full max-w-[520px]"
             style={{
                 boxShadow: 'var(--box-shadow-board)',
                 border: '2px solid var(--color-board-border)'
             }}
         >
             <div
-                className="grid gap-[1.5px] rounded-lg overflow-hidden"
+                className="grid gap-[1px] sm:gap-[1.5px] rounded-lg overflow-hidden aspect-square"
                 style={{
-                    gridTemplateColumns: `repeat(${BOARD_SIZE}, minmax(22px, 32px))`,
-                    gridTemplateRows: `repeat(${BOARD_SIZE}, minmax(22px, 32px))`,
+                    gridTemplateColumns: `repeat(${BOARD_SIZE}, minmax(0, 1fr))`,
+                    gridTemplateRows: `repeat(${BOARD_SIZE}, minmax(0, 1fr))`,
+                    // Conteneur de requete : les jetons dimensionnent leur texte
+                    // en `cqw`, c'est-a-dire relativement a cette largeur.
+                    containerType: 'inline-size',
                 }}
             >
                 {Array.from({ length: BOARD_SIZE * BOARD_SIZE }).map((_, i) => {

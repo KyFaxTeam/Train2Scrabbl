@@ -1,9 +1,13 @@
-// @ts-nocheck
-
-import { API_ENDPOINTS, apiFetch } from '../config/api';
 import { getDueForReview } from './learningStore';
-import { getDictionary } from './dictionaryService';
 import { EngineWorkerClient } from '../engine/WorkerClient';
+
+export interface PuzzleSolution {
+    word: string;
+    row: number;
+    col: number;
+    direction: 'H' | 'V';
+    score: number;
+}
 
 export interface Puzzle {
     id: string;
@@ -13,179 +17,146 @@ export interface Puzzle {
         cols: number;
         initialTiles: { row: number; col: number; char: string }[];
     };
-    solution: {
-        word: string;
-        row: number;
-        col: number;
-        direction: 'H' | 'V';
-        score?: number;
-    };
-    metadata?: {
-        naturalityScore: number;
+    /** Le MEILLEUR collage du mot attendu, reference pour le debriefing. */
+    solution: PuzzleSolution;
+    metadata: {
+        /**
+         * `naturalityScore` a disparu : il valait 1 en dur. Ce qui suit est
+         * mesure sur le plateau reellement produit.
+         */
         wordsOnBoard: string[];
-        difficulty: 'easy' | 'medium' | 'hard';
+        tilesOnBoard: number;
+        /** Nombre de collages legaux du mot : l'exercice n'a pas une reponse, il en a plusieurs. */
+        legalPlacements: number;
+        difficulty: 'facile' | 'moyen' | 'difficile';
+        generationMs: number;
     };
 }
 
-
-
-
-
-interface HealthResponse {
-    status: string;
-    dictionarySize: number;
-    gaddagReady: boolean;
+interface TargetWord {
+    word: string;
+    draw: string;
 }
 
-export const checkHealth = async (): Promise<HealthResponse> => {
-    return apiFetch<HealthResponse>(API_ENDPOINTS.health);
-};
-
-const generateOfflineBatch = async (size: number): Promise<Puzzle[]> => {
-    const puzzles: Puzzle[] = [];
-    const targetWords: { word: string, draw: string, difficulty: 'easy' | 'medium' | 'hard' }[] = [];
+/**
+ * Les mots a faire travailler : d'abord ceux que la repetition espacee reclame,
+ * puis des scrabbles tires dans le lexique du moteur.
+ *
+ * La page ne lit plus `scrabble_dict.txt` (2,68 Mo bruts, 757 Ko gzip) : cet
+ * index de tirages contient exactement 32 230 solutions de sept lettres, soit
+ * exactement les 32 230 mots de sept lettres de l'ODS8 - et le tirage d'un mot
+ * n'est rien d'autre que ses lettres triees. Le fichier ne disait rien que le
+ * lexique ne sache deja, et c'etait desormais le plus gros telechargement du
+ * mode.
+ */
+const choisirMots = async (size: number, worker: EngineWorkerClient): Promise<TargetWord[]> => {
+    const cibles: TargetWord[] = [];
 
     try {
-        const dueMasteries = await getDueForReview();
-        const shuffledDue = [...dueMasteries].sort(() => Math.random() - 0.5);
-        for (const m of shuffledDue) {
-            if (targetWords.length >= size) break;
-            targetWords.push({
-                word: m.word,
-                draw: m.drawId || m.word.substring(0, 7),
-                difficulty: m.difficulty > 0.6 ? 'hard' : m.difficulty > 0.3 ? 'medium' : 'easy'
-            });
+        const dues = await getDueForReview();
+        for (let i = dues.length - 1; i > 0; i--) {
+            const j = Math.floor(Math.random() * (i + 1));
+            [dues[i], dues[j]] = [dues[j], dues[i]];
+        }
+        for (const m of dues) {
+            if (cibles.length >= size) break;
+            // Les fiches d'avant la correction de la cle de repetition espacee
+            // ont un `word` vide : la cle etait decoupee en trois champs alors
+            // que l'entrainement n'en ecrivait que deux. Les servir revient a
+            // demander au moteur de construire un exercice pour la chaine vide,
+            // qui echoue quinze fois puis disparait sans un mot.
+            if (!m.word || m.word.length < 2) continue;
+            cibles.push({ word: m.word, draw: m.drawId || m.word });
         }
     } catch (e) {
-        console.warn('Failed to get due for review', e);
+        console.warn('Revisions indisponibles, on tire dans le dictionnaire', e);
     }
 
-    if (targetWords.length < size) {
-        try {
-            const dict = await getDictionary();
-            let attempts = 0;
-            while (targetWords.length < size && attempts < 100) {
-                attempts++;
-                const randomCatIndex = Math.floor(Math.random() * dict.length);
-                const cat = dict[randomCatIndex];
-                if (!cat?.entries?.length) continue;
-
-                const randomEntryIndex = Math.floor(Math.random() * cat.entries.length);
-                const entry = cat.entries[randomEntryIndex];
-                if (!entry.solutions?.length) continue;
-
-                const randomSolIndex = Math.floor(Math.random() * entry.solutions.length);
-                const rWord = entry.solutions[randomSolIndex];
-                targetWords.push({
-                    word: rWord,
-                    draw: entry.draw,
-                    difficulty: 'medium'
-                });
-            }
-        } catch (e) {
-            console.warn('Failed to get dict for offline batch', e);
+    if (cibles.length < size) {
+        const mots = await worker.randomTargets(size - cibles.length, 7);
+        for (const word of mots) {
+            cibles.push({ word, draw: [...word].sort().join('') });
         }
     }
 
+    if (cibles.length === 0) {
+        throw new Error("Aucun mot a travailler : le lexique n a pas pu etre lu.");
+    }
+
+    return cibles;
+};
+
+/**
+ * Genere le lot d'exercices.
+ *
+ * `onPuzzle` est appele des qu'un exercice est pret : la page affiche le
+ * premier pendant que les suivants se calculent. La version precedente
+ * generait les cinq en serie avant d'afficher quoi que ce soit, soit cinq fois
+ * le temps de generation avant le premier pixel utile.
+ */
+export const generateBatch = async (
+    size: number = 5,
+    onPuzzle?: (puzzle: Puzzle, index: number) => void
+): Promise<Puzzle[]> => {
     const worker = EngineWorkerClient.getInstance();
     await worker.initialize();
+    const cibles = await choisirMots(size, worker);
 
-    for (let i = 0; i < targetWords.length; i++) {
-        const t = targetWords[i];
-        let rack = t.draw.split('');
+    const puzzles: Puzzle[] = [];
+    const echecs: string[] = [];
 
+    for (const cible of cibles) {
         try {
-            const { result } = await worker.generateNaturalFlow(t.word, rack, 8);
-            if (result) {
-                const initialTiles = [];
-                for (let r = 0; r < result.grille.length; r++) {
-                    for (let c = 0; c < result.grille[r].length; c++) {
-                        if (result.grille[r][c] !== null) {
-                            initialTiles.push({ row: r, col: c, char: result.grille[r][c] as string });
-                        }
-                    }
-                }
-
-                const bestSolution = result.solutions[0];
-
-                puzzles.push({
-                    id: `offline-${Date.now()}-${i}`,
-                    rack: result.tirage,
-                    boardConfig: {
-                        rows: 15,
-                        cols: 15,
-                        initialTiles
-                    },
-                    solution: {
-                        word: bestSolution.mot,
-                        row: bestSolution.position[0],
-                        col: bestSolution.position[1],
-                        direction: bestSolution.direction,
-                        score: bestSolution.score
-                    },
-                    metadata: {
-                        naturalityScore: result.metadata.naturelScore || 1,
-                        wordsOnBoard: [t.word],
-                        difficulty: t.difficulty
-                    }
-                });
+            const { result, timeMs } = await worker.generateNaturalFlow(cible.word, cible.draw.split(''), 8);
+            if (!result) {
+                echecs.push(cible.word);
+                continue;
             }
+
+            const initialTiles: { row: number; col: number; char: string }[] = [];
+            for (let r = 0; r < result.grille.length; r++) {
+                for (let c = 0; c < result.grille[r].length; c++) {
+                    const char = result.grille[r][c];
+                    if (char !== null) initialTiles.push({ row: r, col: c, char });
+                }
+            }
+
+            const best = result.solutions[0];
+            const puzzle: Puzzle = {
+                id: `${cible.draw}-${cible.word}-${Date.now()}-${puzzles.length}`,
+                rack: result.tirage,
+                boardConfig: { rows: 15, cols: 15, initialTiles },
+                solution: {
+                    word: best.mot,
+                    row: best.position[0],
+                    col: best.position[1],
+                    direction: best.direction,
+                    score: best.score,
+                },
+                metadata: {
+                    wordsOnBoard: result.metadata.motsPlateau,
+                    tilesOnBoard: result.metadata.jetonsPlateau,
+                    legalPlacements: result.metadata.collagesLegaux,
+                    difficulty: result.metadata.difficulte,
+                    generationMs: Math.round(timeMs),
+                },
+            };
+
+            onPuzzle?.(puzzle, puzzles.length);
+            puzzles.push(puzzle);
         } catch (err) {
-            console.error('Failed to generate natural flow for word', t.word, err);
+            console.error('Generation impossible pour', cible.word, err);
+            echecs.push(cible.word);
         }
+    }
+
+    // Un lot vide n'est pas une reussite : c'est ce silence qui laissait la page
+    // sur "Chargement..." indefiniment, sans erreur ni recours.
+    if (puzzles.length === 0) {
+        throw new Error(
+            `Aucun exercice n a pu etre construit (${echecs.length} tentative(s) : ${echecs.slice(0, 3).join(', ')}).`
+        );
     }
 
     return puzzles;
 };
-
-export const generateBatch = async (size: number = 5): Promise<Puzzle[]> => {
-    return generateOfflineBatch(size);
-};
-
-export const generateForWord = async (word: string, tirage?: string[]): Promise<Puzzle> => {
-    const worker = EngineWorkerClient.getInstance();
-    await worker.initialize();
-
-    const rack = tirage || word.split('').sort(() => Math.random() - 0.5);
-    const { result } = await worker.generateNaturalFlow(word, rack, 8);
-    if (!result) throw new Error('Worker failed to generate puzzle');
-
-    const initialTiles = [];
-    for (let r = 0; r < result.grille.length; r++) {
-        for (let c = 0; c < result.grille[r].length; c++) {
-            if (result.grille[r][c] !== null) {
-                initialTiles.push({ row: r, col: c, char: result.grille[r][c] as string });
-            }
-        }
-    }
-
-    return {
-        id: `offline-${Date.now()}`,
-        rack: result.tirage,
-        boardConfig: {
-            rows: 15,
-            cols: 15,
-            initialTiles
-        },
-        solution: {
-            word: result.solutions[0].mot,
-            row: result.solutions[0].position[0],
-            col: result.solutions[0].position[1],
-            direction: result.solutions[0].direction,
-            score: result.solutions[0].score
-        },
-        metadata: {
-            naturalityScore: 1,
-            wordsOnBoard: [word],
-            difficulty: 'medium'
-        }
-    };
-};
-
-export const getRandomPuzzle = async (): Promise<Puzzle> => {
-    const batch = await generateBatch(1);
-    if (!batch.length) throw new Error('No puzzles generated');
-    return batch[0];
-};
-
-

@@ -1,4 +1,3 @@
-// @ts-nocheck
 import { Board } from '../models/Board';
 import { Direction, type Move } from '../models/Types';
 import { BoardUtils } from '../utils/BoardUtils';
@@ -24,7 +23,7 @@ export class ScoreCalculator {
         const tempGrid = this.board.grid.map(row => [...row]);
 
         try {
-            return this.calculateMoveScore(move, true);
+            return this.calculateMoveScore(move);
         } finally {
             // Restaure l'état
             this.board.used_multipliers = tempMultipliers;
@@ -32,11 +31,11 @@ export class ScoreCalculator {
         }
     }
 
-    calculateMoveScore(move: Move, _simulate: boolean = false): number {
-        // En Python, il y a la logique de bonus bingo.
-        // Wait, le bonus bingo est de +50 si on utilise 7 lettres du chevalet.
-        // Wait, "move.word" n'est pas le nombre de lettres jouées s'il y a des lettres déjà sur le plateau.
-        // Need to check how many letters were placed.
+    /**
+     * Le bonus de scrabble (+50) recompense SEPT lettres posees, pas un mot de
+     * sept lettres : les lettres deja sur le plateau ne comptent pas.
+     */
+    calculateMoveScore(move: Move): number {
         let lettersPlaced = 0;
         for (let i = 0; i < move.word.length; i++) {
             const r = move.row + (move.direction === Direction.VERTICAL ? i : 0);

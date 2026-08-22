@@ -145,3 +145,110 @@ quoi que ce soit dans ces fichiers.** Une variable supprimée mais encore lue y
 passe le build sans un mot et explose à l'exécution — c'est déjà arrivé. Si tu y
 touches, retire le `@ts-nocheck` et corrige les erreurs, ou vérifie chaque
 identifiant à la main.
+
+---
+
+## Ce qui a été fait — 22/08/2026
+
+> Section ajoutée après exécution du brief ci-dessus. Elle remplace l'état
+> « vérifié » du haut là où les mesures l'ont contredit : ne pas re-diagnostiquer.
+
+### Ce que le brief disait de faux
+
+- **La génération ne coûtait pas 29 ms mais 201 ms** (médiane 207, p95 397 sur
+  40 exercices, banc Node sur le chemin de code du worker).
+- **Le moteur n'était pas dans le bundle principal** : Vite sort déjà le worker
+  en morceau séparé (6 Ko gzip). Le poids venait de `recharts` + `d3-*`
+  (~75 Ko gzip), utilisés par les seules pages de statistiques.
+- **Le GADDAG ne servait à rien.** En dehors de `MoveGenerator` — cassé et
+  jamais appelé — la seule opération du moteur sur lui était `contains()`.
+
+### Deux défauts non listés par le brief, et qui dominaient tout
+
+1. **`validatePlacementComplete` ne prolongeait pas le mot principal.** Poser
+   `ADA` après `FOUR` : mot principal `ADA` (valide), transversaux (aucun),
+   connexité (OK) → placement accepté, alors que le coup forme `FOURADA`.
+   Mesuré : **18 plateaux sur 40 contenaient un mot inexistant**, et
+   **3 exercices sur 40 avaient une solution attendue illégale** — impossible à
+   trouver puisqu'elle n'existe pas.
+2. **La clé de répétition espacée était mal formée.** `updateAfterTest` découpe
+   `tirage-lettre-mot` en trois champs ; l'Entraînement n'en écrivait que deux
+   (`TIRAGE-MOT`), donc le mot enregistré était la chaîne vide. Chaque révision
+   qui revenait demandait au moteur de construire un exercice pour `''`, qui
+   échouait quinze fois puis disparaissait sans un mot. Clé désormais :
+   `TIRAGE--MOT` (champ d'extension vide, mais présent).
+
+### Décisions
+
+**Axe 1 — pédagogie.** Le mode entraîne *le collage* : transformer un mot connu
+en coup légal et bien placé. L'Arène apprend les tirages, le Réflexe entraîne le
+déclenchement ; l'Entraînement, lui, se joue sur le plateau.
+
+- Le chevalet garde les sept lettres de la solution : c'est l'exercice classique
+  du collage, et la recherche du mot est le travail de l'Arène.
+- La validation est devenue un **arbitrage de coup** (`MoveChecker`) :
+  alignement, contiguïté, raccordement au plateau, mot principal prolongé, mots
+  transversaux, score. **Tout collage légal du mot est accepté** — la médiane
+  mesurée est de 3 collages légaux par exercice, exiger une position précise
+  aurait refusé la plupart des bonnes réponses.
+- Un coup illégal n'est plus une mauvaise réponse : il est **refusé avec sa
+  raison**, sans rien inscrire dans la répétition espacée.
+- `naturelScore` (constant à 1) est supprimé. Les métadonnées sont désormais
+  mesurées : jetons sur le plateau, mots réellement lisibles, nombre de collages
+  légaux, difficulté déduite de ce nombre. Un plateau de moins de 12 jetons est
+  rejeté et régénéré.
+
+**Axe 2 — efficacité** (tout est mesuré) :
+
+| | avant | après |
+|---|---|---|
+| Génération d'un exercice | 201 ms | **35 ms** (médiane 25) |
+| Données du moteur, transférées | 3,23 Mo + 136 Ko | **235 Ko** |
+| Dictionnaire imposé à `/training` | 757 Ko gzip | **0** |
+| JS du premier écran | 244 Ko gzip | **121 Ko gzip** |
+| Plateaux avec un mot inexistant | 18/40 | **0/40** |
+| Solutions illégales | 3/40 | **0/40** |
+
+- `WordPool.getRandomSample` représentait **84 % du temps de génération**
+  (8 appels, ~21 ms chacun). Fisher–Yates partiel : 0,04 ms, et non biaisé.
+- `gaddag.bin` est remplacé par `public/data/lexicon.txt` : l'ODS8 ≤ 15 lettres,
+  trié et front-codé, 1 534 Ko bruts / **235 Ko gzip** (`scripts/export_lexicon.py`).
+  Interrogé par dichotomie dans un bloc de texte (≈ 6,5 Mo de mémoire, contre
+  85 Mo pour un `Set<string>`). `word_pool.txt` disparaît : le vivier de décor se
+  découpe dans le lexique.
+- `/training` ne lit plus `scrabble_dict.txt` : cet index contient exactement
+  32 230 solutions de sept lettres, soit exactement les 32 230 mots de sept
+  lettres de l'ODS8, et un tirage n'est que le mot trié. Le `<link rel="preload">`
+  du dictionnaire est devenu conditionnel à la route.
+- Découpage par route (`React.lazy`) : `recharts` et `d3-*` partent dans le
+  morceau des statistiques.
+- Le lot s'affiche **au premier exercice prêt**, les suivants se calculent
+  pendant que le joueur cherche.
+
+**Axe 3 — expérience :**
+
+- En-tête « Arena » → « Entraînement », plus un badge de difficulté.
+- Plateau fluide : à 375 px les cases passent de 17,3 px (grille dessinée en
+  fixe puis réduite par `scale-[0.78]`) à **22,2 px**, sans débordement
+  horizontal ; 31,9 px en desktop. Les tailles de texte suivent en `cqw`.
+- Après une erreur, **le coup attendu est montré en vert sur le plateau** ; la
+  fenêtre de résultat ne saute plus à l'exercice suivant.
+- Le débriefing donne le score du coup joué **et** celui du meilleur collage,
+  ainsi que tous les mots formés.
+- « Voir la solution » remplace « Passer » et enregistre un échec — ne pas
+  trouver est une information pour la répétition espacée.
+
+### Supprimé
+
+`src/engine/services/MoveGenerator.ts` (cassé : `getTransition(node, char)`
+recevait une chaîne là où la signature attend un code, `getTransitions()`
+renvoyait un tableau sur lequel il appelait `.keys()`), `models/Gaddag.ts`,
+`models/Rack.ts`, `public/data/gaddag.bin`, `public/data/word_pool.txt`.
+Le générateur de coups reste à réécrire si le besoin revient — il n'a jamais
+fonctionné.
+
+### `@ts-nocheck`
+
+Retiré de **tous** les fichiers du moteur (`Board`, `NaturalFlow`,
+`ScoreCalculator`, `engine.worker`, `trainingService`). `tsc -b` et `eslint`
+passent sans erreur sur ces fichiers.

@@ -1,4 +1,5 @@
 import type { SituationEntrainement } from './models/Situation';
+import type { MoveVerdict, PlacedTile } from './services/MoveChecker';
 
 export interface InitProgress {
     step: string;
@@ -6,13 +7,21 @@ export interface InitProgress {
     total: number;
 }
 
+export interface MoveReview {
+    verdict: MoveVerdict;
+    /** Le meilleur collage du mot attendu, pour situer le coup joue. */
+    meilleur: { row: number; col: number; direction: 'H' | 'V'; score: number } | null;
+}
+
 /**
- * Le GADDAG pese 3,2 Mo transferes : sur une connexion faible l'init peut
- * legitimement durer une minute. Au-dela, c'est que quelque chose est casse -
- * et il vaut mille fois mieux le dire que laisser tourner un spinner.
+ * Le lexique pese 236 Ko transferes : l'init tient en une poignee de secondes.
+ * On garde neanmoins un plafond genereux pour les connexions tres lentes -
+ * au-dela, c'est que quelque chose est casse, et il vaut mille fois mieux le
+ * dire que laisser tourner un spinner.
  */
-const INIT_TIMEOUT_MS = 120_000;
+const INIT_TIMEOUT_MS = 60_000;
 const GENERATE_TIMEOUT_MS = 20_000;
+const CHECK_TIMEOUT_MS = 10_000;
 
 export class EngineWorkerClient {
     private static instance: EngineWorkerClient;
@@ -21,7 +30,7 @@ export class EngineWorkerClient {
     private isInitialized = false;
     private onProgress: ((progress: InitProgress) => void) | null = null;
 
-    private resolvers: Map<string, { resolve: Function, reject: Function }> = new Map();
+    private resolvers: Map<string, { resolve: (value: unknown) => void, reject: (error: Error) => void }> = new Map();
     private callId = 0;
 
     private constructor() {
@@ -53,8 +62,8 @@ export class EngineWorkerClient {
     }
 
     /** Enregistre un resolveur qui abandonne au bout de `timeoutMs`. */
-    private track(key: string, timeoutMs: number, label: string) {
-        return new Promise<any>((resolve, reject) => {
+    private track<T>(key: string, timeoutMs: number, label: string): Promise<T> {
+        return new Promise<T>((resolve, reject) => {
             const timer = window.setTimeout(() => {
                 this.resolvers.delete(key);
                 if (key === 'INIT') this.initPromise = null;
@@ -62,7 +71,7 @@ export class EngineWorkerClient {
             }, timeoutMs);
 
             this.resolvers.set(key, {
-                resolve: (value: any) => { window.clearTimeout(timer); resolve(value); },
+                resolve: (value: unknown) => { window.clearTimeout(timer); resolve(value as T); },
                 reject: (error: Error) => { window.clearTimeout(timer); reject(error); },
             });
         });
@@ -84,7 +93,7 @@ export class EngineWorkerClient {
         }
 
         // Une erreur sans callId vient de l'init : la router vers le bon
-        // resolveur, sinon l'echec de chargement du dictionnaire se perdait.
+        // resolveur, sinon l'echec de chargement du lexique se perdait.
         if (type === 'ERROR' && callId === undefined) {
             this.initPromise = null;
             this.resolvers.get('INIT')?.reject(new Error(payload));
@@ -92,7 +101,7 @@ export class EngineWorkerClient {
             return;
         }
 
-        if (type === 'GENERATE_SUCCESS' || type === 'ERROR') {
+        if (type === 'GENERATE_SUCCESS' || type === 'CHECK_SUCCESS' || type === 'TARGETS_SUCCESS' || type === 'ERROR') {
             const key = callId?.toString();
             if (key === undefined) return;
             const entry = this.resolvers.get(key);
@@ -104,7 +113,7 @@ export class EngineWorkerClient {
         }
     }
 
-    /** Notifie l'avancement du telechargement du dictionnaire. */
+    /** Notifie l'avancement du telechargement du lexique. */
     public setProgressListener(listener: ((progress: InitProgress) => void) | null) {
         this.onProgress = listener;
     }
@@ -112,7 +121,7 @@ export class EngineWorkerClient {
     public async initialize(): Promise<void> {
         if (this.isInitialized) return;
         if (!this.initPromise) {
-            this.initPromise = this.track('INIT', INIT_TIMEOUT_MS, 'Chargement du dictionnaire')
+            this.initPromise = this.track<void>('INIT', INIT_TIMEOUT_MS, 'Chargement du lexique')
                 .then(() => undefined)
                 .catch(error => {
                     this.initPromise = null;
@@ -123,19 +132,58 @@ export class EngineWorkerClient {
         return this.initPromise;
     }
 
-    public async generateNaturalFlow(targetWord: string, pool: string[], difficulty = 8): Promise<{ result: SituationEntrainement | null, timeMs: number }> {
+    private async call<T>(type: string, payload: unknown, timeoutMs: number, label: string): Promise<{ result: T, timeMs: number }> {
         await this.initialize();
 
         const id = (++this.callId).toString();
-        const pending = this.track(id, GENERATE_TIMEOUT_MS, `Generation de ${targetWord}`);
+        const pending = this.track<{ payload: T, timeMs: number }>(id, timeoutMs, label);
+        this.worker.postMessage({ type, callId: id, payload });
 
-        this.worker.postMessage({
-            type: 'GENERATE_NATURAL_FLOW',
-            callId: id,
-            payload: { targetWord, pool, difficulty }
-        });
+        const { payload: result, timeMs } = await pending;
+        return { result, timeMs };
+    }
 
-        const { payload, timeMs } = await pending;
-        return { result: payload, timeMs };
+    public async generateNaturalFlow(
+        targetWord: string,
+        pool: string[],
+        difficulty = 8
+    ): Promise<{ result: SituationEntrainement | null, timeMs: number }> {
+        return this.call<SituationEntrainement | null>(
+            'GENERATE_NATURAL_FLOW',
+            { targetWord, pool, difficulty },
+            GENERATE_TIMEOUT_MS,
+            `Generation de ${targetWord}`
+        );
+    }
+
+    /** Des mots a travailler, tires dans le lexique du worker. */
+    public async randomTargets(count: number, length = 7): Promise<string[]> {
+        const { result } = await this.call<string[]>(
+            'RANDOM_TARGETS',
+            { count, length },
+            CHECK_TIMEOUT_MS,
+            'Choix des mots'
+        );
+        return result;
+    }
+
+    /**
+     * Soumet le coup du joueur a l'arbitre du moteur : alignement, contiguite,
+     * raccordement au plateau, mots formes, score. Le lexique vit dans le
+     * worker - c'est donc lui qui tranche.
+     */
+    public async checkMove(
+        initialTiles: PlacedTile[],
+        placedTiles: PlacedTile[],
+        expectedWord: string,
+        rack: string[]
+    ): Promise<MoveReview> {
+        const { result } = await this.call<MoveReview>(
+            'CHECK_MOVE',
+            { initialTiles, placedTiles, expectedWord, rack },
+            CHECK_TIMEOUT_MS,
+            'Verification du coup'
+        );
+        return result;
     }
 }

@@ -11,6 +11,14 @@ interface XPFeedbackProps {
     expectedWord?: string; // Pour afficher la bonne réponse si erreur
     xp: XPReward;
     mastery?: WordMastery;
+    /**
+     * Le débriefing du coup : mots formés, score obtenu, meilleur collage.
+     * Voir la bonne réponse ne suffit pas — encore faut-il savoir ce que le
+     * coup joué valait.
+     */
+    details?: React.ReactNode;
+    /** Libellé du bouton : « Continuer » n'a pas de sens si le coup est montré. */
+    continueLabel?: string;
     onContinue: () => void;
 }
 
@@ -21,6 +29,8 @@ export const XPFeedback: React.FC<XPFeedbackProps> = ({
     expectedWord,
     xp,
     mastery,
+    details,
+    continueLabel = 'Continuer',
     onContinue
 }) => {
     return (
@@ -87,12 +97,16 @@ export const XPFeedback: React.FC<XPFeedbackProps> = ({
                             </div>
                         )}
 
+                        {/* Débriefing du coup */}
+                        {details && <div className="px-6 py-4">{details}</div>}
+
                         {/* Erreur: montrer la bonne réponse */}
                         {!correct && (
-                            <div className="px-6 py-4">
+                            <div className="px-6 pb-4">
                                 {expectedWord && (
                                     <p className="text-slate-600 text-sm mb-2">
                                         Le mot attendu était: <span className="font-mono font-bold text-slate-800">{expectedWord}</span>
+                                        <span className="text-slate-400"> — il est montré sur le plateau.</span>
                                     </p>
                                 )}
                                 <p className="text-slate-500 text-xs">
@@ -110,7 +124,7 @@ export const XPFeedback: React.FC<XPFeedbackProps> = ({
                                     correct ? "bg-emerald-500 hover:bg-emerald-600" : "bg-slate-500 hover:bg-slate-600"
                                 )}
                             >
-                                Continuer <ArrowRight className="w-4 h-4" />
+                                {continueLabel} <ArrowRight className="w-4 h-4" />
                             </button>
                         </div>
                     </motion.div>

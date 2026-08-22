@@ -1,5 +1,10 @@
 # -*- coding: utf-8 -*-
 """
+OBSOLETE depuis le 22/08/2026 : le vivier de decor se decoupe desormais dans le
+lexique charge par le moteur (scripts/export_lexicon.py -> lexicon.txt), et
+word_pool.txt n'est plus ni produit ni telecharge. Le script est conserve pour
+l'historique du diagnostic ci-dessous, qui reste exact.
+
 Exporte le vivier de mots courts qui sert a MEUBLER le plateau d'entrainement.
 
 Pourquoi ce fichier existe : le worker construisait son WordPool en lisant

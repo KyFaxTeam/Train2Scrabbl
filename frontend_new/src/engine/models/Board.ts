@@ -1,4 +1,3 @@
-// @ts-nocheck
 
 import { SquareType, Direction, type Move } from './Types';
 
@@ -76,7 +75,6 @@ export class Board {
     }
 
     public getSquareType(row: number, col: number): SquareType {
-        const pos = [row, col];
         const isMatch = (arr: number[][]) => arr.some(p => p[0] === row && p[1] === col);
 
         if (row === this.center && col === this.center) return SquareType.START;

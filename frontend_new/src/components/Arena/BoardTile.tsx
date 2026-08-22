@@ -11,6 +11,8 @@ interface BoardTileProps {
     letter: string;
     isAnchor?: boolean;
     isPlaced?: boolean;
+    /** Jeton de la correction : le coup attendu, montré après coup. */
+    isSolution?: boolean;
     size?: 'sm' | 'md';
     draggable?: boolean;
     onDragStart?: (e: React.DragEvent) => void;
@@ -20,15 +22,19 @@ export const BoardTile: React.FC<BoardTileProps> = ({
     letter,
     isAnchor = false,
     isPlaced = false,
+    isSolution = false,
     size = 'md',
     draggable = false,
     onDragStart,
 }) => {
     const points = LETTER_POINTS[letter.toUpperCase()] || 0;
 
+    // La taille du texte suit celle du plateau (`cqw` = 1 % de la largeur du
+    // conteneur de requete, ici la grille). Une taille fixe donnait des lettres
+    // de 16 px dans des cases de 22 px sur telephone.
     const sizeClasses = size === 'sm'
-        ? 'w-[85%] h-[85%] text-xs'
-        : 'w-[90%] h-[90%] text-base';
+        ? 'w-[85%] h-[85%] text-[3.4cqw]'
+        : 'w-[90%] h-[90%] text-[4cqw]';
 
     return (
         <div
@@ -38,9 +44,10 @@ export const BoardTile: React.FC<BoardTileProps> = ({
                 sizeClasses,
                 "relative flex items-center justify-center font-bold font-mono select-none",
                 "rounded transition-all duration-100",
-                isAnchor && "bg-[var(--color-tile-anchor)] text-[var(--color-tile-anchor-text)]",
-                isPlaced && "bg-[var(--color-tile-placed)] text-[var(--color-tile-placed-text)] cursor-grab active:cursor-grabbing",
-                !isAnchor && !isPlaced && "bg-[var(--color-tile-anchor)] text-[var(--color-tile-anchor-text)]"
+                isSolution && "bg-emerald-500 text-white ring-2 ring-emerald-300",
+                !isSolution && isAnchor && "bg-[var(--color-tile-anchor)] text-[var(--color-tile-anchor-text)]",
+                !isSolution && isPlaced && "bg-[var(--color-tile-placed)] text-[var(--color-tile-placed-text)] cursor-grab active:cursor-grabbing",
+                !isSolution && !isAnchor && !isPlaced && "bg-[var(--color-tile-anchor)] text-[var(--color-tile-anchor-text)]"
             )}
             style={{
                 boxShadow: isPlaced
@@ -54,7 +61,7 @@ export const BoardTile: React.FC<BoardTileProps> = ({
             <span
                 className={clsx(
                     "absolute font-normal leading-none",
-                    size === 'sm' ? 'bottom-0 right-0.5 text-[6px]' : 'bottom-0.5 right-1 text-[8px]'
+                    size === 'sm' ? 'bottom-0 right-0.5 text-[1.6cqw]' : 'bottom-0.5 right-1 text-[1.8cqw]'
                 )}
             >
                 {points > 0 && points}
