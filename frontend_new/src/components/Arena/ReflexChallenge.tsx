@@ -398,24 +398,27 @@ const HookCard: React.FC<{
                 Crochet — cette soudure existe-t-elle ?
             </div>
 
+            {/* L'ordre est celui du DOM, pas un `order-*` CSS : une classe
+                d'ordre ne deplace que le rendu visuel, si bien qu'un lecteur
+                d'ecran - et le simple copier-coller - annoncaient "AGE + PIEGE"
+                pour un suffixe, soit exactement l'inverse de ce qu'on enseigne. */}
             <div className="flex items-center justify-center gap-2 mb-2">
-                <span className={clsx(
-                    'px-3 py-2 rounded-lg font-bold tracking-wide',
-                    question.affixKind === 'prefix' ? 'order-1' : 'order-3',
-                    'bg-rose-100 text-rose-700'
-                )}>
-                    {question.affix}
-                </span>
-                <span className="order-2 text-slate-300 font-bold">+</span>
-                <span className={clsx(
-                    'px-3 py-2 rounded-lg font-bold tracking-wide bg-slate-100 text-slate-800',
-                    question.affixKind === 'prefix' ? 'order-3' : 'order-1'
-                )}>
-                    {question.stem}
-                </span>
+                {parts.map((part, i) => (
+                    <React.Fragment key={part + i}>
+                        {i > 0 && <span className="text-slate-300 font-bold">+</span>}
+                        <span className={clsx(
+                            'px-3 py-2 rounded-lg font-bold tracking-wide',
+                            part === question.affix
+                                ? 'bg-rose-100 text-rose-700'
+                                : 'bg-slate-100 text-slate-800'
+                        )}>
+                            {part}
+                        </span>
+                    </React.Fragment>
+                ))}
             </div>
             <p className="text-center text-xs text-slate-400 mb-6">
-                {parts.join(' + ')} — famille {question.familyLabel}
+                famille {question.familyLabel}
             </p>
 
             <div className="grid grid-cols-2 gap-2">

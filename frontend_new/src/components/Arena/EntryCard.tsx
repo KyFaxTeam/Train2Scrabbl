@@ -129,17 +129,6 @@ export const EntryCard: React.FC<EntryCardProps> = ({
                             ))}
                         </div>
                         
-                        {/* Preuve d'appartenance a la famille filtree */}
-                        {family && evidence && (evidence.solutions.length > 0 || evidence.extensions.length > 0) && (
-                            <span className="hidden sm:flex items-center gap-1 flex-shrink-0 text-[11px] px-1.5 py-0.5 rounded bg-rose-50 text-rose-700 font-medium">
-                                {formatFamilyLabel(family)}
-                                <span className="font-semibold">
-                                    {evidence.solutions[0]
-                                        ?? `${evidence.extensions[0].word} (+${evidence.extensions[0].letter})`}
-                                </span>
-                            </span>
-                        )}
-
                         {/* Base words preview */}
                         {entry.solutions.length > 0 && (
                             <div className="flex items-center gap-1 text-xs text-slate-500 truncate">
@@ -168,6 +157,22 @@ export const EntryCard: React.FC<EntryCardProps> = ({
                         />
                     </div>
                 </div>
+
+                {/* Preuve d'appartenance a la famille filtree. Sur sa propre
+                    ligne : dans l'entete elle devait etre masquee sous 640 px,
+                    or c'est justement sur mobile qu'un tirage sans Q classe en
+                    -IQUE laisse le plus perplexe. */}
+                {family && evidence && (evidence.solutions.length > 0 || evidence.extensions.length > 0) && (
+                    <div className="mt-2 flex items-center gap-1.5 text-[11px]">
+                        <span className="px-1.5 py-0.5 rounded bg-rose-100 text-rose-700 font-semibold shrink-0">
+                            {formatFamilyLabel(family)}
+                        </span>
+                        <span className="text-rose-700 font-medium truncate">
+                            {evidence.solutions[0]
+                                ?? `${evidence.extensions[0].word} (+${evidence.extensions[0].letter})`}
+                        </span>
+                    </div>
+                )}
                 
                 {/* Warning tooltip */}
                 <AnimatePresence>
@@ -237,11 +242,6 @@ export const EntryCard: React.FC<EntryCardProps> = ({
                                                 </span>
                                             )}
                                         </span>
-                                        {totalPages > 1 && (
-                                            <span className="text-[10px] text-slate-400 bg-slate-100 px-2 py-0.5 rounded-full font-medium">
-                                                {progressPercent}% vu{progressPercent === 100 ? ' ✅' : ''}
-                                            </span>
-                                        )}
                                     </h4>
                                     <div className="grid grid-cols-2 sm:grid-cols-3 gap-1.5 min-h-[60px]">
                                         {currentExtensions.map((ext, i) => (
@@ -267,32 +267,50 @@ export const EntryCard: React.FC<EntryCardProps> = ({
                                         ))}
                                     </div>
                                     
-                                    {/* Pagination Controls */}
+                                    {/* Pagination. L'ancienne version - deux
+                                        chevrons gris et un "Page 2 sur 15" en
+                                        text-slate-400 - se lisait comme une
+                                        mention legale : rien ne signalait qu'il
+                                        restait treize pages a parcourir. */}
                                     {totalPages > 1 && (
-                                        <div className="flex items-center justify-between mt-3 pt-2 border-t border-slate-50">
-                                            <div className="text-xs font-medium text-slate-400">
-                                                Page {page + 1} sur {totalPages}
+                                        <div className="mt-3 pt-3 border-t border-slate-100">
+                                            <div className="flex items-center gap-2 mb-2">
+                                                <div className="flex-1 h-1.5 bg-slate-100 rounded-full overflow-hidden">
+                                                    <div
+                                                        className={clsx(
+                                                            'h-full rounded-full transition-all duration-300',
+                                                            progressPercent === 100 ? 'bg-emerald-500' : 'bg-emerald-400'
+                                                        )}
+                                                        style={{ width: `${progressPercent}%` }}
+                                                    />
+                                                </div>
+                                                <span className="shrink-0 text-[11px] font-semibold text-slate-500 tabular-nums">
+                                                    {progressPercent}% vu{progressPercent === 100 ? ' ✅' : ''}
+                                                </span>
                                             </div>
-                                            <div className="flex items-center gap-1.5">
+
+                                            <div className="flex items-center justify-between gap-2">
                                                 <button
                                                     onClick={handlePrevPage}
                                                     disabled={page === 0}
-                                                    className="p-1.5 rounded-full hover:bg-slate-100 disabled:opacity-30 disabled:hover:bg-transparent transition-colors text-slate-600 focus:outline-none focus:ring-2 focus:ring-emerald-200"
-                                                    aria-label="Extensions précédentes"
+                                                    className="flex items-center gap-1 min-h-[40px] px-3 rounded-lg text-sm font-medium text-slate-600 bg-slate-100 hover:bg-slate-200 disabled:opacity-40 disabled:hover:bg-slate-100 transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-300"
+                                                    aria-label="Extensions precedentes"
                                                 >
                                                     <ChevronLeft className="w-4 h-4" />
+                                                    Prec.
                                                 </button>
+
+                                                <span className="text-sm font-semibold text-slate-700 tabular-nums">
+                                                    Page {page + 1} / {totalPages}
+                                                </span>
+
                                                 <button
                                                     onClick={handleNextPage}
                                                     disabled={page >= totalPages - 1}
-                                                    className={clsx(
-                                                        "p-1.5 flex items-center justify-center rounded-full transition-all focus:outline-none focus:ring-2 focus:ring-emerald-200",
-                                                        page < totalPages - 1 
-                                                            ? "bg-emerald-100 text-emerald-700 hover:bg-emerald-200 shadow-sm" 
-                                                            : "text-slate-400 opacity-30 cursor-not-allowed"
-                                                    )}
+                                                    className="flex items-center gap-1 min-h-[40px] px-3 rounded-lg text-sm font-semibold text-white bg-emerald-600 hover:bg-emerald-700 disabled:bg-slate-200 disabled:text-slate-400 transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-300"
                                                     aria-label="Extensions suivantes"
                                                 >
+                                                    Suivant
                                                     <ChevronRight className="w-4 h-4" />
                                                 </button>
                                             </div>

@@ -1,5 +1,5 @@
 ﻿import React, { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Loader2, BarChart3 } from 'lucide-react';
 import type { WorldType, DrawEntry } from '../types/dictionary';
@@ -7,9 +7,18 @@ import { getDictionary, getEntriesByWorld, getArenaStats, isArenaInitialized } f
 import { WorldSelector, WorldBrowser, ArenaStats } from '../components/Arena';
 import { getGlobalArenaStats } from '../services/progressService';
 
+const WORLDS: WorldType[] = ['essentials', 'premium', 'vowels', 'morphology', 'explorer'];
+
 const ArenaPage: React.FC = () => {
     const navigate = useNavigate();
-    const [selectedWorld, setSelectedWorld] = useState<WorldType | null>(null);
+    const [searchParams, setSearchParams] = useSearchParams();
+
+    // Le monde vit dans l'URL : sans cela un monde ne se partage pas, et un
+    // rafraichissement ramene toujours l'ecran de selection.
+    const worldParam = searchParams.get('world') as WorldType | null;
+    const [selectedWorld, setSelectedWorld] = useState<WorldType | null>(
+        worldParam && WORLDS.includes(worldParam) ? worldParam : null
+    );
     const [entries, setEntries] = useState<DrawEntry[]>([]);
     const [loading, setLoading] = useState(true);
     const [stats, setStats] = useState<Partial<Record<WorldType, number>> | null>(null);
@@ -63,11 +72,13 @@ const ArenaPage: React.FC = () => {
 
     const handleSelectWorld = (world: WorldType) => {
         setSelectedWorld(world);
+        setSearchParams({ world }, { replace: true });
     };
 
     const handleBack = () => {
         setSelectedWorld(null);
         setEntries([]);
+        setSearchParams({}, { replace: true });
     };
 
     if (loading) {
