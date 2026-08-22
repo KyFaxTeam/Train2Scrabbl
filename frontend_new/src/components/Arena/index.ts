@@ -7,6 +7,10 @@ export { EntryCard } from './EntryCard';
 export { MasteryBadge } from './MasteryBadge';
 export { WorldProgressBar, WorldProgressCard } from './WorldProgress';
 export { ArenaStats } from './ArenaStats';
+export { StudySession } from './StudySession';
+export { StudyCard } from './StudyCard';
+export { SessionComplete } from './SessionComplete';
+export { ReflexChallenge } from './ReflexChallenge';
 
 // Stats Dashboard Components
 export { ActivityHeatmap } from './ActivityHeatmap';

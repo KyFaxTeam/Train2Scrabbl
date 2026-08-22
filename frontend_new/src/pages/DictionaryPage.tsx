@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Search, ChevronRight, ChevronDown, BookOpen, Minus, CheckCircle } from 'lucide-react';
+import { Search, ChevronRight, ChevronLeft, ChevronDown, BookOpen, Minus, CheckCircle, AlertCircle } from 'lucide-react';
 import { clsx } from 'clsx';
 import { motion, AnimatePresence } from 'framer-motion';
 import { searchDictionary, findCategoryByDraw, getAvailableFirstLetters, getCategoriesByFirstLetter } from '../services/dictionaryService';
@@ -11,13 +11,21 @@ import { useLearningStore } from '../store/useLearningStore';
 import { getWordMastery } from '../services/learningStore';
 import { MasteryIndicator, MasteryIndicatorEmpty } from '../components/Learning';
 
-// --- Components ---
+const ITEMS_PER_PAGE = 6;
 
 const EntryRow: React.FC<{ entry: DrawEntry; isHighlighted?: boolean; isExpanded: boolean; onToggle: () => void }> = ({ entry, isHighlighted, isExpanded, onToggle }) => {
     const [masteries, setMasteries] = useState<Map<string, WordMastery>>(new Map());
     const trackExtensionView = useLearningStore(state => state.trackExtensionView);
     const [hasBeenViewed, setHasBeenViewed] = useState(false);
-    const hasTracked = useRef(false);
+    
+    // Pagination & Warning state
+    const [page, setPage] = useState(0);
+    const [viewedPages, setViewedPages] = useState<Set<number>>(new Set());
+    const [showWarning, setShowWarning] = useState(false);
+    
+    const hasTracked = useRef(new Set<number>());
+
+    const totalPages = Math.ceil(entry.extensions.length / ITEMS_PER_PAGE);
 
     // Initial check to see if any extensions are learned to render it visually "green" initially
     useEffect(() => {
@@ -37,40 +45,78 @@ const EntryRow: React.FC<{ entry: DrawEntry; isHighlighted?: boolean; isExpanded
         return () => { isMounted = false; };
     }, [entry]);
 
-    // Track views and load masteries when expanded
+    // Track views and load masteries when expanded and page changes
     useEffect(() => {
         if (isExpanded && entry.extensions.length > 0) {
-            // Track each extension view (only once per expand)
-            if (!hasTracked.current) {
-                entry.extensions.forEach(ext => {
+            if (!hasTracked.current.has(page)) {
+                const pageExtensions = entry.extensions.slice(page * ITEMS_PER_PAGE, (page + 1) * ITEMS_PER_PAGE);
+                
+                // Track extension views for current page
+                pageExtensions.forEach(ext => {
                     trackExtensionView(entry.draw, ext.letter, ext.word);
                 });
-                hasTracked.current = true;
-                setHasBeenViewed(true); // Mark as learned since we opened it
-            }
+                hasTracked.current.add(page);
+                setViewedPages(prev => new Set(prev).add(page));
+                setHasBeenViewed(true); // Mark as initially viewed
 
-            // Load masteries for display
-            let isMounted = true;
-            const loadMasteries = async () => {
-                const map = new Map<string, WordMastery>();
-                for (const ext of entry.extensions) {
-                    const wordId = `${entry.draw}-${ext.letter}-${ext.word}`;
-                    const mastery = await getWordMastery(wordId);
-                    if (mastery && isMounted) {
-                        map.set(wordId, mastery);
+                // Load masteries for display
+                let isMounted = true;
+                const loadMasteries = async () => {
+                    const map = new Map<string, WordMastery>();
+                    for (const ext of pageExtensions) {
+                        const wordId = `${entry.draw}-${ext.letter}-${ext.word}`;
+                        const mastery = await getWordMastery(wordId);
+                        if (mastery && isMounted) {
+                            map.set(wordId, mastery);
+                        }
                     }
-                }
-                if (isMounted) setMasteries(map);
-            };
-            loadMasteries();
-            return () => { isMounted = false; };
+                    if (isMounted) setMasteries(prev => new Map([...prev, ...map]));
+                };
+                loadMasteries();
+                return () => { isMounted = false; };
+            }
         }
 
-        // Reset tracking flag when collapsed
+        // Reset tracking states when completely collapsed?
+        // Actually, maybe preserve them so scrolling back maintains state.
         if (!isExpanded) {
-            hasTracked.current = false;
+            setShowWarning(false);
         }
-    }, [isExpanded, entry.draw, entry.extensions, trackExtensionView]);
+    }, [isExpanded, page, entry.draw, entry.extensions, trackExtensionView]);
+
+    const handleToggle = (e: React.MouseEvent) => {
+        e.stopPropagation();
+        if (isExpanded && entry.extensions.length > 0) {
+            if (viewedPages.size < totalPages) {
+                if (!showWarning) {
+                    setShowWarning(true);
+                    return; // Prevent closing
+                }
+            }
+        }
+        setShowWarning(false);
+        onToggle();
+    };
+
+    const handleNextPage = (e: React.MouseEvent) => {
+        e.stopPropagation();
+        if (page < totalPages - 1) setPage(p => p + 1);
+        setShowWarning(false);
+    };
+
+    const handlePrevPage = (e: React.MouseEvent) => {
+        e.stopPropagation();
+        if (page > 0) setPage(p => p - 1);
+        setShowWarning(false);
+    };
+
+    // Calculate progress
+    const viewedCount = Math.min(viewedPages.size * ITEMS_PER_PAGE, entry.extensions.length);
+    const progressPercent = entry.extensions.length > 0 
+        ? Math.round((viewedCount / entry.extensions.length) * 100)
+        : 100;
+
+    const currentExtensions = entry.extensions.slice(page * ITEMS_PER_PAGE, (page + 1) * ITEMS_PER_PAGE);
 
     return (
         <div
@@ -83,36 +129,56 @@ const EntryRow: React.FC<{ entry: DrawEntry; isHighlighted?: boolean; isExpanded
             )}
         >
             <div
-                onClick={onToggle}
-                className="p-2 sm:p-3 flex items-center justify-between cursor-pointer"
+                onClick={handleToggle}
+                className="p-2 sm:p-3 cursor-pointer"
             >
-                {/* Visual Feedback on left */}
-                <div className="w-6 flex justify-center opacity-70">
-                    {hasBeenViewed ? <CheckCircle className="w-5 h-5 text-green-500" /> : null}
+                <div className="flex items-center justify-between">
+                    {/* Visual Feedback on left */}
+                    <div className="w-6 flex justify-center opacity-70">
+                        {hasBeenViewed ? <CheckCircle className="w-5 h-5 text-green-500" /> : null}
+                    </div>
+
+                    <div className="flex-1 flex flex-col items-center justify-center gap-1 sm:gap-2">
+                        {/* Tiles Centered */}
+                        <div className="flex gap-0.5 justify-center">
+                            {entry.draw.split('').map((char, i) => (
+                                <Tile key={i} letter={char} size="xs" />
+                            ))}
+                        </div>
+                        {/* Base words */}
+                        {entry.solutions.length > 0 && (
+                            <div className="flex items-center justify-center gap-1 text-xs text-slate-500">
+                                <Minus className="w-3 h-3 text-red-400" />
+                                <span className="font-medium">{entry.solutions[0]}</span>
+                                {entry.solutions.length > 1 && (
+                                    <span className="text-slate-400">+{entry.solutions.length - 1}</span>
+                                )}
+                            </div>
+                        )}
+                    </div>
+                    {/* Expand icon pushed to the right */}
+                    <div className="w-6 flex justify-center">
+                        <ChevronRight className={clsx("w-5 h-5 text-slate-400 transition-transform flex-shrink-0", isExpanded && "rotate-90")} />
+                    </div>
                 </div>
 
-                <div className="flex-1 flex flex-col items-center justify-center gap-1 sm:gap-2">
-                    {/* Tiles Centered */}
-                    <div className="flex gap-0.5 justify-center">
-                        {entry.draw.split('').map((char, i) => (
-                            <Tile key={i} letter={char} size="xs" />
-                        ))}
-                    </div>
-                    {/* Base words */}
-                    {entry.solutions.length > 0 && (
-                        <div className="flex items-center justify-center gap-1 text-xs text-slate-500">
-                            <Minus className="w-3 h-3 text-red-400" />
-                            <span className="font-medium">{entry.solutions[0]}</span>
-                            {entry.solutions.length > 1 && (
-                                <span className="text-slate-400">+{entry.solutions.length - 1}</span>
-                            )}
-                        </div>
+                {/* Warning tooltip */}
+                <AnimatePresence>
+                    {showWarning && (
+                        <motion.div
+                            initial={{ opacity: 0, height: 0 }}
+                            animate={{ opacity: 1, height: 'auto' }}
+                            exit={{ opacity: 0, height: 0 }}
+                            className="mt-3 p-3 bg-amber-50 border border-amber-200 rounded-md flex items-start gap-2"
+                        >
+                            <AlertCircle className="w-4 h-4 text-amber-500 flex-shrink-0 mt-0.5" />
+                            <div className="text-xs text-amber-800">
+                                <p className="font-medium mb-1">Attention vous n'avez pas tout terminé !</p>
+                                <p>Il vous reste <strong>{entry.extensions.length - viewedCount}</strong> mots à apprendre pour ce tirage. Quitter sans voir toutes les extensions signifierait que vous ne les avez pas apprises dans vos statistiques. Préférez-vous y retourner pour terminer ? Cliquez à nouveau sur l'en-tête pour quitter tout de même.</p>
+                            </div>
+                        </motion.div>
                     )}
-                </div>
-                {/* Expand icon pushed to the right */}
-                <div className="w-6 flex justify-center">
-                    <ChevronRight className={clsx("w-5 h-5 text-slate-400 transition-transform flex-shrink-0", isExpanded && "rotate-90")} />
-                </div>
+                </AnimatePresence>
             </div>
 
             <AnimatePresence>
@@ -125,32 +191,82 @@ const EntryRow: React.FC<{ entry: DrawEntry; isHighlighted?: boolean; isExpanded
                         className="overflow-hidden"
                     >
                         <div className="px-2 sm:px-3 pb-3 pt-0 border-t border-slate-100 bg-slate-50/50">
-                            <div className="mt-2 grid grid-cols-1 sm:grid-cols-2 gap-1.5">
-                                {entry.extensions.map((ext, i) => {
-                                    const wordId = `${entry.draw}-${ext.letter}-${ext.word}`;
-                                    const mastery = masteries.get(wordId);
-
-                                    return (
-                                        <div key={i} className="flex items-center gap-2 text-xs bg-white p-1.5 rounded border border-slate-100 shadow-sm">
-                                            <span className="inline-flex items-center justify-center w-5 h-5 rounded bg-green-100 text-green-700 font-bold text-[10px] border border-green-200">
-                                                +{ext.letter}
+                            {entry.extensions.length > 0 && (
+                                <div className="mt-2">
+                                    <div className="flex justify-between items-center mb-2 px-1">
+                                        <span className="text-xs font-medium text-slate-500">Extensions +1 ({entry.extensions.length})</span>
+                                        {totalPages > 1 && (
+                                            <span className="text-[10px] text-slate-400 bg-slate-100 px-2 py-0.5 rounded-full font-medium">
+                                                {progressPercent}% vu{progressPercent === 100 ? ' ✅' : ''}
                                             </span>
-                                            <span className="text-slate-700 font-medium tracking-wide flex-1 uppercase">{ext.word}</span>
-                                            {mastery ? (
-                                                <MasteryIndicator
-                                                    level={mastery.masteryLevel}
-                                                    testCount={mastery.testCount}
-                                                    correctCount={mastery.correctCount}
-                                                    viewCount={mastery.viewCount}
-                                                />
-                                            ) : (
-                                                <MasteryIndicatorEmpty />
-                                            )}
+                                        )}
+                                    </div>
+                                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-1.5 min-h-[60px]">
+                                        {currentExtensions.map((ext, i) => {
+                                            const wordId = `${entry.draw}-${ext.letter}-${ext.word}`;
+                                            const mastery = masteries.get(wordId);
+
+                                            return (
+                                                <motion.div
+                                                    key={`${page}-${i}`}
+                                                    initial={{ opacity: 0, scale: 0.95 }}
+                                                    animate={{ opacity: 1, scale: 1 }}
+                                                    transition={{ duration: 0.2, delay: i * 0.05 }}
+                                                    className="flex items-center gap-2 text-xs bg-white p-1.5 rounded border border-slate-100 shadow-sm"
+                                                >
+                                                    <span className="inline-flex items-center justify-center w-5 h-5 rounded bg-green-100 text-green-700 font-bold text-[10px] border border-green-200">
+                                                        +{ext.letter}
+                                                    </span>
+                                                    <span className="text-slate-700 font-medium tracking-wide flex-1 uppercase">{ext.word}</span>
+                                                    {mastery ? (
+                                                        <MasteryIndicator
+                                                            level={mastery.masteryLevel}
+                                                            testCount={mastery.testCount}
+                                                            correctCount={mastery.correctCount}
+                                                            viewCount={mastery.viewCount}
+                                                        />
+                                                    ) : (
+                                                        <MasteryIndicatorEmpty />
+                                                    )}
+                                                </motion.div>
+                                            );
+                                        })}
+                                    </div>
+                                    
+                                    {/* Pagination Controls */}
+                                    {totalPages > 1 && (
+                                        <div className="flex items-center justify-between mt-3 pt-2 border-t border-slate-200/60">
+                                            <div className="text-xs font-medium text-slate-400 pl-1">
+                                                Page {page + 1} sur {totalPages}
+                                            </div>
+                                            <div className="flex items-center gap-1.5">
+                                                <button
+                                                    onClick={handlePrevPage}
+                                                    disabled={page === 0}
+                                                    className="p-1.5 rounded-full hover:bg-slate-200 disabled:opacity-30 disabled:hover:bg-transparent transition-colors text-slate-600 focus:outline-none"
+                                                    aria-label="Extensions précédentes"
+                                                >
+                                                    <ChevronLeft className="w-5 h-5" />
+                                                </button>
+                                                <button
+                                                    onClick={handleNextPage}
+                                                    disabled={page >= totalPages - 1}
+                                                    className={clsx(
+                                                        "px-3 py-1.5 flex items-center justify-center rounded-full transition-all focus:outline-none text-sm font-medium",
+                                                        page < totalPages - 1 
+                                                            ? "bg-scrabble-green text-white hover:bg-emerald-600 shadow-sm" 
+                                                            : "text-slate-400 bg-slate-200 opacity-50 cursor-not-allowed"
+                                                    )}
+                                                    aria-label="Extensions suivantes"
+                                                >
+                                                    Plus <ChevronRight className="w-4 h-4 ml-1" />
+                                                </button>
+                                            </div>
                                         </div>
-                                    );
-                                })}
-                                {entry.extensions.length === 0 && <span className="text-xs w-full text-center py-3 text-slate-400 italic">Aucune rallonge</span>}
-                            </div>
+                                    )}
+                                </div>
+                            )}
+                            {entry.extensions.length === 0 && <span className="text-xs w-full block text-center py-3 text-slate-400 italic">Aucune rallonge</span>}
                         </div>
                     </motion.div>
                 )}

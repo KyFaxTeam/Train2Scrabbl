@@ -4,6 +4,7 @@ import { Trophy, Target, Clock, Zap, ArrowLeft, RotateCcw } from 'lucide-react';
 import { clsx } from 'clsx';
 import confetti from 'canvas-confetti';
 import type { SessionStats, WorldType } from '../../types/dictionary';
+import { WORLD_NAMES } from '../../config/worlds';
 
 interface SessionCompleteProps {
     stats: SessionStats;
@@ -12,13 +13,6 @@ interface SessionCompleteProps {
     onContinue: () => void;
     onBackToArena: () => void;
 }
-
-const WORLD_NAMES: Record<WorldType, string> = {
-    essentials: 'Les Indispensables',
-    premium: 'Lettres Cheres',
-    vowels: 'Equilibre Voyelles',
-    explorer: 'Exploration',
-};
 
 export const SessionComplete: React.FC<SessionCompleteProps> = ({
     stats,

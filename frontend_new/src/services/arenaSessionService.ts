@@ -53,13 +53,16 @@ export function createStudySession(
     config: Partial<StudySessionConfig> = {}
 ): StudySession {
     const finalConfig = { ...DEFAULT_CONFIG, ...config };
-    
-    // Limit and optionally shuffle entries
-    let sessionEntries = entries.slice(0, finalConfig.maxEntries);
-    if (finalConfig.shuffleEntries) {
-        sessionEntries = shuffleArray(sessionEntries);
-    }
-    
+
+    // Mélanger AVANT de couper. L'ordre inverse coupait toujours les 20 mêmes
+    // premiers tirages du monde puis les mélangeait entre eux : chaque session
+    // resservait le même paquet, et sur les mondes triés alphabetiquement on
+    // ne quittait jamais les tirages en AAA.
+    const sessionEntries = (finalConfig.shuffleEntries
+        ? shuffleArray(entries)
+        : entries
+    ).slice(0, finalConfig.maxEntries);
+
     return {
         id: generateSessionId(),
         world,

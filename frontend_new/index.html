@@ -5,6 +5,13 @@
   <link rel="icon" type="image/svg+xml" href="/logo.svg" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Faizers Scrabble</title>
+  <!--
+    Le dictionnaire (2,4 Mo, ~758 Ko gzip) est de loin le plus gros telechargement
+    du premier affichage, et sans ce preload il ne demarre qu'une fois le bundle
+    telecharge PUIS execute : les deux transferts s'enchainent au lieu de se
+    superposer. Vite prefixe la base du site a l'URL au build.
+  -->
+  <link rel="preload" href="/data/scrabble_dict.txt" as="fetch" crossorigin="anonymous" />
   <!-- GitHub Pages SPA redirect handler -->
   <script type="text/javascript">
     (function (l) {

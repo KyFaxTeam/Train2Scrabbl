@@ -29,7 +29,7 @@ export interface DictionaryCategory {
 }
 
 // Types pour les Mondes de l'Arène
-export type WorldType = 'essentials' | 'premium' | 'vowels' | 'explorer';
+export type WorldType = 'essentials' | 'premium' | 'vowels' | 'explorer' | 'morphology';
 
 export interface WorldDefinition {
     id: WorldType;

@@ -1,6 +1,6 @@
 ﻿import React from 'react';
 import { motion } from 'framer-motion';
-import { Trophy, Diamond, CircleDot, Compass } from 'lucide-react';
+import { Trophy, Diamond, CircleDot, Compass, Blocks } from 'lucide-react';
 import { clsx } from 'clsx';
 import type { WorldType } from '../../types/dictionary';
 
@@ -40,6 +40,14 @@ const WORLDS: WorldConfig[] = [
         bgGradient: 'from-blue-50 to-blue-100 hover:from-blue-100 hover:to-blue-200',
     },
     {
+        id: 'morphology',
+        name: 'Morphologie',
+        description: 'Préfixes et suffixes',
+        icon: <Blocks className="w-6 h-6" />,
+        color: 'text-rose-600',
+        bgGradient: 'from-rose-50 to-rose-100 hover:from-rose-100 hover:to-rose-200',
+    },
+    {
         id: 'explorer',
         name: 'Exploration Libre',
         description: 'Navigation alphabétique',
@@ -52,12 +60,7 @@ const WORLDS: WorldConfig[] = [
 interface WorldSelectorProps {
     selectedWorld: WorldType | null;
     onSelectWorld: (world: WorldType) => void;
-    stats?: {
-        essentials: number;
-        premium: number;
-        vowels: number;
-        explorer: number;
-    };
+    stats?: Partial<Record<WorldType, number>>;
 }
 
 export const WorldSelector: React.FC<WorldSelectorProps> = ({
@@ -66,7 +69,7 @@ export const WorldSelector: React.FC<WorldSelectorProps> = ({
     stats
 }) => {
     return (
-        <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 p-4">
+        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3 p-4">
             {WORLDS.map((world) => {
                 const isSelected = selectedWorld === world.id;
                 const count = stats?.[world.id];

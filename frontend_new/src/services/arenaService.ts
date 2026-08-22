@@ -5,6 +5,12 @@
  */
 
 import type { DrawEntry, DrawTags, DictionaryCategory, WorldType, SubCategory } from '../types/dictionary';
+import {
+    MORPHOLOGY_FAMILIES,
+    FEATURED_FAMILIES,
+    PATTERN_LENGTHS,
+    type AffixFamily,
+} from '../data/morphologyFamilies';
 
 // ============================================================================
 // CONSTANTES
@@ -115,6 +121,106 @@ export function calculateProbability(draw: string): number {
 }
 
 // ============================================================================
+// APPARIEMENT MORPHOLOGIQUE
+// ============================================================================
+
+// Deux tables distinctes : 'IN' est à la fois un suffixe (IN / INE) et un
+// préfixe (IN- / IM-). Les confondre rangerait INUTILE avec MATIN.
+const suffixPatterns = new Map<string, string>();  // pattern -> id de famille
+const prefixPatterns = new Map<string, string>();
+
+for (const family of MORPHOLOGY_FAMILIES) {
+    const table = family.kind === 'suffix' ? suffixPatterns : prefixPatterns;
+    for (const pattern of family.patterns) {
+        // Première famille déclarée gagne, comme dans le script d'analyse :
+        // les deux classements doivent rester d'accord.
+        if (!table.has(pattern)) table.set(pattern, family.id);
+    }
+}
+
+// Un même mot revient dans des dizaines de tirages ; on ne l'analyse qu'une
+// fois. Sans ce cache, l'indexation refait ~150 000 fois le même découpage.
+const familyCache = new Map<string, string[]>();
+
+/**
+ * Familles d'affixes auxquelles ce mot appartient.
+ *
+ * Appariement par motif, comme le classement hors ligne : on teste la
+ * terminaison (ou le début), pas la décomposition. MATIN compte donc pour
+ * -IN. C'est voulu — le monde Morphologie sert à repérer un motif sur un
+ * chevalet, ce qui reste vrai même quand l'étymologie ne suit pas.
+ */
+function getWordFamilies(word: string): string[] {
+    const cached = familyCache.get(word);
+    if (cached) return cached;
+
+    const found = new Set<string>();
+    for (const size of PATTERN_LENGTHS) {
+        if (size >= word.length) continue;
+        const asSuffix = suffixPatterns.get(word.slice(-size));
+        if (asSuffix) found.add(asSuffix);
+        const asPrefix = prefixPatterns.get(word.slice(0, size));
+        if (asPrefix) found.add(asPrefix);
+    }
+
+    const result = [...found];
+    familyCache.set(word, result);
+    return result;
+}
+
+/** Familles présentes dans un tirage, solutions 7L et rallonges 7+1 comprises. */
+export function getEntryFamilies(entry: DrawEntry): string[] {
+    const found = new Set<string>();
+    for (const solution of entry.solutions) {
+        for (const id of getWordFamilies(solution)) found.add(id);
+    }
+    for (const ext of entry.extensions) {
+        for (const id of getWordFamilies(ext.word)) found.add(id);
+    }
+    return [...found];
+}
+
+export function getMorphologyFamily(id: string): AffixFamily | undefined {
+    return MORPHOLOGY_FAMILIES.find(f => f.id === id);
+}
+
+/**
+ * Libelle d'affichage d'une famille.
+ *
+ * Le trait d'union porte deja l'information : "DE-" se lit comme un prefixe,
+ * "-EUR" comme un suffixe. Pas besoin d'icone ni de legende.
+ */
+export function formatFamilyLabel(family: AffixFamily): string {
+    return family.kind === 'prefix'
+        ? family.label
+        : `-${family.label.replace(/ \/ /g, ' / -')}`;
+}
+
+/**
+ * Mots du tirage appartenant a cette famille.
+ *
+ * `scope` decide si les rallonges 7+1 comptent. Elles n'ont rien a y faire
+ * quand le mot sert de preuve devant un chevalet : EMPLITES justifie EM- mais
+ * consomme un P absent du tirage, et le joueur cherche en vain la lettre.
+ */
+export function getFamilyWords(
+    entry: DrawEntry,
+    familyId: string,
+    scope: 'all' | 'solutions' = 'all'
+): string[] {
+    const words: string[] = [];
+    for (const solution of entry.solutions) {
+        if (getWordFamilies(solution).includes(familyId)) words.push(solution);
+    }
+    if (scope === 'solutions') return words;
+
+    for (const ext of entry.extensions) {
+        if (getWordFamilies(ext.word).includes(familyId)) words.push(ext.word);
+    }
+    return words;
+}
+
+// ============================================================================
 // INDEX MULTI-DIMENSIONNELS
 // ============================================================================
 
@@ -135,6 +241,10 @@ interface ArenaIndexes {
     // Sous-index combinés
     premiumByVowel: Map<string, DrawEntry[]>;  // "J-3" -> entries
     vowelByFirstLetter: Map<string, DrawEntry[]>; // "3-A" -> entries
+
+    // Monde "Morphologie" (par famille d'affixes)
+    byAffixFamily: Map<string, DrawEntry[]>;
+    allMorphologyEntries: DrawEntry[];
 
     // Index de recherche directe
     byDraw: Map<string, DrawEntry>;
@@ -180,6 +290,12 @@ export function buildArenaIndexes(categories: DictionaryCategory[]): void {
     const vowelByFirstLetter = new Map<string, DrawEntry[]>();
     const byDraw = new Map<string, DrawEntry>();
     const allPremiumEntries: DrawEntry[] = [];
+    const byAffixFamily = new Map<string, DrawEntry[]>();
+    const allMorphologyEntries: DrawEntry[] = [];
+
+    for (const family of MORPHOLOGY_FAMILIES) {
+        byAffixFamily.set(family.id, []);
+    }
 
     // Initialiser les Maps
     for (const letter of PREMIUM_LETTERS) {
@@ -194,6 +310,15 @@ export function buildArenaIndexes(categories: DictionaryCategory[]): void {
         for (const entry of cat.entries) {
             allEntries.push(entry);
             byDraw.set(entry.draw, entry);
+
+            // Index morphologique
+            const families = getEntryFamilies(entry);
+            if (families.length > 0) {
+                allMorphologyEntries.push(entry);
+                for (const id of families) {
+                    byAffixFamily.get(id)!.push(entry);
+                }
+            }
 
             const tags = entry.tags;
             if (!tags) continue;
@@ -233,6 +358,17 @@ export function buildArenaIndexes(categories: DictionaryCategory[]): void {
         .sort((a, b) => (a.tags?.probabilityRank || Infinity) - (b.tags?.probabilityRank || Infinity))
         .slice(0, 1000);
 
+    // Les tirages arrivent dans l'ordre alphabétique du dictionnaire. Pour la
+    // morphologie on trie par probabilité : à famille égale, on veut d'abord
+    // les tirages qu'on a des chances de revoir sur une vraie table.
+    const byProbability = (a: DrawEntry, b: DrawEntry) =>
+        (a.tags?.probabilityRank ?? Infinity) - (b.tags?.probabilityRank ?? Infinity);
+
+    allMorphologyEntries.sort(byProbability);
+    for (const list of byAffixFamily.values()) {
+        list.sort(byProbability);
+    }
+
     arenaIndexes = {
         allEntries,
         topProbability,
@@ -241,6 +377,8 @@ export function buildArenaIndexes(categories: DictionaryCategory[]): void {
         byVowelCount,
         premiumByVowel,
         vowelByFirstLetter,
+        byAffixFamily,
+        allMorphologyEntries,
         byDraw
     };
 }
@@ -260,12 +398,22 @@ export function getEntriesByWorld(world: WorldType): DrawEntry[] {
             return arenaIndexes.topProbability;
         case 'premium':
             return arenaIndexes.allPremiumEntries;
+        case 'morphology':
+            return arenaIndexes.allMorphologyEntries;
         case 'vowels':
         case 'explorer':
             return arenaIndexes.allEntries;
         default:
             return [];
     }
+}
+
+/**
+ * Récupère les tirages contenant un mot d'une famille d'affixes donnée
+ */
+export function getEntriesByAffixFamily(familyId: string): DrawEntry[] {
+    if (!arenaIndexes) return [];
+    return arenaIndexes.byAffixFamily.get(familyId) || [];
 }
 
 /**
@@ -348,6 +496,19 @@ export function getSubcategories(world: WorldType): SubCategory[] {
                 };
             }).filter(s => s.count > 0);
 
+        case 'morphology':
+            // Seulement les familles en vedette : les 44 tiendraient à l'écran
+            // mais personne ne choisit dans une liste de 44 pastilles.
+            return FEATURED_FAMILIES.map(family => {
+                const entries = arenaIndexes!.byAffixFamily.get(family.id) || [];
+                return {
+                    id: family.id,
+                    label: formatFamilyLabel(family),
+                    count: entries.length,
+                    entries
+                };
+            }).filter(s => s.count > 0);
+
         case 'explorer':
             return []; // Pas de sous-catégories, navigation libre
 
@@ -365,6 +526,7 @@ export function getArenaStats() {
     return {
         totalEntries: arenaIndexes.allEntries.length,
         premiumEntries: arenaIndexes.allPremiumEntries.length,
+        morphologyEntries: arenaIndexes.allMorphologyEntries.length,
         byVowelCount: Object.fromEntries(
             Array.from(arenaIndexes.byVowelCount.entries())
                 .map(([k, v]) => [k, v.length])

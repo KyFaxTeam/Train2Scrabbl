@@ -6,6 +6,7 @@ import TrainingPage from './pages/TrainingPage';
 import StatsPage from './pages/StatsPage';
 import ArenaPage from './pages/ArenaPage';
 import ArenaStatsPage from './pages/ArenaStatsPage';
+import { StudySession, ReflexChallenge } from './components/Arena';
 
 const App: React.FC = () => {
   return (
@@ -16,6 +17,9 @@ const App: React.FC = () => {
           <Route path="/codex" element={<DictionaryPage />} />
           <Route path="/arena" element={<ArenaPage />} />
           <Route path="/arena/stats" element={<ArenaStatsPage />} />
+          <Route path="/arena/study/:world" element={<StudySession />} />
+          <Route path="/arena/reflex" element={<ReflexChallenge />} />
+          <Route path="/arena/entry/:entryId" element={<StudySession singleEntry />} />
           <Route path="/training" element={<TrainingPage />} />
           <Route path="/stats" element={<StatsPage />} />
         </Routes>

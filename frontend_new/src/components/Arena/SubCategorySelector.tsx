@@ -2,6 +2,7 @@
 import { motion } from 'framer-motion';
 import { clsx } from 'clsx';
 import type { SubCategory, WorldType } from '../../types/dictionary';
+import { WORLD_COLORS } from '../../config/worlds';
 
 interface SubCategorySelectorProps {
     world: WorldType;
@@ -9,13 +10,6 @@ interface SubCategorySelectorProps {
     selectedId: string | null;
     onSelect: (id: string) => void;
 }
-
-const WORLD_COLORS: Record<WorldType, string> = {
-    essentials: 'bg-amber-500',
-    premium: 'bg-purple-500',
-    vowels: 'bg-blue-500',
-    explorer: 'bg-emerald-500',
-};
 
 export const SubCategorySelector: React.FC<SubCategorySelectorProps> = ({
     world,
@@ -43,7 +37,7 @@ export const SubCategorySelector: React.FC<SubCategorySelectorProps> = ({
                                 : "bg-white text-slate-700 border border-slate-200 hover:border-slate-300 hover:shadow-sm"
                         )}
                     >
-                        <span className="mr-1">{subcat.icon}</span>
+                        {subcat.icon && <span className="mr-1">{subcat.icon}</span>}
                         {subcat.label}
                         <span className={clsx(
                             "ml-1.5 text-xs",

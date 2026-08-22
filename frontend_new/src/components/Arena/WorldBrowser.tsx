@@ -1,8 +1,10 @@
 ﻿import React, { useState, useEffect, useMemo } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { ArrowLeft, Search, Filter } from 'lucide-react';
+import { ArrowLeft, Search, Filter, GraduationCap, Zap } from 'lucide-react';
 import type { DrawEntry, WorldType } from '../../types/dictionary';
 import { getSubcategories } from '../../services/dictionaryService';
+import { WORLD_NAMES } from '../../config/worlds';
 import { getWorldProgress, type WorldProgress } from '../../services/progressService';
 import EntryCard from './EntryCard';
 import SubCategorySelector from './SubCategorySelector';
@@ -21,6 +23,7 @@ export const WorldBrowser: React.FC<WorldBrowserProps> = ({
     entries,
     onBack
 }) => {
+    const navigate = useNavigate();
     const [searchQuery, setSearchQuery] = useState('');
     const [selectedSubcategory, setSelectedSubcategory] = useState<string | null>(null);
     const [visibleCount, setVisibleCount] = useState(ENTRIES_PER_PAGE);
@@ -76,11 +79,21 @@ export const WorldBrowser: React.FC<WorldBrowserProps> = ({
     const visibleEntries = filteredEntries.slice(0, visibleCount);
     const hasMore = visibleCount < filteredEntries.length;
 
-    const worldNames: Record<WorldType, string> = {
-        essentials: 'Les Indispensables',
-        premium: 'Lettres Chères',
-        vowels: 'Équilibre Voyelles',
-        explorer: 'Exploration Libre'
+    // La session d'étude porte sur ce que l'utilisateur regarde : si une
+    // sous-catégorie est sélectionnée, on l'étudie elle, pas le monde entier.
+    const startStudy = () => {
+        const base = `/arena/study/${world}`;
+        navigate(selectedSubcategory
+            ? `${base}?subcategory=${encodeURIComponent(selectedSubcategory)}`
+            : base);
+    };
+
+    // Le défi ne sert que la Morphologie : ses deux manches supposent une
+    // famille d'affixes, notion que les autres mondes n'ont pas.
+    const startReflex = () => {
+        navigate(selectedSubcategory
+            ? `/arena/reflex?family=${encodeURIComponent(selectedSubcategory)}`
+            : '/arena/reflex');
     };
 
     return (
@@ -95,9 +108,9 @@ export const WorldBrowser: React.FC<WorldBrowserProps> = ({
                         <ArrowLeft className="w-5 h-5 text-slate-600" />
                     </button>
 
-                    <div className="flex-1">
-                        <h2 className="font-semibold text-lg text-slate-800">
-                            {worldNames[world]}
+                    <div className="flex-1 min-w-0">
+                        <h2 className="font-semibold text-lg text-slate-800 truncate">
+                            {WORLD_NAMES[world]}
                         </h2>
                         <p className="text-xs text-slate-500">
                             {filteredEntries.length.toLocaleString()} tirages
@@ -105,7 +118,7 @@ export const WorldBrowser: React.FC<WorldBrowserProps> = ({
                     </div>
 
                     {/* Search */}
-                    <div className="relative">
+                    <div className="relative hidden sm:block">
                         <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
                         <input
                             type="text"
@@ -115,6 +128,37 @@ export const WorldBrowser: React.FC<WorldBrowserProps> = ({
                             className="pl-9 pr-3 py-1.5 w-40 sm:w-56 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                         />
                     </div>
+
+                    {world === 'morphology' && (
+                        <button
+                            onClick={startReflex}
+                            className="flex items-center gap-2 px-3 sm:px-4 py-2 bg-rose-600 hover:bg-rose-700 text-white rounded-lg transition-colors text-sm font-medium shrink-0 focus:outline-none focus-visible:ring-2 focus-visible:ring-rose-400 focus-visible:ring-offset-2"
+                        >
+                            <Zap className="w-4 h-4" />
+                            <span className="hidden sm:inline">Défi</span>
+                        </button>
+                    )}
+
+                    <button
+                        onClick={startStudy}
+                        disabled={filteredEntries.length === 0}
+                        className="flex items-center gap-2 px-3 sm:px-4 py-2 bg-blue-600 hover:bg-blue-700 disabled:bg-slate-300 disabled:cursor-not-allowed text-white rounded-lg transition-colors text-sm font-medium shrink-0 focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-400 focus-visible:ring-offset-2"
+                    >
+                        <GraduationCap className="w-4 h-4" />
+                        <span className="hidden sm:inline">Étudier</span>
+                    </button>
+                </div>
+
+                {/* Recherche - pleine largeur sur mobile, où le bouton prend la place */}
+                <div className="relative px-3 pb-3 sm:hidden">
+                    <Search className="absolute left-6 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+                    <input
+                        type="text"
+                        value={searchQuery}
+                        onChange={(e) => setSearchQuery(e.target.value)}
+                        placeholder="Rechercher..."
+                        className="pl-9 pr-3 py-1.5 w-full border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    />
                 </div>
 
                 {/* Progress Bar */}

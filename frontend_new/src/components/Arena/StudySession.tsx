@@ -15,15 +15,9 @@ import {
     calculateSessionXP,
 } from '../../services/arenaSessionService';
 import { recordDailyActivity } from '../../services/statsService';
+import { WORLD_NAMES } from '../../config/worlds';
 import StudyCard from './StudyCard';
 import SessionComplete from './SessionComplete';
-
-const WORLD_NAMES: Record<WorldType, string> = {
-    essentials: 'Les Indispensables',
-    premium: 'Lettres Cheres',
-    vowels: 'Equilibre Voyelles',
-    explorer: 'Exploration',
-};
 
 interface StudySessionProps {
     singleEntry?: boolean;

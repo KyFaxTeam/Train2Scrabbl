@@ -1,0 +1,4361 @@
+{
+  "meta": {
+    "ods": 411430,
+    "draws": 22456,
+    "bagCoverage": 0.15410285113519606,
+    "minStem": 3,
+    "weights": {
+      "reach": 0.4,
+      "reliability": 0.35,
+      "leverage": 0.25
+    },
+    "includeVerbal": false
+  },
+  "suffixes": [
+    {
+      "label": "IQUE",
+      "role": "Science, propriete",
+      "patterns": [
+        "IQUE",
+        "IQUES"
+      ],
+      "canonical": "IQUE",
+      "words7": 114,
+      "words8": 249,
+      "motifTotal": 363,
+      "reach7": 0.2892041869840154,
+      "reach8": 2.116759901808145,
+      "triggerRate": 0.560740216878563,
+      "reliability": 51.57543159538477,
+      "hooks": 101,
+      "hookRatio": 27.823691460055095,
+      "examples": [
+        {
+          "stem": "CANT",
+          "word": "CANTIQUE",
+          "affix": "IQUE"
+        },
+        {
+          "stem": "CRET",
+          "word": "CRETIQUE",
+          "affix": "IQUE"
+        },
+        {
+          "stem": "EDEN",
+          "word": "EDENIQUE",
+          "affix": "IQUE"
+        },
+        {
+          "stem": "EDIT",
+          "word": "EDITIQUE",
+          "affix": "IQUE"
+        },
+        {
+          "stem": "EMET",
+          "word": "EMETIQUE",
+          "affix": "IQUE"
+        },
+        {
+          "stem": "FILM",
+          "word": "FILMIQUE",
+          "affix": "IQUE"
+        },
+        {
+          "stem": "GOLF",
+          "word": "GOLFIQUE",
+          "affix": "IQUE"
+        },
+        {
+          "stem": "HERO",
+          "word": "HEROIQUE",
+          "affix": "IQUE"
+        },
+        {
+          "stem": "LAMA",
+          "word": "LAMAIQUE",
+          "affix": "IQUE"
+        },
+        {
+          "stem": "MALE",
+          "word": "MALEIQUE",
+          "affix": "IQUE"
+        },
+        {
+          "stem": "MONO",
+          "word": "MONOIQUE",
+          "affix": "IQUE"
+        },
+        {
+          "stem": "NORD",
+          "word": "NORDIQUE",
+          "affix": "IQUE"
+        }
+      ],
+      "sampleWords7": [
+        "ABDIQUE",
+        "ALGIQUE",
+        "ANTIQUE",
+        "APIQUES",
+        "AREIQUE",
+        "ASTIQUE",
+        "ATTIQUE",
+        "AULIQUE",
+        "AURIQUE",
+        "AZOIQUE",
+        "BASIQUE",
+        "BORIQUE"
+      ],
+      "nReach": 0.05029437543920902,
+      "nReliability": 1.0,
+      "nLeverage": 0.03127903375658098,
+      "score": 37.793750861482884
+    },
+    {
+      "label": "EUR / EUSE",
+      "role": "Agent, metier, machine",
+      "patterns": [
+        "EUR",
+        "EURS",
+        "EUSE",
+        "EUSES"
+      ],
+      "canonical": "EUR",
+      "words7": 599,
+      "words8": 1230,
+      "motifTotal": 1829,
+      "reach7": 4.020045098238622,
+      "reach8": 18.393487475461782,
+      "triggerRate": 17.429435696733503,
+      "reliability": 23.064688772408328,
+      "hooks": 553,
+      "hookRatio": 30.235101148168397,
+      "examples": [
+        {
+          "stem": "AVAL",
+          "word": "AVALEUR",
+          "affix": "EUR"
+        },
+        {
+          "stem": "CALL",
+          "word": "CALLEUR",
+          "affix": "EUR"
+        },
+        {
+          "stem": "CAMP",
+          "word": "CAMPEUR",
+          "affix": "EUR"
+        },
+        {
+          "stem": "CHIP",
+          "word": "CHIPEUR",
+          "affix": "EUR"
+        },
+        {
+          "stem": "CLAM",
+          "word": "CLAMEUR",
+          "affix": "EUR"
+        },
+        {
+          "stem": "COUP",
+          "word": "COUPEUR",
+          "affix": "EUR"
+        },
+        {
+          "stem": "COUR",
+          "word": "COUREUR",
+          "affix": "EUR"
+        },
+        {
+          "stem": "CRAN",
+          "word": "CRANEUR",
+          "affix": "EUR"
+        },
+        {
+          "stem": "DEAL",
+          "word": "DEALEUR",
+          "affix": "EUR"
+        },
+        {
+          "stem": "DOUC",
+          "word": "DOUCEUR",
+          "affix": "EUR"
+        },
+        {
+          "stem": "ECOT",
+          "word": "ECOTEUR",
+          "affix": "EUR"
+        },
+        {
+          "stem": "EDIT",
+          "word": "EDITEUR",
+          "affix": "EUR"
+        }
+      ],
+      "sampleWords7": [
+        "ABOYEUR",
+        "ABUSEUR",
+        "ACTEURS",
+        "AGREEUR",
+        "AIGREUR",
+        "ALESEUR",
+        "AMATEUR",
+        "AMBLEUR",
+        "AMPLEUR",
+        "AMUSEUR",
+        "AQUEUSE",
+        "ARDEURS"
+      ],
+      "nReach": 0.43703065422632437,
+      "nReliability": 0.44720302009983126,
+      "nLeverage": 0.17126045215236915,
+      "score": 37.41484317635629
+    },
+    {
+      "label": "IN / INE",
+      "role": "Diminutif, matiere, chimie",
+      "patterns": [
+        "IN",
+        "INS",
+        "INE",
+        "INES"
+      ],
+      "canonical": "IN",
+      "words7": 711,
+      "words8": 780,
+      "motifTotal": 1491,
+      "reach7": 5.162404433959362,
+      "reach8": 18.277437187066116,
+      "triggerRate": 22.883127209517045,
+      "reliability": 22.559872987169026,
+      "hooks": 328,
+      "hookRatio": 21.99865861837693,
+      "examples": [
+        {
+          "stem": "AGNEL",
+          "word": "AGNELIN",
+          "affix": "IN"
+        },
+        {
+          "stem": "ARCH",
+          "word": "ARCHINE",
+          "affix": "INE"
+        },
+        {
+          "stem": "BALAN",
+          "word": "BALANIN",
+          "affix": "IN"
+        },
+        {
+          "stem": "BEGU",
+          "word": "BEGUINE",
+          "affix": "INE"
+        },
+        {
+          "stem": "BEGU",
+          "word": "BEGUINS",
+          "affix": "INS"
+        },
+        {
+          "stem": "BLOND",
+          "word": "BLONDIN",
+          "affix": "IN"
+        },
+        {
+          "stem": "CABOT",
+          "word": "CABOTIN",
+          "affix": "IN"
+        },
+        {
+          "stem": "CAFE",
+          "word": "CAFEINE",
+          "affix": "INE"
+        },
+        {
+          "stem": "CALOT",
+          "word": "CALOTIN",
+          "affix": "IN"
+        },
+        {
+          "stem": "CANT",
+          "word": "CANTINE",
+          "affix": "INE"
+        },
+        {
+          "stem": "CASE",
+          "word": "CASEINE",
+          "affix": "INE"
+        },
+        {
+          "stem": "CHOP",
+          "word": "CHOPINE",
+          "affix": "INE"
+        }
+      ],
+      "sampleWords7": [
+        "ABIETIN",
+        "ABOMINE",
+        "ABSTINS",
+        "ABYSSIN",
+        "ACHAINE",
+        "ACTINES",
+        "ACUMINE",
+        "ADENINE",
+        "ADJOINS",
+        "AFFINES",
+        "AGASSIN",
+        "AGNELIN"
+      ],
+      "nReach": 0.43427329059268105,
+      "nReliability": 0.43741510811104484,
+      "nLeverage": 0.10157943635800558,
+      "score": 35.219946316543954
+    },
+    {
+      "label": "ITE / ITUDE",
+      "role": "Qualite abstraite",
+      "patterns": [
+        "ITE",
+        "ITES",
+        "ITUDE",
+        "ITUDES"
+      ],
+      "canonical": "ITE",
+      "words7": 329,
+      "words8": 580,
+      "motifTotal": 909,
+      "reach7": 3.275531359882553,
+      "reach8": 16.70042460683183,
+      "triggerRate": 18.22655501074106,
+      "reliability": 17.97120387232944,
+      "hooks": 215,
+      "hookRatio": 23.652365236523654,
+      "examples": [
+        {
+          "stem": "ALLA",
+          "word": "ALLAITE",
+          "affix": "ITE"
+        },
+        {
+          "stem": "ALUN",
+          "word": "ALUNITE",
+          "affix": "ITE"
+        },
+        {
+          "stem": "AMAN",
+          "word": "AMANITE",
+          "affix": "ITE"
+        },
+        {
+          "stem": "AMEN",
+          "word": "AMENITE",
+          "affix": "ITE"
+        },
+        {
+          "stem": "ANAL",
+          "word": "ANALITE",
+          "affix": "ITE"
+        },
+        {
+          "stem": "ANGE",
+          "word": "ANGEITE",
+          "affix": "ITE"
+        },
+        {
+          "stem": "CHAR",
+          "word": "CHARITE",
+          "affix": "ITE"
+        },
+        {
+          "stem": "DECU",
+          "word": "DECUITE",
+          "affix": "ITE"
+        },
+        {
+          "stem": "DELA",
+          "word": "DELAITE",
+          "affix": "ITE"
+        },
+        {
+          "stem": "DUAL",
+          "word": "DUALITE",
+          "affix": "ITE"
+        },
+        {
+          "stem": "EGAL",
+          "word": "EGALITE",
+          "affix": "ITE"
+        },
+        {
+          "stem": "GREC",
+          "word": "GRECITE",
+          "affix": "ITE"
+        }
+      ],
+      "sampleWords7": [
+        "ABRITES",
+        "ACIDITE",
+        "ACUITES",
+        "ADAMITE",
+        "ADENITE",
+        "ADMITES",
+        "ADROITE",
+        "AETITES",
+        "AFFAITE",
+        "AGILITE",
+        "ALAWITE",
+        "ALBITES"
+      ],
+      "nReach": 0.3968033523559884,
+      "nReliability": 0.3484450506069559,
+      "nLeverage": 0.06658408175905853,
+      "score": 29.73231290945946
+    },
+    {
+      "label": "IER / IERE",
+      "role": "Metier, arbre, contenant",
+      "patterns": [
+        "IER",
+        "IERS",
+        "IERE",
+        "IERES"
+      ],
+      "canonical": "IER",
+      "words7": 341,
+      "words8": 634,
+      "motifTotal": 975,
+      "reach7": 3.5496845341917784,
+      "reach8": 16.085372116702775,
+      "triggerRate": 20.637166355087174,
+      "reliability": 17.200445415398622,
+      "hooks": 262,
+      "hookRatio": 26.871794871794876,
+      "examples": [
+        {
+          "stem": "ANON",
+          "word": "ANONIER",
+          "affix": "IER"
+        },
+        {
+          "stem": "BOIT",
+          "word": "BOITIER",
+          "affix": "IER"
+        },
+        {
+          "stem": "BORD",
+          "word": "BORDIER",
+          "affix": "IER"
+        },
+        {
+          "stem": "CAFE",
+          "word": "CAFEIER",
+          "affix": "IER"
+        },
+        {
+          "stem": "CLAP",
+          "word": "CLAPIER",
+          "affix": "IER"
+        },
+        {
+          "stem": "DENT",
+          "word": "DENTIER",
+          "affix": "IER"
+        },
+        {
+          "stem": "DRAP",
+          "word": "DRAPIER",
+          "affix": "IER"
+        },
+        {
+          "stem": "ETAL",
+          "word": "ETALIER",
+          "affix": "IER"
+        },
+        {
+          "stem": "FARD",
+          "word": "FARDIER",
+          "affix": "IER"
+        },
+        {
+          "stem": "GAIN",
+          "word": "GAINIER",
+          "affix": "IER"
+        },
+        {
+          "stem": "GANT",
+          "word": "GANTIER",
+          "affix": "IER"
+        },
+        {
+          "stem": "HALL",
+          "word": "HALLIER",
+          "affix": "IER"
+        }
+      ],
+      "sampleWords7": [
+        "ABLIERS",
+        "ACIERES",
+        "ACONIER",
+        "AILIERE",
+        "AILIERS",
+        "ALISIER",
+        "ALIZIER",
+        "ALTIERE",
+        "ALTIERS",
+        "AMODIER",
+        "ANEMIER",
+        "ANIERES"
+      ],
+      "nReach": 0.3821896586503643,
+      "nReliability": 0.33350075575398197,
+      "nLeverage": 0.08113967172499226,
+      "score": 28.988604590528745
+    },
+    {
+      "label": "AGE",
+      "role": "Action, resultat, collectif",
+      "patterns": [
+        "AGE",
+        "AGES"
+      ],
+      "canonical": "AGE",
+      "words7": 433,
+      "words8": 695,
+      "motifTotal": 1128,
+      "reach7": 1.5841123952224843,
+      "reach8": 8.503872631277318,
+      "triggerRate": 6.144582005206159,
+      "reliability": 25.780637216336334,
+      "hooks": 341,
+      "hookRatio": 30.230496453900706,
+      "examples": [
+        {
+          "stem": "AIGU",
+          "word": "AIGUAGE",
+          "affix": "AGE"
+        },
+        {
+          "stem": "ALUN",
+          "word": "ALUNAGE",
+          "affix": "AGE"
+        },
+        {
+          "stem": "AMEN",
+          "word": "AMENAGE",
+          "affix": "AGE"
+        },
+        {
+          "stem": "BARD",
+          "word": "BARDAGE",
+          "affix": "AGE"
+        },
+        {
+          "stem": "BILL",
+          "word": "BILLAGE",
+          "affix": "AGE"
+        },
+        {
+          "stem": "BLOG",
+          "word": "BLOGAGE",
+          "affix": "AGE"
+        },
+        {
+          "stem": "BOIT",
+          "word": "BOITAGE",
+          "affix": "AGE"
+        },
+        {
+          "stem": "BOND",
+          "word": "BONDAGE",
+          "affix": "AGE"
+        },
+        {
+          "stem": "BORD",
+          "word": "BORDAGE",
+          "affix": "AGE"
+        },
+        {
+          "stem": "BOUC",
+          "word": "BOUCAGE",
+          "affix": "AGE"
+        },
+        {
+          "stem": "CHIP",
+          "word": "CHIPAGE",
+          "affix": "AGE"
+        },
+        {
+          "stem": "CLOU",
+          "word": "CLOUAGE",
+          "affix": "AGE"
+        }
+      ],
+      "sampleWords7": [
+        "ABATAGE",
+        "ACIDAGE",
+        "ACONAGE",
+        "AERAGES",
+        "AFFEAGE",
+        "AGREAGE",
+        "AIGAGES",
+        "AIGUAGE",
+        "AJUTAGE",
+        "ALESAGE",
+        "ALLIAGE",
+        "ALPAGES"
+      ],
+      "nReach": 0.2020526571952422,
+      "nReliability": 0.4998627528430284,
+      "nLeverage": 0.10560545060390214,
+      "score": 28.21743890241323
+    },
+    {
+      "label": "ETTE / OTTE",
+      "role": "Diminutif feminin",
+      "patterns": [
+        "ETTE",
+        "ETTES",
+        "OTTE",
+        "OTTES"
+      ],
+      "canonical": "ETTE",
+      "words7": 182,
+      "words8": 356,
+      "motifTotal": 538,
+      "reach7": 0.934671413925049,
+      "reach8": 4.85982252844564,
+      "triggerRate": 3.0142492580235163,
+      "reliability": 31.00843141744441,
+      "hooks": 172,
+      "hookRatio": 31.970260223048324,
+      "examples": [
+        {
+          "stem": "BEUR",
+          "word": "BEURETTE",
+          "affix": "ETTE"
+        },
+        {
+          "stem": "BILL",
+          "word": "BILLETTE",
+          "affix": "ETTE"
+        },
+        {
+          "stem": "BLEU",
+          "word": "BLEUETTE",
+          "affix": "ETTE"
+        },
+        {
+          "stem": "BROU",
+          "word": "BROUETTE",
+          "affix": "ETTE"
+        },
+        {
+          "stem": "BRUN",
+          "word": "BRUNETTE",
+          "affix": "ETTE"
+        },
+        {
+          "stem": "CHIC",
+          "word": "CHICOTTE",
+          "affix": "OTTE"
+        },
+        {
+          "stem": "CHIP",
+          "word": "CHIPETTE",
+          "affix": "ETTE"
+        },
+        {
+          "stem": "CHOU",
+          "word": "CHOUETTE",
+          "affix": "ETTE"
+        },
+        {
+          "stem": "COUP",
+          "word": "COUPETTE",
+          "affix": "ETTE"
+        },
+        {
+          "stem": "COUR",
+          "word": "COURETTE",
+          "affix": "ETTE"
+        },
+        {
+          "stem": "CUIR",
+          "word": "CUIRETTE",
+          "affix": "ETTE"
+        },
+        {
+          "stem": "DOUC",
+          "word": "DOUCETTE",
+          "affix": "ETTE"
+        }
+      ],
+      "sampleWords7": [
+        "ABLETTE",
+        "ADMETTE",
+        "AILETTE",
+        "ALUETTE",
+        "ARIETTE",
+        "ARPETTE",
+        "ASSETTE",
+        "AUBETTE",
+        "AUGETTE",
+        "BANETTE",
+        "BAVETTE",
+        "BELETTE"
+      ],
+      "nReach": 0.11546975101181056,
+      "nReliability": 0.6012248556775859,
+      "nLeverage": 0.05326726540724683,
+      "score": 26.993341624369094
+    },
+    {
+      "label": "EUX",
+      "role": "Propriete, caracteristique",
+      "patterns": [
+        "EUX"
+      ],
+      "canonical": "EUX",
+      "words7": 126,
+      "words8": 96,
+      "motifTotal": 222,
+      "reach7": 0.2022637927046644,
+      "reach8": 0.8338428849863985,
+      "triggerRate": 0.5843297848207716,
+      "reliability": 34.61466417747364,
+      "hooks": 47,
+      "hookRatio": 21.17117117117117,
+      "examples": [
+        {
+          "stem": "BOIT",
+          "word": "BOITEUX",
+          "affix": "EUX"
+        },
+        {
+          "stem": "BULL",
+          "word": "BULLEUX",
+          "affix": "EUX"
+        },
+        {
+          "stem": "CALL",
+          "word": "CALLEUX",
+          "affix": "EUX"
+        },
+        {
+          "stem": "CARI",
+          "word": "CARIEUX",
+          "affix": "EUX"
+        },
+        {
+          "stem": "CASE",
+          "word": "CASEEUX",
+          "affix": "EUX"
+        },
+        {
+          "stem": "ENVI",
+          "word": "ENVIEUX",
+          "affix": "EUX"
+        },
+        {
+          "stem": "HEUR",
+          "word": "HEUREUX",
+          "affix": "EUX"
+        },
+        {
+          "stem": "MATH",
+          "word": "MATHEUX",
+          "affix": "EUX"
+        },
+        {
+          "stem": "SORT",
+          "word": "SORTEUX",
+          "affix": "EUX"
+        },
+        {
+          "stem": "VENT",
+          "word": "VENTEUX",
+          "affix": "EUX"
+        },
+        {
+          "stem": "ACIER",
+          "word": "ACIEREUX",
+          "affix": "EUX"
+        },
+        {
+          "stem": "AMOUR",
+          "word": "AMOUREUX",
+          "affix": "EUX"
+        }
+      ],
+      "sampleWords7": [
+        "ACETEUX",
+        "ACINEUX",
+        "ADIPEUX",
+        "AFFREUX",
+        "APHTEUX",
+        "ARENEUX",
+        "AZOTEUX",
+        "BIGLEUX",
+        "BILIEUX",
+        "BOITEUX",
+        "BOULEUX",
+        "BOUSEUX"
+      ],
+      "nReach": 0.019812170042996295,
+      "nReliability": 0.6711463793270736,
+      "nLeverage": 0.014555589965933726,
+      "score": 24.64649982731577
+    },
+    {
+      "label": "AL / AUX",
+      "role": "Adjectif de relation",
+      "patterns": [
+        "AL",
+        "AUX",
+        "ALE",
+        "ALES"
+      ],
+      "canonical": "AL",
+      "words7": 533,
+      "words8": 580,
+      "motifTotal": 1113,
+      "reach7": 3.063148388027677,
+      "reach8": 13.157535445953009,
+      "triggerRate": 21.568648914750828,
+      "reliability": 14.201855666224814,
+      "hooks": 286,
+      "hookRatio": 25.696316262353996,
+      "examples": [
+        {
+          "stem": "BANC",
+          "word": "BANCALE",
+          "affix": "ALE"
+        },
+        {
+          "stem": "CAMER",
+          "word": "CAMERAL",
+          "affix": "AL"
+        },
+        {
+          "stem": "CHAR",
+          "word": "CHARALE",
+          "affix": "ALE"
+        },
+        {
+          "stem": "CORON",
+          "word": "CORONAL",
+          "affix": "AL"
+        },
+        {
+          "stem": "CROUP",
+          "word": "CROUPAL",
+          "affix": "AL"
+        },
+        {
+          "stem": "DECAN",
+          "word": "DECANAL",
+          "affix": "AL"
+        },
+        {
+          "stem": "DENT",
+          "word": "DENTALE",
+          "affix": "ALE"
+        },
+        {
+          "stem": "DIGIT",
+          "word": "DIGITAL",
+          "affix": "AL"
+        },
+        {
+          "stem": "ENTER",
+          "word": "ENTERAL",
+          "affix": "AL"
+        },
+        {
+          "stem": "FISC",
+          "word": "FISCALE",
+          "affix": "ALE"
+        },
+        {
+          "stem": "GENER",
+          "word": "GENERAL",
+          "affix": "AL"
+        },
+        {
+          "stem": "GROUP",
+          "word": "GROUPAL",
+          "affix": "AL"
+        }
+      ],
+      "sampleWords7": [
+        "ABSIDAL",
+        "ABYSSAL",
+        "ACHALES",
+        "ACHIRAL",
+        "AFFALES",
+        "AFFIXAL",
+        "AFOCALE",
+        "AFOCAUX",
+        "AGNEAUX",
+        "AGONALE",
+        "AGONAUX",
+        "AIDEAUX"
+      ],
+      "nReach": 0.3126240378080629,
+      "nReliability": 0.27536086905951684,
+      "nLeverage": 0.08857231340972438,
+      "score": 24.356899764648716
+    },
+    {
+      "label": "IEN / IENNE",
+      "role": "Origine, domaine, adjectif",
+      "patterns": [
+        "IEN",
+        "IENS",
+        "IENNE",
+        "IENNES"
+      ],
+      "canonical": "IEN",
+      "words7": 154,
+      "words8": 338,
+      "motifTotal": 492,
+      "reach7": 1.9702354476394224,
+      "reach8": 11.209989740441491,
+      "triggerRate": 17.99101201341949,
+      "reliability": 10.951220788301539,
+      "hooks": 99,
+      "hookRatio": 20.121951219512198,
+      "examples": [
+        {
+          "stem": "ADON",
+          "word": "ADONIEN",
+          "affix": "IEN"
+        },
+        {
+          "stem": "CRAN",
+          "word": "CRANIEN",
+          "affix": "IEN"
+        },
+        {
+          "stem": "PERM",
+          "word": "PERMIEN",
+          "affix": "IEN"
+        },
+        {
+          "stem": "SAUR",
+          "word": "SAURIEN",
+          "affix": "IEN"
+        },
+        {
+          "stem": "TELL",
+          "word": "TELLIEN",
+          "affix": "IEN"
+        },
+        {
+          "stem": "ADON",
+          "word": "ADONIENS",
+          "affix": "IENS"
+        },
+        {
+          "stem": "BURG",
+          "word": "BURGIEN",
+          "affix": "IEN"
+        },
+        {
+          "stem": "CANAR",
+          "word": "CANARIEN",
+          "affix": "IEN"
+        },
+        {
+          "stem": "CESAR",
+          "word": "CESARIEN",
+          "affix": "IEN"
+        },
+        {
+          "stem": "CRAN",
+          "word": "CRANIENS",
+          "affix": "IENS"
+        },
+        {
+          "stem": "FRANC",
+          "word": "FRANCIEN",
+          "affix": "IEN"
+        },
+        {
+          "stem": "LIBER",
+          "word": "LIBERIEN",
+          "affix": "IEN"
+        }
+      ],
+      "sampleWords7": [
+        "ABELIEN",
+        "ACADIEN",
+        "ACARIEN",
+        "ACORIEN",
+        "ADAMIEN",
+        "ADONIEN",
+        "AERIENS",
+        "ALBIENS",
+        "ALESIEN",
+        "ALTAIEN",
+        "AMIBIEN",
+        "ANCIENS"
+      ],
+      "nReach": 0.26635020447706226,
+      "nReliability": 0.21233406002716823,
+      "nLeverage": 0.030659646949519975,
+      "score": 18.85219145377138
+    },
+    {
+      "label": "MENT",
+      "role": "Nom d'action, adverbe",
+      "patterns": [
+        "MENT",
+        "MENTS"
+      ],
+      "canonical": "MENT",
+      "words7": 59,
+      "words8": 109,
+      "motifTotal": 168,
+      "reach7": 0.3818926914287962,
+      "reach8": 3.108115355840388,
+      "triggerRate": 1.851157809061634,
+      "reliability": 20.629937089068626,
+      "hooks": 97,
+      "hookRatio": 57.738095238095234,
+      "examples": [
+        {
+          "stem": "ARME",
+          "word": "ARMEMENT",
+          "affix": "MENT"
+        },
+        {
+          "stem": "BATI",
+          "word": "BATIMENT",
+          "affix": "MENT"
+        },
+        {
+          "stem": "BITU",
+          "word": "BITUMENT",
+          "affix": "MENT"
+        },
+        {
+          "stem": "BONI",
+          "word": "BONIMENT",
+          "affix": "MENT"
+        },
+        {
+          "stem": "CALA",
+          "word": "CALAMENT",
+          "affix": "MENT"
+        },
+        {
+          "stem": "CHAR",
+          "word": "CHARMENT",
+          "affix": "MENT"
+        },
+        {
+          "stem": "DECI",
+          "word": "DECIMENT",
+          "affix": "MENT"
+        },
+        {
+          "stem": "DOCU",
+          "word": "DOCUMENT",
+          "affix": "MENT"
+        },
+        {
+          "stem": "ENTA",
+          "word": "ENTAMENT",
+          "affix": "MENT"
+        },
+        {
+          "stem": "FIGE",
+          "word": "FIGEMENT",
+          "affix": "MENT"
+        },
+        {
+          "stem": "FILA",
+          "word": "FILAMENT",
+          "affix": "MENT"
+        },
+        {
+          "stem": "INDU",
+          "word": "INDUMENT",
+          "affix": "MENT"
+        }
+      ],
+      "sampleWords7": [
+        "ABIMENT",
+        "ALIMENT",
+        "ANIMENT",
+        "AUGMENT",
+        "BLAMENT",
+        "BRAMENT",
+        "BRIMENT",
+        "CALMENT",
+        "CEMENTS",
+        "CHOMENT",
+        "CIMENTS",
+        "CLAMENT"
+      ],
+      "nReach": 0.07384905604148935,
+      "nReliability": 0.39999543292071443,
+      "nLeverage": 0.030040260142458964,
+      "score": 17.704808897446053
+    },
+    {
+      "label": "URE",
+      "role": "Matiere, resultat d'action",
+      "patterns": [
+        "URE",
+        "URES"
+      ],
+      "canonical": "URE",
+      "words7": 244,
+      "words8": 276,
+      "motifTotal": 520,
+      "reach7": 1.9495105096548295,
+      "reach8": 7.637767360654046,
+      "triggerRate": 14.44821146898557,
+      "reliability": 13.493092303082879,
+      "hooks": 146,
+      "hookRatio": 28.076923076923077,
+      "examples": [
+        {
+          "stem": "BORD",
+          "word": "BORDURE",
+          "affix": "URE"
+        },
+        {
+          "stem": "CLOT",
+          "word": "CLOTURE",
+          "affix": "URE"
+        },
+        {
+          "stem": "COUP",
+          "word": "COUPURE",
+          "affix": "URE"
+        },
+        {
+          "stem": "DEME",
+          "word": "DEMEURE",
+          "affix": "URE"
+        },
+        {
+          "stem": "DENT",
+          "word": "DENTURE",
+          "affix": "URE"
+        },
+        {
+          "stem": "FRIT",
+          "word": "FRITURE",
+          "affix": "URE"
+        },
+        {
+          "stem": "GAGE",
+          "word": "GAGEURE",
+          "affix": "URE"
+        },
+        {
+          "stem": "LABO",
+          "word": "LABOURE",
+          "affix": "URE"
+        },
+        {
+          "stem": "MACH",
+          "word": "MACHURE",
+          "affix": "URE"
+        },
+        {
+          "stem": "MINE",
+          "word": "MINEURE",
+          "affix": "URE"
+        },
+        {
+          "stem": "PALI",
+          "word": "PALIURE",
+          "affix": "URE"
+        },
+        {
+          "stem": "PERD",
+          "word": "PERDURE",
+          "affix": "URE"
+        }
+      ],
+      "sampleWords7": [
+        "ABJURES",
+        "ACCOURE",
+        "ADJURES",
+        "AIRURES",
+        "AJOURES",
+        "ALESURE",
+        "ALLURES",
+        "ANCRURE",
+        "ANOURES",
+        "APEURES",
+        "ARCURES",
+        "ARMURES"
+      ],
+      "nReach": 0.18147393042826443,
+      "nReliability": 0.26161860183619495,
+      "nLeverage": 0.0452152369154537,
+      "score": 17.545989204283742
+    },
+    {
+      "label": "ISTE",
+      "role": "Adepte, profession",
+      "patterns": [
+        "ISTE",
+        "ISTES"
+      ],
+      "canonical": "ISTE",
+      "words7": 79,
+      "words8": 190,
+      "motifTotal": 269,
+      "reach7": 0.9055854778684514,
+      "reach8": 6.297291773730401,
+      "triggerRate": 7.020903381750007,
+      "reliability": 12.898418175393381,
+      "hooks": 84,
+      "hookRatio": 31.226765799256505,
+      "examples": [
+        {
+          "stem": "AVAL",
+          "word": "AVALISTE",
+          "affix": "ISTE"
+        },
+        {
+          "stem": "DENT",
+          "word": "DENTISTE",
+          "affix": "ISTE"
+        },
+        {
+          "stem": "DUAL",
+          "word": "DUALISTE",
+          "affix": "ISTE"
+        },
+        {
+          "stem": "INNE",
+          "word": "INNEISTE",
+          "affix": "ISTE"
+        },
+        {
+          "stem": "LAIC",
+          "word": "LAICISTE",
+          "affix": "ISTE"
+        },
+        {
+          "stem": "LAMA",
+          "word": "LAMAISTE",
+          "affix": "ISTE"
+        },
+        {
+          "stem": "MACH",
+          "word": "MACHISTE",
+          "affix": "ISTE"
+        },
+        {
+          "stem": "NORD",
+          "word": "NORDISTE",
+          "affix": "ISTE"
+        },
+        {
+          "stem": "PIAN",
+          "word": "PIANISTE",
+          "affix": "ISTE"
+        },
+        {
+          "stem": "PLAN",
+          "word": "PLANISTE",
+          "affix": "ISTE"
+        },
+        {
+          "stem": "REAL",
+          "word": "REALISTE",
+          "affix": "ISTE"
+        },
+        {
+          "stem": "REVU",
+          "word": "REVUISTE",
+          "affix": "ISTE"
+        }
+      ],
+      "sampleWords7": [
+        "AJISTES",
+        "ALPISTE",
+        "ALTISTE",
+        "AORISTE",
+        "ARTISTE",
+        "ASSISTE",
+        "AURISTE",
+        "AUTISTE",
+        "BADISTE",
+        "BALISTE",
+        "BASISTE",
+        "BATISTE"
+      ],
+      "nReach": 0.14962412905105446,
+      "nReliability": 0.25008841955183164,
+      "nLeverage": 0.026014245896562403,
+      "score": 15.388415993770346
+    },
+    {
+      "label": "ARD / ARDE",
+      "role": "Pejoratif, caracteristique",
+      "patterns": [
+        "ARD",
+        "ARDS",
+        "ARDE",
+        "ARDES"
+      ],
+      "canonical": "ARD",
+      "words7": 208,
+      "words8": 267,
+      "motifTotal": 475,
+      "reach7": 0.6664378262507967,
+      "reach8": 3.9762175368395325,
+      "triggerRate": 4.762792142500256,
+      "reliability": 13.99258683375895,
+      "hooks": 153,
+      "hookRatio": 32.21052631578947,
+      "examples": [
+        {
+          "stem": "BEGU",
+          "word": "BEGUARD",
+          "affix": "ARD"
+        },
+        {
+          "stem": "BILL",
+          "word": "BILLARD",
+          "affix": "ARD"
+        },
+        {
+          "stem": "BROC",
+          "word": "BROCARD",
+          "affix": "ARD"
+        },
+        {
+          "stem": "DEMI",
+          "word": "DEMIARD",
+          "affix": "ARD"
+        },
+        {
+          "stem": "FEND",
+          "word": "FENDARD",
+          "affix": "ARD"
+        },
+        {
+          "stem": "GASP",
+          "word": "GASPARD",
+          "affix": "ARD"
+        },
+        {
+          "stem": "LAIC",
+          "word": "LAICARD",
+          "affix": "ARD"
+        },
+        {
+          "stem": "PEND",
+          "word": "PENDARD",
+          "affix": "ARD"
+        },
+        {
+          "stem": "RING",
+          "word": "RINGARD",
+          "affix": "ARD"
+        },
+        {
+          "stem": "SOUL",
+          "word": "SOULARD",
+          "affix": "ARD"
+        },
+        {
+          "stem": "TRIC",
+          "word": "TRICARD",
+          "affix": "ARD"
+        },
+        {
+          "stem": "BEGU",
+          "word": "BEGUARDS",
+          "affix": "ARDS"
+        }
+      ],
+      "sampleWords7": [
+        "ACHARDS",
+        "ATTARDE",
+        "BAGNARD",
+        "BATARDE",
+        "BATARDS",
+        "BAVARDE",
+        "BAVARDS",
+        "BAZARDE",
+        "BECARDS",
+        "BECCARD",
+        "BEGARDS",
+        "BEGGARD"
+      ],
+      "nReach": 0.09447522955010128,
+      "nReliability": 0.2713033396120155,
+      "nLeverage": 0.047383090740167236,
+      "score": 14.459203336928775
+    },
+    {
+      "label": "AIRE",
+      "role": "Fonction, relatif a",
+      "patterns": [
+        "AIRE",
+        "AIRES"
+      ],
+      "canonical": "AIRE",
+      "words7": 59,
+      "words8": 126,
+      "motifTotal": 185,
+      "reach7": 1.0172567923359133,
+      "reach8": 6.97753333416542,
+      "triggerRate": 10.448520992526058,
+      "reliability": 9.735892697766202,
+      "hooks": 54,
+      "hookRatio": 29.18918918918919,
+      "examples": [
+        {
+          "stem": "ACTU",
+          "word": "ACTUAIRE",
+          "affix": "AIRE"
+        },
+        {
+          "stem": "BANC",
+          "word": "BANCAIRE",
+          "affix": "AIRE"
+        },
+        {
+          "stem": "BULL",
+          "word": "BULLAIRE",
+          "affix": "AIRE"
+        },
+        {
+          "stem": "DENT",
+          "word": "DENTAIRE",
+          "affix": "AIRE"
+        },
+        {
+          "stem": "MARC",
+          "word": "MARCAIRE",
+          "affix": "AIRE"
+        },
+        {
+          "stem": "PLAN",
+          "word": "PLANAIRE",
+          "affix": "AIRE"
+        },
+        {
+          "stem": "SOLE",
+          "word": "SOLEAIRE",
+          "affix": "AIRE"
+        },
+        {
+          "stem": "SURF",
+          "word": "SURFAIRE",
+          "affix": "AIRE"
+        },
+        {
+          "stem": "VOLT",
+          "word": "VOLTAIRE",
+          "affix": "AIRE"
+        },
+        {
+          "stem": "BULB",
+          "word": "BULBAIRE",
+          "affix": "AIRE"
+        },
+        {
+          "stem": "UNIT",
+          "word": "UNITAIRE",
+          "affix": "AIRE"
+        },
+        {
+          "stem": "CHAT",
+          "word": "CHATAIRE",
+          "affix": "AIRE"
+        }
+      ],
+      "sampleWords7": [
+        "AFFAIRE",
+        "AGRAIRE",
+        "ALAIRES",
+        "APPAIRE",
+        "ARAIRES",
+        "AVIAIRE",
+        "BINAIRE",
+        "BLAIRES",
+        "CATAIRE",
+        "CHAIRES",
+        "CLAIRES",
+        "DATAIRE"
+      ],
+      "nReach": 0.16578671999991357,
+      "nReliability": 0.1887699704414576,
+      "nLeverage": 0.01672344379064726,
+      "score": 13.65650386021374
+    },
+    {
+      "label": "TION / SION",
+      "role": "Nom d'action deverbal",
+      "patterns": [
+        "TION",
+        "TIONS",
+        "SION",
+        "SIONS"
+      ],
+      "canonical": "TION",
+      "words7": 94,
+      "words8": 307,
+      "motifTotal": 401,
+      "reach7": 0.547930802988699,
+      "reach8": 5.088280385597374,
+      "triggerRate": 5.028378911817551,
+      "reliability": 10.896768374017476,
+      "hooks": 160,
+      "hookRatio": 39.900249376558605,
+      "examples": [
+        {
+          "stem": "CREA",
+          "word": "CREATION",
+          "affix": "TION"
+        },
+        {
+          "stem": "DECI",
+          "word": "DECISION",
+          "affix": "SION"
+        },
+        {
+          "stem": "DELA",
+          "word": "DELATION",
+          "affix": "TION"
+        },
+        {
+          "stem": "FINI",
+          "word": "FINITION",
+          "affix": "TION"
+        },
+        {
+          "stem": "FORA",
+          "word": "FORATION",
+          "affix": "TION"
+        },
+        {
+          "stem": "FRAC",
+          "word": "FRACTION",
+          "affix": "TION"
+        },
+        {
+          "stem": "FRIC",
+          "word": "FRICTION",
+          "affix": "TION"
+        },
+        {
+          "stem": "MUNI",
+          "word": "MUNITION",
+          "affix": "TION"
+        },
+        {
+          "stem": "MUTA",
+          "word": "MUTATION",
+          "affix": "TION"
+        },
+        {
+          "stem": "NOTA",
+          "word": "NOTATION",
+          "affix": "TION"
+        },
+        {
+          "stem": "PUNI",
+          "word": "PUNITION",
+          "affix": "TION"
+        },
+        {
+          "stem": "REAC",
+          "word": "REACTION",
+          "affix": "TION"
+        }
+      ],
+      "sampleWords7": [
+        "ACTIONS",
+        "ADITION",
+        "BASIONS",
+        "BASTION",
+        "BATIONS",
+        "BISIONS",
+        "BITIONS",
+        "BRUTION",
+        "BUSIONS",
+        "BUTIONS",
+        "CASIONS",
+        "CATIONS"
+      ],
+      "nReach": 0.12089792698482078,
+      "nReliability": 0.21127827798909926,
+      "nLeverage": 0.04955094456488077,
+      "score": 13.469430423133325
+    },
+    {
+      "label": "ABLE / IBLE",
+      "role": "Possibilite, capacite",
+      "patterns": [
+        "ABLE",
+        "ABLES",
+        "IBLE",
+        "IBLES"
+      ],
+      "canonical": "ABLE",
+      "words7": 69,
+      "words8": 143,
+      "motifTotal": 212,
+      "reach7": 0.30811037986072676,
+      "reach8": 2.5963598855862386,
+      "triggerRate": 2.031296880686304,
+      "reliability": 15.168160931583131,
+      "hooks": 82,
+      "hookRatio": 38.67924528301887,
+      "examples": [
+        {
+          "stem": "AVAL",
+          "word": "AVALABLE",
+          "affix": "ABLE"
+        },
+        {
+          "stem": "BANC",
+          "word": "BANCABLE",
+          "affix": "ABLE"
+        },
+        {
+          "stem": "COUP",
+          "word": "COUPABLE",
+          "affix": "ABLE"
+        },
+        {
+          "stem": "EGAL",
+          "word": "EGALABLE",
+          "affix": "ABLE"
+        },
+        {
+          "stem": "ENVI",
+          "word": "ENVIABLE",
+          "affix": "ABLE"
+        },
+        {
+          "stem": "FILM",
+          "word": "FILMABLE",
+          "affix": "ABLE"
+        },
+        {
+          "stem": "LOGE",
+          "word": "LOGEABLE",
+          "affix": "ABLE"
+        },
+        {
+          "stem": "MARI",
+          "word": "MARIABLE",
+          "affix": "ABLE"
+        },
+        {
+          "stem": "PEND",
+          "word": "PENDABLE",
+          "affix": "ABLE"
+        },
+        {
+          "stem": "PERD",
+          "word": "PERDABLE",
+          "affix": "ABLE"
+        },
+        {
+          "stem": "PORT",
+          "word": "PORTABLE",
+          "affix": "ABLE"
+        },
+        {
+          "stem": "PRET",
+          "word": "PRETABLE",
+          "affix": "ABLE"
+        }
+      ],
+      "sampleWords7": [
+        "ACCABLE",
+        "AFFABLE",
+        "AIMABLE",
+        "AMIABLE",
+        "ARABLES",
+        "ASTABLE",
+        "ATTABLE",
+        "AUDIBLE",
+        "BUVABLE",
+        "CAPABLE",
+        "CHABLES",
+        "COTABLE"
+      ],
+      "nReach": 0.0616897073444334,
+      "nReliability": 0.2940966359831772,
+      "nLeverage": 0.025394859089501395,
+      "score": 13.395842030426072
+    },
+    {
+      "label": "ERIE",
+      "role": "Activite, lieu, qualite",
+      "patterns": [
+        "ERIE",
+        "ERIES"
+      ],
+      "canonical": "ERIE",
+      "words7": 44,
+      "words8": 155,
+      "motifTotal": 199,
+      "reach7": 0.6389699713483521,
+      "reach8": 6.005873756609614,
+      "triggerRate": 6.8922911650072045,
+      "reliability": 9.27079190433018,
+      "hooks": 62,
+      "hookRatio": 31.155778894472363,
+      "examples": [
+        {
+          "stem": "AIGU",
+          "word": "AIGUERIE",
+          "affix": "ERIE"
+        },
+        {
+          "stem": "ALUN",
+          "word": "ALUNERIE",
+          "affix": "ERIE"
+        },
+        {
+          "stem": "ARCH",
+          "word": "ARCHERIE",
+          "affix": "ERIE"
+        },
+        {
+          "stem": "BOIT",
+          "word": "BOITERIE",
+          "affix": "ERIE"
+        },
+        {
+          "stem": "BORD",
+          "word": "BORDERIE",
+          "affix": "ERIE"
+        },
+        {
+          "stem": "CRAN",
+          "word": "CRANERIE",
+          "affix": "ERIE"
+        },
+        {
+          "stem": "DRAP",
+          "word": "DRAPERIE",
+          "affix": "ERIE"
+        },
+        {
+          "stem": "FEND",
+          "word": "FENDERIE",
+          "affix": "ERIE"
+        },
+        {
+          "stem": "FLAN",
+          "word": "FLANERIE",
+          "affix": "ERIE"
+        },
+        {
+          "stem": "FOND",
+          "word": "FONDERIE",
+          "affix": "ERIE"
+        },
+        {
+          "stem": "FRIT",
+          "word": "FRITERIE",
+          "affix": "ERIE"
+        },
+        {
+          "stem": "GAIN",
+          "word": "GAINERIE",
+          "affix": "ERIE"
+        }
+      ],
+      "sampleWords7": [
+        "ACIERIE",
+        "ANERIES",
+        "ARMERIE",
+        "ASTERIE",
+        "AZERIES",
+        "BINERIE",
+        "BOYERIE",
+        "CHERIES",
+        "CHIERIE",
+        "COKERIE",
+        "COTERIE",
+        "CUVERIE"
+      ],
+      "nReach": 0.1427000149130727,
+      "nReliability": 0.1797520954756252,
+      "nLeverage": 0.0192009910188913,
+      "score": 12.479348713642072
+    },
+    {
+      "label": "IDE",
+      "role": "Mineral, chimie, adjectif",
+      "patterns": [
+        "IDE",
+        "IDES"
+      ],
+      "canonical": "IDE",
+      "words7": 160,
+      "words8": 231,
+      "motifTotal": 391,
+      "reach7": 0.7317521189715395,
+      "reach8": 5.0855711384548465,
+      "triggerRate": 7.328177053730971,
+      "reliability": 9.985459052179763,
+      "hooks": 63,
+      "hookRatio": 16.11253196930946,
+      "examples": [
+        {
+          "stem": "ADON",
+          "word": "ADONIDE",
+          "affix": "IDE"
+        },
+        {
+          "stem": "DIAM",
+          "word": "DIAMIDE",
+          "affix": "IDE"
+        },
+        {
+          "stem": "HERO",
+          "word": "HEROIDE",
+          "affix": "IDE"
+        },
+        {
+          "stem": "MELO",
+          "word": "MELOIDE",
+          "affix": "IDE"
+        },
+        {
+          "stem": "MONO",
+          "word": "MONOIDE",
+          "affix": "IDE"
+        },
+        {
+          "stem": "MUSC",
+          "word": "MUSCIDE",
+          "affix": "IDE"
+        },
+        {
+          "stem": "PERF",
+          "word": "PERFIDE",
+          "affix": "IDE"
+        },
+        {
+          "stem": "PIER",
+          "word": "PIERIDE",
+          "affix": "IDE"
+        },
+        {
+          "stem": "STUP",
+          "word": "STUPIDE",
+          "affix": "IDE"
+        },
+        {
+          "stem": "TORR",
+          "word": "TORRIDE",
+          "affix": "IDE"
+        },
+        {
+          "stem": "TRUC",
+          "word": "TRUCIDE",
+          "affix": "IDE"
+        },
+        {
+          "stem": "ADON",
+          "word": "ADONIDES",
+          "affix": "IDES"
+        }
+      ],
+      "sampleWords7": [
+        "ABSIDES",
+        "ADONIDE",
+        "AFFIDES",
+        "AGAMIDE",
+        "ALCIDES",
+        "ALGIDES",
+        "ANATIDE",
+        "ANILIDE",
+        "APHIDES",
+        "APODIDE",
+        "APSIDES",
+        "ARAMIDE"
+      ],
+      "nReach": 0.12083355506770942,
+      "nReliability": 0.193608831633574,
+      "nLeverage": 0.019510684422421803,
+      "score": 12.097418420444011
+    },
+    {
+      "label": "ISME",
+      "role": "Courant, doctrine, etat",
+      "patterns": [
+        "ISME",
+        "ISMES"
+      ],
+      "canonical": "ISME",
+      "words7": 56,
+      "words8": 147,
+      "motifTotal": 203,
+      "reach7": 0.3643035837756459,
+      "reach8": 3.280073175649787,
+      "triggerRate": 2.94803076136582,
+      "reliability": 12.357523149007593,
+      "hooks": 67,
+      "hookRatio": 33.004926108374384,
+      "examples": [
+        {
+          "stem": "CAFE",
+          "word": "CAFEISME",
+          "affix": "ISME"
+        },
+        {
+          "stem": "CHAR",
+          "word": "CHARISME",
+          "affix": "ISME"
+        },
+        {
+          "stem": "DUAL",
+          "word": "DUALISME",
+          "affix": "ISME"
+        },
+        {
+          "stem": "HERO",
+          "word": "HEROISME",
+          "affix": "ISME"
+        },
+        {
+          "stem": "INNE",
+          "word": "INNEISME",
+          "affix": "ISME"
+        },
+        {
+          "stem": "LAIC",
+          "word": "LAICISME",
+          "affix": "ISME"
+        },
+        {
+          "stem": "LAMA",
+          "word": "LAMAISME",
+          "affix": "ISME"
+        },
+        {
+          "stem": "MACH",
+          "word": "MACHISME",
+          "affix": "ISME"
+        },
+        {
+          "stem": "MENT",
+          "word": "MENTISME",
+          "affix": "ISME"
+        },
+        {
+          "stem": "PLAN",
+          "word": "PLANISME",
+          "affix": "ISME"
+        },
+        {
+          "stem": "REAL",
+          "word": "REALISME",
+          "affix": "ISME"
+        },
+        {
+          "stem": "SNOB",
+          "word": "SNOBISME",
+          "affix": "ISME"
+        }
+      ],
+      "sampleWords7": [
+        "AGISMES",
+        "ALISMES",
+        "AREISME",
+        "AUTISME",
+        "BABISME",
+        "BASISME",
+        "CHIISME",
+        "CHRISME",
+        "CIVISME",
+        "CUBISME",
+        "CYNISME",
+        "DEISMES"
+      ],
+      "nReach": 0.07793478685196728,
+      "nReliability": 0.2396009643885056,
+      "nLeverage": 0.020749458036543822,
+      "score": 12.022161678589981
+    },
+    {
+      "label": "OIS / OISE",
+      "role": "Gentile, origine",
+      "patterns": [
+        "OIS",
+        "OISE",
+        "OISES"
+      ],
+      "canonical": "OIS",
+      "words7": 106,
+      "words8": 150,
+      "motifTotal": 256,
+      "reach7": 0.9245806925719073,
+      "reach8": 3.9147827472241965,
+      "triggerRate": 8.105579370874025,
+      "reliability": 11.40671937522721,
+      "hooks": 51,
+      "hookRatio": 19.921875,
+      "examples": [
+        {
+          "stem": "CRET",
+          "word": "CRETOIS",
+          "affix": "OIS"
+        },
+        {
+          "stem": "GANT",
+          "word": "GANTOIS",
+          "affix": "OIS"
+        },
+        {
+          "stem": "PALA",
+          "word": "PALAOIS",
+          "affix": "OIS"
+        },
+        {
+          "stem": "BRUN",
+          "word": "BRUNOISE",
+          "affix": "OISE"
+        },
+        {
+          "stem": "COTON",
+          "word": "COTONOIS",
+          "affix": "OIS"
+        },
+        {
+          "stem": "COURT",
+          "word": "COURTOIS",
+          "affix": "OIS"
+        },
+        {
+          "stem": "CRET",
+          "word": "CRETOISE",
+          "affix": "OISE"
+        },
+        {
+          "stem": "GANT",
+          "word": "GANTOISE",
+          "affix": "OISE"
+        },
+        {
+          "stem": "LIEGE",
+          "word": "LIEGEOIS",
+          "affix": "OIS"
+        },
+        {
+          "stem": "PALA",
+          "word": "PALAOISE",
+          "affix": "OISE"
+        },
+        {
+          "stem": "POINT",
+          "word": "POINTOIS",
+          "affix": "OIS"
+        },
+        {
+          "stem": "TAPIN",
+          "word": "TAPINOIS",
+          "affix": "OIS"
+        }
+      ],
+      "sampleWords7": [
+        "ACCROIS",
+        "AGENOIS",
+        "AIXOISE",
+        "ALENOIS",
+        "ANCHOIS",
+        "ANGROIS",
+        "ARDOISE",
+        "ARMOISE",
+        "ATHOISE",
+        "AUBOISE",
+        "AUDOISE",
+        "BADOISE"
+      ],
+      "nReach": 0.09301553430015669,
+      "nReliability": 0.2211657570743032,
+      "nLeverage": 0.015794363580055745,
+      "score": 11.856281959108273
+    },
+    {
+      "label": "ELLE / ELET",
+      "role": "Diminutif",
+      "patterns": [
+        "ELLE",
+        "ELLES",
+        "ELET",
+        "ELETS"
+      ],
+      "canonical": "ELLE",
+      "words7": 111,
+      "words8": 199,
+      "motifTotal": 310,
+      "reach7": 0.5298501294561733,
+      "reach8": 3.0066886861669384,
+      "triggerRate": 4.561990602214749,
+      "reliability": 11.614450262105807,
+      "hooks": 97,
+      "hookRatio": 31.290322580645164,
+      "examples": [
+        {
+          "stem": "ACTU",
+          "word": "ACTUELLE",
+          "affix": "ELLE"
+        },
+        {
+          "stem": "ARCH",
+          "word": "ARCHELLE",
+          "affix": "ELLE"
+        },
+        {
+          "stem": "BARD",
+          "word": "BARDELLE",
+          "affix": "ELLE"
+        },
+        {
+          "stem": "BOND",
+          "word": "BONDELLE",
+          "affix": "ELLE"
+        },
+        {
+          "stem": "BORD",
+          "word": "BORDELLE",
+          "affix": "ELLE"
+        },
+        {
+          "stem": "BRUN",
+          "word": "BRUNELLE",
+          "affix": "ELLE"
+        },
+        {
+          "stem": "COUP",
+          "word": "COUPELLE",
+          "affix": "ELLE"
+        },
+        {
+          "stem": "CRET",
+          "word": "CRETELLE",
+          "affix": "ELLE"
+        },
+        {
+          "stem": "DEMI",
+          "word": "DEMIELLE",
+          "affix": "ELLE"
+        },
+        {
+          "stem": "DENT",
+          "word": "DENTELLE",
+          "affix": "ELLE"
+        },
+        {
+          "stem": "FARD",
+          "word": "FARDELLE",
+          "affix": "ELLE"
+        },
+        {
+          "stem": "FLAG",
+          "word": "FLAGELLE",
+          "affix": "ELLE"
+        }
+      ],
+      "sampleWords7": [
+        "AGNELET",
+        "AGNELLE",
+        "AIRELLE",
+        "ANNELET",
+        "ANNELLE",
+        "APPELLE",
+        "ASELLES",
+        "ATTELET",
+        "ATTELLE",
+        "BASELLE",
+        "BATELET",
+        "BATELLE"
+      ],
+      "nReach": 0.07143915069523461,
+      "nReliability": 0.2251934671768239,
+      "nLeverage": 0.030040260142458964,
+      "score": 11.490343882559696
+    },
+    {
+      "label": "AIN / AINE",
+      "role": "Origine, collectif",
+      "patterns": [
+        "AIN",
+        "AINS",
+        "AINE",
+        "AINES"
+      ],
+      "canonical": "AIN",
+      "words7": 94,
+      "words8": 119,
+      "motifTotal": 213,
+      "reach7": 0.8896432740100808,
+      "reach8": 5.301420529437656,
+      "triggerRate": 12.474832894143738,
+      "reliability": 7.131504538451336,
+      "hooks": 63,
+      "hookRatio": 29.577464788732392,
+      "examples": [
+        {
+          "stem": "COUV",
+          "word": "COUVAIN",
+          "affix": "AIN"
+        },
+        {
+          "stem": "DOUC",
+          "word": "DOUCAIN",
+          "affix": "AIN"
+        },
+        {
+          "stem": "SEPT",
+          "word": "SEPTAIN",
+          "affix": "AIN"
+        },
+        {
+          "stem": "CENT",
+          "word": "CENTAINE",
+          "affix": "AINE"
+        },
+        {
+          "stem": "COUV",
+          "word": "COUVAINS",
+          "affix": "AINS"
+        },
+        {
+          "stem": "DOUC",
+          "word": "DOUCAINS",
+          "affix": "AINS"
+        },
+        {
+          "stem": "HUIT",
+          "word": "HUITAIN",
+          "affix": "AIN"
+        },
+        {
+          "stem": "PLANT",
+          "word": "PLANTAIN",
+          "affix": "AIN"
+        },
+        {
+          "stem": "PROC",
+          "word": "PROCAINE",
+          "affix": "AINE"
+        },
+        {
+          "stem": "SEPT",
+          "word": "SEPTAINS",
+          "affix": "AINS"
+        },
+        {
+          "stem": "TOUR",
+          "word": "TOURAINE",
+          "affix": "AINE"
+        },
+        {
+          "stem": "CHAT",
+          "word": "CHATAIN",
+          "affix": "AIN"
+        }
+      ],
+      "sampleWords7": [
+        "ACHAINE",
+        "AGRAINE",
+        "AIRAINS",
+        "ANDAINE",
+        "ANDAINS",
+        "AUBAINE",
+        "AUBAINS",
+        "BEDAINE",
+        "BETAINE",
+        "BOCAINE",
+        "BOCAINS",
+        "BORAINE"
+      ],
+      "nReach": 0.12596215293048107,
+      "nReliability": 0.13827328861537821,
+      "nLeverage": 0.019510684422421803,
+      "score": 10.365818329318026
+    },
+    {
+      "label": "OIR / OIRE",
+      "role": "Instrument, lieu",
+      "patterns": [
+        "OIR",
+        "OIRS",
+        "OIRE",
+        "OIRES"
+      ],
+      "canonical": "OIR",
+      "words7": 118,
+      "words8": 161,
+      "motifTotal": 279,
+      "reach7": 0.5557296987612302,
+      "reach8": 2.894022970328774,
+      "triggerRate": 7.747070475623964,
+      "reliability": 7.173417364793893,
+      "hooks": 98,
+      "hookRatio": 35.12544802867383,
+      "examples": [
+        {
+          "stem": "AVAL",
+          "word": "AVALOIR",
+          "affix": "OIR"
+        },
+        {
+          "stem": "COUP",
+          "word": "COUPOIR",
+          "affix": "OIR"
+        },
+        {
+          "stem": "COUV",
+          "word": "COUVOIR",
+          "affix": "OIR"
+        },
+        {
+          "stem": "FEND",
+          "word": "FENDOIR",
+          "affix": "OIR"
+        },
+        {
+          "stem": "FOND",
+          "word": "FONDOIR",
+          "affix": "OIR"
+        },
+        {
+          "stem": "PEND",
+          "word": "PENDOIR",
+          "affix": "OIR"
+        },
+        {
+          "stem": "PLAN",
+          "word": "PLANOIR",
+          "affix": "OIR"
+        },
+        {
+          "stem": "POND",
+          "word": "PONDOIR",
+          "affix": "OIR"
+        },
+        {
+          "stem": "PORT",
+          "word": "PORTOIR",
+          "affix": "OIR"
+        },
+        {
+          "stem": "TEND",
+          "word": "TENDOIR",
+          "affix": "OIR"
+        },
+        {
+          "stem": "TORD",
+          "word": "TORDOIR",
+          "affix": "OIR"
+        },
+        {
+          "stem": "TRAC",
+          "word": "TRACOIR",
+          "affix": "OIR"
+        }
+      ],
+      "sampleWords7": [
+        "ALESOIR",
+        "ARMOIRE",
+        "ASSEOIR",
+        "AVALOIR",
+        "BATTOIR",
+        "BAVOIRS",
+        "BECHOIR",
+        "BETOIRE",
+        "BLUTOIR",
+        "BONSOIR",
+        "BOSSOIR",
+        "BOUDOIR"
+      ],
+      "nReach": 0.06876220476166342,
+      "nReliability": 0.13908593962082919,
+      "nLeverage": 0.03034995354598947,
+      "score": 8.377244915845294
+    },
+    {
+      "label": "AUD / AUDE",
+      "role": "Pejoratif, caractere",
+      "patterns": [
+        "AUD",
+        "AUDS",
+        "AUDE",
+        "AUDES"
+      ],
+      "canonical": "AUD",
+      "words7": 47,
+      "words8": 49,
+      "motifTotal": 96,
+      "reach7": 0.25077448594021406,
+      "reach8": 1.3713265144714246,
+      "triggerRate": 2.786007388254695,
+      "reliability": 9.00121395935395,
+      "hooks": 35,
+      "hookRatio": 36.45833333333333,
+      "examples": [
+        {
+          "stem": "BOUC",
+          "word": "BOUCAUD",
+          "affix": "AUD"
+        },
+        {
+          "stem": "NOIR",
+          "word": "NOIRAUD",
+          "affix": "AUD"
+        },
+        {
+          "stem": "SOUL",
+          "word": "SOULAUD",
+          "affix": "AUD"
+        },
+        {
+          "stem": "BOUC",
+          "word": "BOUCAUDS",
+          "affix": "AUDS"
+        },
+        {
+          "stem": "COURT",
+          "word": "COURTAUD",
+          "affix": "AUD"
+        },
+        {
+          "stem": "LOURD",
+          "word": "LOURDAUD",
+          "affix": "AUD"
+        },
+        {
+          "stem": "NOIR",
+          "word": "NOIRAUDE",
+          "affix": "AUDE"
+        },
+        {
+          "stem": "NOIR",
+          "word": "NOIRAUDS",
+          "affix": "AUDS"
+        },
+        {
+          "stem": "ROUGE",
+          "word": "ROUGEAUD",
+          "affix": "AUD"
+        },
+        {
+          "stem": "SOUL",
+          "word": "SOULAUDE",
+          "affix": "AUDE"
+        },
+        {
+          "stem": "SOUL",
+          "word": "SOULAUDS",
+          "affix": "AUDS"
+        },
+        {
+          "stem": "FAR",
+          "word": "FARAUDE",
+          "affix": "AUDE"
+        }
+      ],
+      "sampleWords7": [
+        "BADAUDE",
+        "BADAUDS",
+        "BAGAUDE",
+        "BERLAUD",
+        "BIAUDES",
+        "BLAUDES",
+        "BLIAUDS",
+        "BOFIAUD",
+        "BOUCAUD",
+        "CHAUDES",
+        "CLABAUD",
+        "COSTAUD"
+      ],
+      "nReach": 0.03258282175019154,
+      "nReliability": 0.1745252280188272,
+      "nLeverage": 0.010839269123567669,
+      "score": 7.682677578755806
+    },
+    {
+      "label": "EAU / EAUX",
+      "role": "Diminutif, objet",
+      "patterns": [
+        "EAU",
+        "EAUX"
+      ],
+      "canonical": "EAU",
+      "words7": 142,
+      "words8": 141,
+      "motifTotal": 283,
+      "reach7": 0.9935000044322637,
+      "reach8": 2.445245334686875,
+      "triggerRate": 14.74390257432826,
+      "reliability": 6.738378793699591,
+      "hooks": 84,
+      "hookRatio": 29.681978798586574,
+      "examples": [
+        {
+          "stem": "BARD",
+          "word": "BARDEAU",
+          "affix": "EAU"
+        },
+        {
+          "stem": "CLAM",
+          "word": "CLAMEAU",
+          "affix": "EAU"
+        },
+        {
+          "stem": "DRAP",
+          "word": "DRAPEAU",
+          "affix": "EAU"
+        },
+        {
+          "stem": "FARD",
+          "word": "FARDEAU",
+          "affix": "EAU"
+        },
+        {
+          "stem": "LAMB",
+          "word": "LAMBEAU",
+          "affix": "EAU"
+        },
+        {
+          "stem": "MERL",
+          "word": "MERLEAU",
+          "affix": "EAU"
+        },
+        {
+          "stem": "MORT",
+          "word": "MORTEAU",
+          "affix": "EAU"
+        },
+        {
+          "stem": "ROND",
+          "word": "RONDEAU",
+          "affix": "EAU"
+        },
+        {
+          "stem": "VENT",
+          "word": "VENTEAU",
+          "affix": "EAU"
+        },
+        {
+          "stem": "BLAIR",
+          "word": "BLAIREAU",
+          "affix": "EAU"
+        },
+        {
+          "stem": "CHANT",
+          "word": "CHANTEAU",
+          "affix": "EAU"
+        },
+        {
+          "stem": "HOST",
+          "word": "HOSTEAU",
+          "affix": "EAU"
+        }
+      ],
+      "sampleWords7": [
+        "ABOTEAU",
+        "AGNEAUX",
+        "AIDEAUX",
+        "AISSEAU",
+        "ANNEAUX",
+        "APPEAUX",
+        "ARCEAUX",
+        "ASSEAUX",
+        "BANDEAU",
+        "BARBEAU",
+        "BARDEAU",
+        "BARREAU"
+      ],
+      "nReach": 0.05809921418043879,
+      "nReliability": 0.1306509433903133,
+      "nLeverage": 0.026014245896562403,
+      "score": 7.547107733292578
+    },
+    {
+      "label": "ANCE / ENCE",
+      "role": "Action, etat, propriete",
+      "patterns": [
+        "ANCE",
+        "ANCES",
+        "ENCE",
+        "ENCES"
+      ],
+      "canonical": "ANCE",
+      "words7": 47,
+      "words8": 79,
+      "motifTotal": 126,
+      "reach7": 0.24608697598112517,
+      "reach8": 1.979816806855475,
+      "triggerRate": 3.177793420674874,
+      "reliability": 7.7439576273294435,
+      "hooks": 42,
+      "hookRatio": 33.33333333333333,
+      "examples": [
+        {
+          "stem": "DEFI",
+          "word": "DEFIANCE",
+          "affix": "ANCE"
+        },
+        {
+          "stem": "DEVI",
+          "word": "DEVIANCE",
+          "affix": "ANCE"
+        },
+        {
+          "stem": "ECHE",
+          "word": "ECHEANCE",
+          "affix": "ANCE"
+        },
+        {
+          "stem": "GOUR",
+          "word": "GOURANCE",
+          "affix": "ANCE"
+        },
+        {
+          "stem": "MORD",
+          "word": "MORDANCE",
+          "affix": "ANCE"
+        },
+        {
+          "stem": "PART",
+          "word": "PARTANCE",
+          "affix": "ANCE"
+        },
+        {
+          "stem": "PATI",
+          "word": "PATIENCE",
+          "affix": "ENCE"
+        },
+        {
+          "stem": "PORT",
+          "word": "PORTANCE",
+          "affix": "ANCE"
+        },
+        {
+          "stem": "SENT",
+          "word": "SENTENCE",
+          "affix": "ENCE"
+        },
+        {
+          "stem": "TANG",
+          "word": "TANGENCE",
+          "affix": "ENCE"
+        },
+        {
+          "stem": "TEND",
+          "word": "TENDANCE",
+          "affix": "ANCE"
+        },
+        {
+          "stem": "VIOL",
+          "word": "VIOLENCE",
+          "affix": "ENCE"
+        }
+      ],
+      "sampleWords7": [
+        "ABSENCE",
+        "AGENCES",
+        "AISANCE",
+        "AVANCES",
+        "BALANCE",
+        "BEANCES",
+        "CADENCE",
+        "CARENCE",
+        "CHANCES",
+        "CREANCE",
+        "DECENCE",
+        "DEMENCE"
+      ],
+      "nReach": 0.047040597140842,
+      "nReliability": 0.15014818854220527,
+      "nLeverage": 0.013007122948281201,
+      "score": 7.461988558317895
+    },
+    {
+      "label": "ADE",
+      "role": "Action, produit",
+      "patterns": [
+        "ADE",
+        "ADES"
+      ],
+      "canonical": "ADE",
+      "words7": 86,
+      "words8": 97,
+      "motifTotal": 183,
+      "reach7": 0.4800775639879666,
+      "reach8": 2.4855335487857504,
+      "triggerRate": 8.519498272546853,
+      "reliability": 5.635045029998582,
+      "hooks": 56,
+      "hookRatio": 30.601092896174865,
+      "examples": [
+        {
+          "stem": "AIGU",
+          "word": "AIGUADE",
+          "affix": "ADE"
+        },
+        {
+          "stem": "CHAR",
+          "word": "CHARADE",
+          "affix": "ADE"
+        },
+        {
+          "stem": "COUV",
+          "word": "COUVADE",
+          "affix": "ADE"
+        },
+        {
+          "stem": "MUSC",
+          "word": "MUSCADE",
+          "affix": "ADE"
+        },
+        {
+          "stem": "PARI",
+          "word": "PARIADE",
+          "affix": "ADE"
+        },
+        {
+          "stem": "POIL",
+          "word": "POILADE",
+          "affix": "ADE"
+        },
+        {
+          "stem": "ROND",
+          "word": "RONDADE",
+          "affix": "ADE"
+        },
+        {
+          "stem": "AIGU",
+          "word": "AIGUADES",
+          "affix": "ADES"
+        },
+        {
+          "stem": "BOURG",
+          "word": "BOURGADE",
+          "affix": "ADE"
+        },
+        {
+          "stem": "BRAND",
+          "word": "BRANDADE",
+          "affix": "ADE"
+        },
+        {
+          "stem": "CHAR",
+          "word": "CHARADES",
+          "affix": "ADES"
+        },
+        {
+          "stem": "COUV",
+          "word": "COUVADES",
+          "affix": "ADES"
+        }
+      ],
+      "sampleWords7": [
+        "AIGUADE",
+        "AILLADE",
+        "ALCADES",
+        "ALIDADE",
+        "ANISADE",
+        "ARCADES",
+        "AUBADES",
+        "BALADES",
+        "BALLADE",
+        "BOUTADE",
+        "BRAVADE",
+        "BRIGADE"
+      ],
+      "nReach": 0.05905646519598062,
+      "nReliability": 0.10925832039964614,
+      "nLeverage": 0.01734283059770827,
+      "score": 6.619870586769546
+    },
+    {
+      "label": "ESSE",
+      "role": "Qualite abstraite, feminin",
+      "patterns": [
+        "ESSE",
+        "ESSES"
+      ],
+      "canonical": "ESSE",
+      "words7": 28,
+      "words8": 57,
+      "motifTotal": 85,
+      "reach7": 0.13957090090671523,
+      "reach8": 0.8066058544379995,
+      "triggerRate": 2.201771043921461,
+      "reliability": 6.339028814646079,
+      "hooks": 23,
+      "hookRatio": 27.058823529411764,
+      "examples": [
+        {
+          "stem": "PROF",
+          "word": "PROFESSE",
+          "affix": "ESSE"
+        },
+        {
+          "stem": "PROU",
+          "word": "PROUESSE",
+          "affix": "ESSE"
+        },
+        {
+          "stem": "CHEF",
+          "word": "CHEFESSE",
+          "affix": "ESSE"
+        },
+        {
+          "stem": "HAUT",
+          "word": "HAUTESSE",
+          "affix": "ESSE"
+        },
+        {
+          "stem": "JEUN",
+          "word": "JEUNESSE",
+          "affix": "ESSE"
+        },
+        {
+          "stem": "PAIR",
+          "word": "PAIRESSE",
+          "affix": "ESSE"
+        },
+        {
+          "stem": "CAR",
+          "word": "CARESSE",
+          "affix": "ESSE"
+        },
+        {
+          "stem": "FIN",
+          "word": "FINESSE",
+          "affix": "ESSE"
+        },
+        {
+          "stem": "HOT",
+          "word": "HOTESSE",
+          "affix": "ESSE"
+        },
+        {
+          "stem": "JOLI",
+          "word": "JOLIESSE",
+          "affix": "ESSE"
+        },
+        {
+          "stem": "PAP",
+          "word": "PAPESSE",
+          "affix": "ESSE"
+        },
+        {
+          "stem": "PAR",
+          "word": "PARESSE",
+          "affix": "ESSE"
+        }
+      ],
+      "sampleWords7": [
+        "ABBESSE",
+        "ADRESSE",
+        "AGRESSE",
+        "AINESSE",
+        "ALTESSE",
+        "ANESSES",
+        "BLESSES",
+        "BOESSES",
+        "BOYESSE",
+        "CARESSE",
+        "CUPESSE",
+        "DEESSES"
+      ],
+      "nReach": 0.019165016136178502,
+      "nReliability": 0.12290791600885657,
+      "nLeverage": 0.00712294828120161,
+      "score": 5.2464514127871595
+    },
+    {
+      "label": "EL / ELS",
+      "role": "Adjectif de relation",
+      "patterns": [
+        "EL",
+        "ELS"
+      ],
+      "canonical": "EL",
+      "words7": 93,
+      "words8": 78,
+      "motifTotal": 171,
+      "reach7": 0.6677731536519694,
+      "reach8": 2.643918458764978,
+      "triggerRate": 28.38063671668966,
+      "reliability": 2.352918154437583,
+      "hooks": 24,
+      "hookRatio": 14.035087719298245,
+      "examples": [
+        {
+          "stem": "ACTU",
+          "word": "ACTUELS",
+          "affix": "ELS"
+        },
+        {
+          "stem": "BLOND",
+          "word": "BLONDEL",
+          "affix": "EL"
+        },
+        {
+          "stem": "BORD",
+          "word": "BORDELS",
+          "affix": "ELS"
+        },
+        {
+          "stem": "COLON",
+          "word": "COLONEL",
+          "affix": "EL"
+        },
+        {
+          "stem": "LAMB",
+          "word": "LAMBELS",
+          "affix": "ELS"
+        },
+        {
+          "stem": "MARC",
+          "word": "MARCELS",
+          "affix": "ELS"
+        },
+        {
+          "stem": "MORT",
+          "word": "MORTELS",
+          "affix": "ELS"
+        },
+        {
+          "stem": "PARTI",
+          "word": "PARTIEL",
+          "affix": "EL"
+        },
+        {
+          "stem": "ROND",
+          "word": "RONDELS",
+          "affix": "ELS"
+        },
+        {
+          "stem": "SAUR",
+          "word": "SAURELS",
+          "affix": "ELS"
+        },
+        {
+          "stem": "SCALP",
+          "word": "SCALPEL",
+          "affix": "EL"
+        },
+        {
+          "stem": "VISU",
+          "word": "VISUELS",
+          "affix": "ELS"
+        }
+      ],
+      "sampleWords7": [
+        "ACTUELS",
+        "AEROGEL",
+        "AIGNELS",
+        "ANNUELS",
+        "ANTIGEL",
+        "ASEXUEL",
+        "BAGUELS",
+        "BARRELS",
+        "BISSELS",
+        "BLONDEL",
+        "BORDELS",
+        "BRADELS"
+      ],
+      "nReach": 0.06281970264185066,
+      "nReliability": 0.045620910609076394,
+      "nLeverage": 0.007432641684732115,
+      "score": 4.295336019110003
+    }
+  ],
+  "prefixes": [
+    {
+      "label": "DE- / DES-",
+      "role": "Separation, privation",
+      "patterns": [
+        "DE",
+        "DES",
+        "DIS"
+      ],
+      "canonical": "DE",
+      "words7": 1385,
+      "words8": 2925,
+      "motifTotal": 4310,
+      "reach7": 6.60969928094933,
+      "reach8": 28.306323436139035,
+      "triggerRate": 15.441716824456583,
+      "reliability": 42.80417362971514,
+      "hooks": 3229,
+      "hookRatio": 74.91879350348027,
+      "examples": [
+        {
+          "stem": "BADGE",
+          "word": "DEBADGE",
+          "affix": "DE"
+        },
+        {
+          "stem": "BAGUE",
+          "word": "DEBAGUE",
+          "affix": "DE"
+        },
+        {
+          "stem": "BALLA",
+          "word": "DEBALLA",
+          "affix": "DE"
+        },
+        {
+          "stem": "BARDA",
+          "word": "DEBARDA",
+          "affix": "DE"
+        },
+        {
+          "stem": "BARRE",
+          "word": "DEBARRE",
+          "affix": "DE"
+        },
+        {
+          "stem": "BONDE",
+          "word": "DEBONDE",
+          "affix": "DE"
+        },
+        {
+          "stem": "BORDE",
+          "word": "DEBORDE",
+          "affix": "DE"
+        },
+        {
+          "stem": "BOSSE",
+          "word": "DEBOSSE",
+          "affix": "DE"
+        },
+        {
+          "stem": "BOTTE",
+          "word": "DEBOTTE",
+          "affix": "DE"
+        },
+        {
+          "stem": "BOULA",
+          "word": "DEBOULA",
+          "affix": "DE"
+        },
+        {
+          "stem": "BOULE",
+          "word": "DEBOULE",
+          "affix": "DE"
+        },
+        {
+          "stem": "BOUTE",
+          "word": "DEBOUTE",
+          "affix": "DE"
+        }
+      ],
+      "sampleWords7": [
+        "DEALAIS",
+        "DEALAIT",
+        "DEALANT",
+        "DEALEES",
+        "DEALENT",
+        "DEALERA",
+        "DEALERS",
+        "DEALEUR",
+        "DEALIEZ",
+        "DEALONS",
+        "DEBACHA",
+        "DEBACHE"
+      ],
+      "nReach": 0.6725603867423844,
+      "nReliability": 0.8299334063846296,
+      "nLeverage": 1.0,
+      "score": 80.95008469315741
+    },
+    {
+      "label": "RE- / RA-",
+      "role": "Repetition, retour, intensif",
+      "patterns": [
+        "RE",
+        "RA"
+      ],
+      "canonical": "RE",
+      "words7": 1824,
+      "words8": 3370,
+      "motifTotal": 5194,
+      "reach7": 12.875935733666347,
+      "reach8": 42.08740805155598,
+      "triggerRate": 49.59054668206158,
+      "reliability": 25.964496451748065,
+      "hooks": 2821,
+      "hookRatio": 54.31266846361186,
+      "examples": [
+        {
+          "stem": "BOUTE",
+          "word": "RABOUTE",
+          "affix": "RA"
+        },
+        {
+          "stem": "BROUE",
+          "word": "RABROUE",
+          "affix": "RA"
+        },
+        {
+          "stem": "CONTA",
+          "word": "RACONTA",
+          "affix": "RA"
+        },
+        {
+          "stem": "CONTE",
+          "word": "RACONTE",
+          "affix": "RA"
+        },
+        {
+          "stem": "DOUCI",
+          "word": "RADOUCI",
+          "affix": "RA"
+        },
+        {
+          "stem": "MASSA",
+          "word": "RAMASSA",
+          "affix": "RA"
+        },
+        {
+          "stem": "MILLE",
+          "word": "RAMILLE",
+          "affix": "RA"
+        },
+        {
+          "stem": "MOLLI",
+          "word": "RAMOLLI",
+          "affix": "RA"
+        },
+        {
+          "stem": "VIOLE",
+          "word": "RAVIOLE",
+          "affix": "RA"
+        },
+        {
+          "stem": "ANIMA",
+          "word": "REANIMA",
+          "affix": "RE"
+        },
+        {
+          "stem": "BONDI",
+          "word": "REBONDI",
+          "affix": "RE"
+        },
+        {
+          "stem": "BORDE",
+          "word": "REBORDE",
+          "affix": "RE"
+        }
+      ],
+      "sampleWords7": [
+        "RABACHA",
+        "RABACHE",
+        "RABANES",
+        "RABASSE",
+        "RABATTE",
+        "RABATTU",
+        "RABBINS",
+        "RABIOLE",
+        "RABIOTA",
+        "RABIOTE",
+        "RABIOTS",
+        "RABIQUE"
+      ],
+      "nReach": 1.0,
+      "nReliability": 0.5034276136638574,
+      "nLeverage": 0.873645091359554,
+      "score": 79.46109376222385
+    },
+    {
+      "label": "EN- / EM-",
+      "role": "Interiorite, mise en etat",
+      "patterns": [
+        "EN",
+        "EM"
+      ],
+      "canonical": "EN",
+      "words7": 904,
+      "words8": 1768,
+      "motifTotal": 2672,
+      "reach7": 7.394191846071975,
+      "reach8": 30.050252346901303,
+      "triggerRate": 44.057197579297956,
+      "reliability": 16.783164278125657,
+      "hooks": 1606,
+      "hookRatio": 60.10479041916168,
+      "examples": [
+        {
+          "stem": "ACIER",
+          "word": "EMACIER",
+          "affix": "EM"
+        },
+        {
+          "stem": "BALLA",
+          "word": "EMBALLA",
+          "affix": "EM"
+        },
+        {
+          "stem": "BARDA",
+          "word": "EMBARDA",
+          "affix": "EM"
+        },
+        {
+          "stem": "BARRE",
+          "word": "EMBARRE",
+          "affix": "EM"
+        },
+        {
+          "stem": "BOSSE",
+          "word": "EMBOSSE",
+          "affix": "EM"
+        },
+        {
+          "stem": "BOUTE",
+          "word": "EMBOUTE",
+          "affix": "EM"
+        },
+        {
+          "stem": "BREVE",
+          "word": "EMBREVE",
+          "affix": "EM"
+        },
+        {
+          "stem": "BUCHE",
+          "word": "EMBUCHE",
+          "affix": "EM"
+        },
+        {
+          "stem": "OUVRA",
+          "word": "EMOUVRA",
+          "affix": "EM"
+        },
+        {
+          "stem": "PALMA",
+          "word": "EMPALMA",
+          "affix": "EM"
+        },
+        {
+          "stem": "PANNE",
+          "word": "EMPANNE",
+          "affix": "EM"
+        },
+        {
+          "stem": "PIEGE",
+          "word": "EMPIEGE",
+          "affix": "EM"
+        }
+      ],
+      "sampleWords7": [
+        "EMACIAI",
+        "EMACIAS",
+        "EMACIAT",
+        "EMACIEE",
+        "EMACIER",
+        "EMACIES",
+        "EMACIEZ",
+        "EMAILLA",
+        "EMAILLE",
+        "EMANAIS",
+        "EMANAIT",
+        "EMANANT"
+      ],
+      "nReach": 0.7139962696227462,
+      "nReliability": 0.3254100597701542,
+      "nLeverage": 0.4973676060699907,
+      "score": 52.38339302861501
+    },
+    {
+      "label": "CO- / CON-",
+      "role": "Association, ensemble",
+      "patterns": [
+        "CO",
+        "CON",
+        "COM"
+      ],
+      "canonical": "CO",
+      "words7": 864,
+      "words8": 1383,
+      "motifTotal": 2247,
+      "reach7": 1.921172502880307,
+      "reach8": 10.325388969166845,
+      "triggerRate": 5.172787881455947,
+      "reliability": 37.139982286294114,
+      "hooks": 742,
+      "hookRatio": 33.021806853582554,
+      "examples": [
+        {
+          "stem": "CHANT",
+          "word": "COCHANT",
+          "affix": "CO"
+        },
+        {
+          "stem": "CONNE",
+          "word": "COCONNE",
+          "affix": "CO"
+        },
+        {
+          "stem": "MATER",
+          "word": "COMATER",
+          "affix": "CO"
+        },
+        {
+          "stem": "BAVA",
+          "word": "COMBAVA",
+          "affix": "COM"
+        },
+        {
+          "stem": "BIEN",
+          "word": "COMBIEN",
+          "affix": "COM"
+        },
+        {
+          "stem": "BINA",
+          "word": "COMBINA",
+          "affix": "COM"
+        },
+        {
+          "stem": "MENT",
+          "word": "COMMENT",
+          "affix": "COM"
+        },
+        {
+          "stem": "MISE",
+          "word": "COMMISE",
+          "affix": "COM"
+        },
+        {
+          "stem": "MODE",
+          "word": "COMMODE",
+          "affix": "COM"
+        },
+        {
+          "stem": "MUTA",
+          "word": "COMMUTA",
+          "affix": "COM"
+        },
+        {
+          "stem": "PARA",
+          "word": "COMPARA",
+          "affix": "COM"
+        },
+        {
+          "stem": "PARE",
+          "word": "COMPARE",
+          "affix": "COM"
+        }
+      ],
+      "sampleWords7": [
+        "COACHAI",
+        "COACHAS",
+        "COACHAT",
+        "COACHEE",
+        "COACHER",
+        "COACHES",
+        "COACHEZ",
+        "COACTIF",
+        "COAGULA",
+        "COAGULE",
+        "COALISA",
+        "COALISE"
+      ],
+      "nReach": 0.24533202321507924,
+      "nReliability": 0.7201099658779702,
+      "nLeverage": 0.22979250541963456,
+      "score": 40.76194236982299
+    },
+    {
+      "label": "SUR- / SOU-",
+      "role": "Position, degre, hierarchie",
+      "patterns": [
+        "SUR",
+        "SOU",
+        "SUB"
+      ],
+      "canonical": "SUR",
+      "words7": 278,
+      "words8": 547,
+      "motifTotal": 825,
+      "reach7": 1.9534081333233342,
+      "reach8": 10.276251717937578,
+      "triggerRate": 11.186564108868746,
+      "reliability": 17.462092151911644,
+      "hooks": 525,
+      "hookRatio": 63.63636363636363,
+      "examples": [
+        {
+          "stem": "BISE",
+          "word": "SOUBISE",
+          "affix": "SOU"
+        },
+        {
+          "stem": "DARD",
+          "word": "SOUDARD",
+          "affix": "SOU"
+        },
+        {
+          "stem": "DENT",
+          "word": "SOUDENT",
+          "affix": "SOU"
+        },
+        {
+          "stem": "LARD",
+          "word": "SOULARD",
+          "affix": "SOU"
+        },
+        {
+          "stem": "LENT",
+          "word": "SOULENT",
+          "affix": "SOU"
+        },
+        {
+          "stem": "MISE",
+          "word": "SOUMISE",
+          "affix": "SOU"
+        },
+        {
+          "stem": "PANE",
+          "word": "SOUPANE",
+          "affix": "SOU"
+        },
+        {
+          "stem": "RATE",
+          "word": "SOURATE",
+          "affix": "SOU"
+        },
+        {
+          "stem": "TINT",
+          "word": "SOUTINT",
+          "affix": "SOU"
+        },
+        {
+          "stem": "TIRE",
+          "word": "SOUTIRE",
+          "affix": "SOU"
+        },
+        {
+          "stem": "VENT",
+          "word": "SOUVENT",
+          "affix": "SOU"
+        },
+        {
+          "stem": "AIGU",
+          "word": "SUBAIGU",
+          "affix": "SUB"
+        }
+      ],
+      "sampleWords7": [
+        "SOUABES",
+        "SOUAGES",
+        "SOUBISE",
+        "SOUCHES",
+        "SOUCHET",
+        "SOUCIAI",
+        "SOUCIAS",
+        "SOUCIAT",
+        "SOUCIEE",
+        "SOUCIER",
+        "SOUCIES",
+        "SOUCIEZ"
+      ],
+      "nReach": 0.2441645184077251,
+      "nReliability": 0.33857384440141536,
+      "nLeverage": 0.16258903685351503,
+      "score": 25.68139121169642
+    },
+    {
+      "label": "IN- / IM-",
+      "role": "Negation, privation",
+      "patterns": [
+        "IN",
+        "IM"
+      ],
+      "canonical": "IN",
+      "words7": 445,
+      "words8": 853,
+      "motifTotal": 1298,
+      "reach7": 2.96345440092195,
+      "reach8": 14.37820832854611,
+      "triggerRate": 28.448972238329027,
+      "reliability": 10.416736239523324,
+      "hooks": 603,
+      "hookRatio": 46.45608628659476,
+      "examples": [
+        {
+          "stem": "MORAL",
+          "word": "IMMORAL",
+          "affix": "IM"
+        },
+        {
+          "stem": "PARTI",
+          "word": "IMPARTI",
+          "affix": "IM"
+        },
+        {
+          "stem": "PLANT",
+          "word": "IMPLANT",
+          "affix": "IM"
+        },
+        {
+          "stem": "PORTA",
+          "word": "IMPORTA",
+          "affix": "IM"
+        },
+        {
+          "stem": "PORTE",
+          "word": "IMPORTE",
+          "affix": "IM"
+        },
+        {
+          "stem": "POSTE",
+          "word": "IMPOSTE",
+          "affix": "IM"
+        },
+        {
+          "stem": "PRIMA",
+          "word": "IMPRIMA",
+          "affix": "IM"
+        },
+        {
+          "stem": "PULSA",
+          "word": "IMPULSA",
+          "affix": "IM"
+        },
+        {
+          "stem": "CIVIL",
+          "word": "INCIVIL",
+          "affix": "IN"
+        },
+        {
+          "stem": "DENTE",
+          "word": "INDENTE",
+          "affix": "IN"
+        },
+        {
+          "stem": "FARCI",
+          "word": "INFARCI",
+          "affix": "IN"
+        },
+        {
+          "stem": "FOLIO",
+          "word": "INFOLIO",
+          "affix": "IN"
+        }
+      ],
+      "sampleWords7": [
+        "IMAGEAI",
+        "IMAGEAS",
+        "IMAGEAT",
+        "IMAGEES",
+        "IMAGENT",
+        "IMAGERA",
+        "IMAGEUR",
+        "IMAGIER",
+        "IMAGIEZ",
+        "IMAGINA",
+        "IMAGINE",
+        "IMAMATS"
+      ],
+      "nReach": 0.34162731786507683,
+      "nReliability": 0.20197089810597854,
+      "nLeverage": 0.1867451223288944,
+      "score": 25.402702206534684
+    },
+    {
+      "label": "NON- / MAL- / ME-",
+      "role": "Pejoratif, negation",
+      "patterns": [
+        "NON",
+        "MAL",
+        "ME"
+      ],
+      "canonical": "NON",
+      "words7": 422,
+      "words8": 579,
+      "motifTotal": 1001,
+      "reach7": 2.8123983466054647,
+      "reach8": 12.02778181980547,
+      "triggerRate": 16.513097063235577,
+      "reliability": 17.031319659998434,
+      "hooks": 259,
+      "hookRatio": 25.874125874125873,
+      "examples": [
+        {
+          "stem": "BATI",
+          "word": "MALBATI",
+          "affix": "MAL"
+        },
+        {
+          "stem": "HEUR",
+          "word": "MALHEUR",
+          "affix": "MAL"
+        },
+        {
+          "stem": "MENA",
+          "word": "MALMENA",
+          "affix": "MAL"
+        },
+        {
+          "stem": "POLI",
+          "word": "MALPOLI",
+          "affix": "MAL"
+        },
+        {
+          "stem": "CHANT",
+          "word": "MECHANT",
+          "affix": "ME"
+        },
+        {
+          "stem": "DISSE",
+          "word": "MEDISSE",
+          "affix": "ME"
+        },
+        {
+          "stem": "FIENT",
+          "word": "MEFIENT",
+          "affix": "ME"
+        },
+        {
+          "stem": "LANGE",
+          "word": "MELANGE",
+          "affix": "ME"
+        },
+        {
+          "stem": "ANTE",
+          "word": "NONANTE",
+          "affix": "NON"
+        },
+        {
+          "stem": "MENE",
+          "word": "MALMENE",
+          "affix": "MAL"
+        },
+        {
+          "stem": "SAIN",
+          "word": "MALSAIN",
+          "affix": "MAL"
+        },
+        {
+          "stem": "FORME",
+          "word": "MEFORME",
+          "affix": "ME"
+        }
+      ],
+      "sampleWords7": [
+        "MALABAR",
+        "MALABRE",
+        "MALACIE",
+        "MALADES",
+        "MALADIE",
+        "MALADIF",
+        "MALAGAS",
+        "MALAIME",
+        "MALAIRE",
+        "MALAISE",
+        "MALANGA",
+        "MALARDS"
+      ],
+      "nReach": 0.28578100616392793,
+      "nReliability": 0.3302215635074294,
+      "nLeverage": 0.08021059151440074,
+      "score": 24.99425975717716
+    },
+    {
+      "label": "PAR- / PER-",
+      "role": "Completude, a travers",
+      "patterns": [
+        "PAR",
+        "PER"
+      ],
+      "canonical": "PAR",
+      "words7": 244,
+      "words8": 422,
+      "motifTotal": 666,
+      "reach7": 1.0478749496973714,
+      "reach8": 7.599876979456795,
+      "triggerRate": 5.1957351625935075,
+      "reliability": 20.167982333693725,
+      "hooks": 273,
+      "hookRatio": 40.99099099099099,
+      "examples": [
+        {
+          "stem": "BLEU",
+          "word": "PARBLEU",
+          "affix": "PAR"
+        },
+        {
+          "stem": "ENTE",
+          "word": "PARENTE",
+          "affix": "PAR"
+        },
+        {
+          "stem": "FILA",
+          "word": "PARFILA",
+          "affix": "PAR"
+        },
+        {
+          "stem": "FILE",
+          "word": "PARFILE",
+          "affix": "PAR"
+        },
+        {
+          "stem": "FOND",
+          "word": "PARFOND",
+          "affix": "PAR"
+        },
+        {
+          "stem": "FUME",
+          "word": "PARFUME",
+          "affix": "PAR"
+        },
+        {
+          "stem": "LENT",
+          "word": "PARLENT",
+          "affix": "PAR"
+        },
+        {
+          "stem": "LEUR",
+          "word": "PARLEUR",
+          "affix": "PAR"
+        },
+        {
+          "stem": "SEMA",
+          "word": "PARSEMA",
+          "affix": "PAR"
+        },
+        {
+          "stem": "SEME",
+          "word": "PARSEME",
+          "affix": "PAR"
+        },
+        {
+          "stem": "CALE",
+          "word": "PERCALE",
+          "affix": "PER"
+        },
+        {
+          "stem": "CANT",
+          "word": "PERCANT",
+          "affix": "PER"
+        }
+      ],
+      "sampleWords7": [
+        "PARABEN",
+        "PARADAI",
+        "PARADAS",
+        "PARADAT",
+        "PARADER",
+        "PARADES",
+        "PARADEZ",
+        "PARADIS",
+        "PARADOR",
+        "PARADOS",
+        "PARAFAI",
+        "PARAFAS"
+      ],
+      "nReach": 0.18057365210390583,
+      "nReliability": 0.3910385567282089,
+      "nLeverage": 0.0845462991638278,
+      "score": 23.02295304873924
+    },
+    {
+      "label": "PRE- / PRO-",
+      "role": "Anteriorite, en avant",
+      "patterns": [
+        "PRE",
+        "PRO"
+      ],
+      "canonical": "PRE",
+      "words7": 220,
+      "words8": 493,
+      "motifTotal": 713,
+      "reach7": 0.7862370037603866,
+      "reach8": 6.616179794276789,
+      "triggerRate": 4.992719792171245,
+      "reliability": 15.747669336325126,
+      "hooks": 427,
+      "hookRatio": 59.88779803646563,
+      "examples": [
+        {
+          "stem": "CHER",
+          "word": "PRECHER",
+          "affix": "PRE"
+        },
+        {
+          "stem": "CUIT",
+          "word": "PRECUIT",
+          "affix": "PRE"
+        },
+        {
+          "stem": "DIRE",
+          "word": "PREDIRE",
+          "affix": "PRE"
+        },
+        {
+          "stem": "FACE",
+          "word": "PREFACE",
+          "affix": "PRE"
+        },
+        {
+          "stem": "LAVA",
+          "word": "PRELAVA",
+          "affix": "PRE"
+        },
+        {
+          "stem": "MUNI",
+          "word": "PREMUNI",
+          "affix": "PRE"
+        },
+        {
+          "stem": "NOTA",
+          "word": "PRENOTA",
+          "affix": "PRE"
+        },
+        {
+          "stem": "ORAL",
+          "word": "PREORAL",
+          "affix": "PRE"
+        },
+        {
+          "stem": "PARA",
+          "word": "PREPARA",
+          "affix": "PRE"
+        },
+        {
+          "stem": "PARE",
+          "word": "PREPARE",
+          "affix": "PRE"
+        },
+        {
+          "stem": "SALE",
+          "word": "PRESALE",
+          "affix": "PRE"
+        },
+        {
+          "stem": "SENT",
+          "word": "PRESENT",
+          "affix": "PRE"
+        }
+      ],
+      "sampleWords7": [
+        "PREADOS",
+        "PREAVIS",
+        "PRECEDA",
+        "PRECEDE",
+        "PRECHAI",
+        "PRECHAS",
+        "PRECHAT",
+        "PRECHEE",
+        "PRECHER",
+        "PRECHES",
+        "PRECHEZ",
+        "PRECISA"
+      ],
+      "nReach": 0.15720093254904507,
+      "nReliability": 0.3053327689018177,
+      "nLeverage": 0.13223908330752554,
+      "score": 20.28066129621356
+    },
+    {
+      "label": "TRI- / BI-",
+      "role": "Numerique, multiple",
+      "patterns": [
+        "TRI",
+        "BI"
+      ],
+      "canonical": "TRI",
+      "words7": 439,
+      "words8": 553,
+      "motifTotal": 992,
+      "reach7": 1.8496848140267486,
+      "reach8": 8.025378001847946,
+      "triggerRate": 13.974831702929661,
+      "reliability": 13.235828905467132,
+      "hooks": 332,
+      "hookRatio": 33.46774193548387,
+      "examples": [
+        {
+          "stem": "CARRE",
+          "word": "BICARRE",
+          "affix": "BI"
+        },
+        {
+          "stem": "CHANT",
+          "word": "BICHANT",
+          "affix": "BI"
+        },
+        {
+          "stem": "CORNE",
+          "word": "BICORNE",
+          "affix": "BI"
+        },
+        {
+          "stem": "FOCAL",
+          "word": "BIFOCAL",
+          "affix": "BI"
+        },
+        {
+          "stem": "LOCAL",
+          "word": "BILOCAL",
+          "affix": "BI"
+        },
+        {
+          "stem": "MEDIA",
+          "word": "BIMEDIA",
+          "affix": "BI"
+        },
+        {
+          "stem": "METAL",
+          "word": "BIMETAL",
+          "affix": "BI"
+        },
+        {
+          "stem": "MODAL",
+          "word": "BIMODAL",
+          "affix": "BI"
+        },
+        {
+          "stem": "PARTI",
+          "word": "BIPARTI",
+          "affix": "BI"
+        },
+        {
+          "stem": "PASSA",
+          "word": "BIPASSA",
+          "affix": "BI"
+        },
+        {
+          "stem": "PLACE",
+          "word": "BIPLACE",
+          "affix": "BI"
+        },
+        {
+          "stem": "POINT",
+          "word": "BIPOINT",
+          "affix": "BI"
+        }
+      ],
+      "sampleWords7": [
+        "BIACIDE",
+        "BIAISAI",
+        "BIAISAS",
+        "BIAISAT",
+        "BIAISEE",
+        "BIAISER",
+        "BIAISES",
+        "BIAISEZ",
+        "BIARROT",
+        "BIAUDES",
+        "BIAURAL",
+        "BIBACES"
+      ],
+      "nReach": 0.19068358859298407,
+      "nReliability": 0.2566305020829247,
+      "nLeverage": 0.1028182099721276,
+      "score": 19.179866365924912
+    },
+    {
+      "label": "TRANS- / EXTRA-",
+      "role": "Au-dela, traversee",
+      "patterns": [
+        "TRANS",
+        "EXTRA"
+      ],
+      "canonical": "TRANS",
+      "words7": 13,
+      "words8": 32,
+      "motifTotal": 45,
+      "reach7": 0.14713118899608643,
+      "reach8": 1.210942748284028,
+      "triggerRate": 0.9675300755407701,
+      "reliability": 15.206885317115557,
+      "hooks": 15,
+      "hookRatio": 33.33333333333333,
+      "examples": [
+        {
+          "stem": "MET",
+          "word": "TRANSMET",
+          "affix": "TRANS"
+        },
+        {
+          "stem": "MIT",
+          "word": "TRANSMIT",
+          "affix": "TRANS"
+        },
+        {
+          "stem": "MUA",
+          "word": "TRANSMUA",
+          "affix": "TRANS"
+        },
+        {
+          "stem": "MUE",
+          "word": "TRANSMUE",
+          "affix": "TRANS"
+        },
+        {
+          "stem": "DER",
+          "word": "EXTRADER",
+          "affix": "EXTRA"
+        },
+        {
+          "stem": "DUR",
+          "word": "EXTRADUR",
+          "affix": "EXTRA"
+        },
+        {
+          "stem": "FIN",
+          "word": "EXTRAFIN",
+          "affix": "EXTRA"
+        },
+        {
+          "stem": "IRE",
+          "word": "EXTRAIRE",
+          "affix": "EXTRA"
+        },
+        {
+          "stem": "NET",
+          "word": "EXTRANET",
+          "affix": "EXTRA"
+        },
+        {
+          "stem": "DRY",
+          "word": "EXTRADRY",
+          "affix": "EXTRA"
+        },
+        {
+          "stem": "IRA",
+          "word": "TRANSIRA",
+          "affix": "TRANS"
+        },
+        {
+          "stem": "MIS",
+          "word": "TRANSMIS",
+          "affix": "TRANS"
+        }
+      ],
+      "sampleWords7": [
+        "EXTRADA",
+        "EXTRADE",
+        "EXTRAIE",
+        "EXTRAIS",
+        "EXTRAIT",
+        "EXTRANT",
+        "TRANSAT",
+        "TRANSES",
+        "TRANSFO",
+        "TRANSIE",
+        "TRANSIR",
+        "TRANSIS"
+      ],
+      "nReach": 0.02877209132956476,
+      "nReliability": 0.29484746606514767,
+      "nLeverage": 0.004645401052957572,
+      "score": 11.5866799917867
+    },
+    {
+      "label": "MICRO- / POLY-",
+      "role": "Grandeur, multiplicite",
+      "patterns": [
+        "MICRO",
+        "MACRO",
+        "POLY"
+      ],
+      "canonical": "MICRO",
+      "words7": 8,
+      "words8": 16,
+      "motifTotal": 24,
+      "reach7": 0.009607060417398054,
+      "reach8": 0.11054613695237513,
+      "triggerRate": 0.12840936372777004,
+      "reliability": 7.481588677415443,
+      "hooks": 17,
+      "hookRatio": 70.83333333333334,
+      "examples": [
+        {
+          "stem": "GALA",
+          "word": "POLYGALA",
+          "affix": "POLY"
+        },
+        {
+          "stem": "GALE",
+          "word": "POLYGALE",
+          "affix": "POLY"
+        },
+        {
+          "stem": "PIER",
+          "word": "POLYPIER",
+          "affix": "POLY"
+        },
+        {
+          "stem": "TRIC",
+          "word": "POLYTRIC",
+          "affix": "POLY"
+        },
+        {
+          "stem": "LOBE",
+          "word": "POLYLOBE",
+          "affix": "POLY"
+        },
+        {
+          "stem": "POSE",
+          "word": "POLYPOSE",
+          "affix": "POLY"
+        },
+        {
+          "stem": "NOME",
+          "word": "POLYNOME",
+          "affix": "POLY"
+        },
+        {
+          "stem": "GONE",
+          "word": "POLYGONE",
+          "affix": "POLY"
+        },
+        {
+          "stem": "MERE",
+          "word": "POLYMERE",
+          "affix": "POLY"
+        },
+        {
+          "stem": "PORE",
+          "word": "POLYPORE",
+          "affix": "POLY"
+        },
+        {
+          "stem": "NIE",
+          "word": "POLYNIE",
+          "affix": "POLY"
+        },
+        {
+          "stem": "SOC",
+          "word": "POLYSOC",
+          "affix": "POLY"
+        }
+      ],
+      "sampleWords7": [
+        "MACRONS",
+        "MICROBE",
+        "MICROHM",
+        "MICRONS",
+        "POLYNIE",
+        "POLYOLS",
+        "POLYPES",
+        "POLYSOC"
+      ],
+      "nReach": 0.002626584578859287,
+      "nReliability": 0.1450610968437331,
+      "nLeverage": 0.0052647878600185815,
+      "score": 5.313821469185495
+    },
+    {
+      "label": "ANTI- / CONTRE-",
+      "role": "Opposition, protection",
+      "patterns": [
+        "ANTI",
+        "CONTRE"
+      ],
+      "canonical": "ANTI",
+      "words7": 16,
+      "words8": 34,
+      "motifTotal": 50,
+      "reach7": 0.14894373176357975,
+      "reach8": 1.548069135853842,
+      "triggerRate": 4.807940437558407,
+      "reliability": 3.0978697364898546,
+      "hooks": 39,
+      "hookRatio": 78.0,
+      "examples": [
+        {
+          "stem": "CHAR",
+          "word": "ANTICHAR",
+          "affix": "ANTI"
+        },
+        {
+          "stem": "GANG",
+          "word": "ANTIGANG",
+          "affix": "ANTI"
+        },
+        {
+          "stem": "GENE",
+          "word": "ANTIGENE",
+          "affix": "ANTI"
+        },
+        {
+          "stem": "HALO",
+          "word": "ANTIHALO",
+          "affix": "ANTI"
+        },
+        {
+          "stem": "DATE",
+          "word": "ANTIDATE",
+          "affix": "ANTI"
+        },
+        {
+          "stem": "PAPE",
+          "word": "ANTIPAPE",
+          "affix": "ANTI"
+        },
+        {
+          "stem": "RIDE",
+          "word": "ANTIRIDE",
+          "affix": "ANTI"
+        },
+        {
+          "stem": "CHOC",
+          "word": "ANTICHOC",
+          "affix": "ANTI"
+        },
+        {
+          "stem": "DATA",
+          "word": "ANTIDATA",
+          "affix": "ANTI"
+        },
+        {
+          "stem": "DOTE",
+          "word": "ANTIDOTE",
+          "affix": "ANTI"
+        },
+        {
+          "stem": "MITE",
+          "word": "ANTIMITE",
+          "affix": "ANTI"
+        },
+        {
+          "stem": "BIOS",
+          "word": "ANTIBIOS",
+          "affix": "ANTI"
+        }
+      ],
+      "sampleWords7": [
+        "ANTIAGE",
+        "ANTIART",
+        "ANTIBIO",
+        "ANTIFAS",
+        "ANTIFEU",
+        "ANTIGEL",
+        "ANTIJEU",
+        "ANTIOPE",
+        "ANTIPUB",
+        "ANTIQUE",
+        "ANTIROI",
+        "ANTIVOL"
+      ],
+      "nReach": 0.03678223980810359,
+      "nReliability": 0.0600648339851618,
+      "nLeverage": 0.012078042737689688,
+      "score": 3.875509850247049
+    },
+    {
+      "label": "AUTO- / TELE-",
+      "role": "Autonomie, distance",
+      "patterns": [
+        "AUTO",
+        "TELE"
+      ],
+      "canonical": "AUTO",
+      "words7": 18,
+      "words8": 45,
+      "motifTotal": 63,
+      "reach7": 0.09993964843089355,
+      "reach8": 1.6626510505665004,
+      "triggerRate": 6.289923636578533,
+      "reliability": 1.588884924607077,
+      "hooks": 40,
+      "hookRatio": 63.49206349206349,
+      "examples": [
+        {
+          "stem": "GENE",
+          "word": "AUTOGENE",
+          "affix": "AUTO"
+        },
+        {
+          "stem": "MATE",
+          "word": "AUTOMATE",
+          "affix": "AUTO"
+        },
+        {
+          "stem": "PORT",
+          "word": "AUTOPORT",
+          "affix": "AUTO"
+        },
+        {
+          "stem": "RAIL",
+          "word": "AUTORAIL",
+          "affix": "AUTO"
+        },
+        {
+          "stem": "STOP",
+          "word": "AUTOSTOP",
+          "affix": "AUTO"
+        },
+        {
+          "stem": "TEST",
+          "word": "AUTOTEST",
+          "affix": "AUTO"
+        },
+        {
+          "stem": "TOUR",
+          "word": "AUTOTOUR",
+          "affix": "AUTO"
+        },
+        {
+          "stem": "CRAN",
+          "word": "TELECRAN",
+          "affix": "TELE"
+        },
+        {
+          "stem": "FILM",
+          "word": "TELEFILM",
+          "affix": "TELE"
+        },
+        {
+          "stem": "PORT",
+          "word": "TELEPORT",
+          "affix": "TELE"
+        },
+        {
+          "stem": "GARE",
+          "word": "AUTOGARE",
+          "affix": "AUTO"
+        },
+        {
+          "stem": "GERE",
+          "word": "AUTOGERE",
+          "affix": "AUTO"
+        }
+      ],
+      "sampleWords7": [
+        "AUTOBUS",
+        "AUTOCAR",
+        "AUTOMNE",
+        "AUTOURS",
+        "TELECOM",
+        "TELEFAX",
+        "TELEGAS",
+        "TELEGUE",
+        "TELESKI",
+        "TELETEL",
+        "TELETEX",
+        "TELEXAI"
+      ],
+      "nReach": 0.03950471477192884,
+      "nReliability": 0.0308070117003007,
+      "nLeverage": 0.012387736141220192,
+      "score": 2.9681274039181824
+    }
+  ]
+}

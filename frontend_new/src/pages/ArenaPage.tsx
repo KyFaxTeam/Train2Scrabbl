@@ -12,12 +12,7 @@ const ArenaPage: React.FC = () => {
     const [selectedWorld, setSelectedWorld] = useState<WorldType | null>(null);
     const [entries, setEntries] = useState<DrawEntry[]>([]);
     const [loading, setLoading] = useState(true);
-    const [stats, setStats] = useState<{
-        essentials: number;
-        premium: number;
-        vowels: number;
-        explorer: number;
-    } | null>(null);
+    const [stats, setStats] = useState<Partial<Record<WorldType, number>> | null>(null);
     const [progressStats, setProgressStats] = useState<{
         totalViewed: number;
         totalMastered: number;
@@ -40,6 +35,7 @@ const ArenaPage: React.FC = () => {
                         essentials: 1000, // Top 1000
                         premium: arenaStats.premiumEntries,
                         vowels: arenaStats.totalEntries,
+                        morphology: arenaStats.morphologyEntries,
                         explorer: arenaStats.totalEntries
                     });
                 }
@@ -126,7 +122,7 @@ const ArenaPage: React.FC = () => {
                                 <div className="mt-6 max-w-2xl mx-auto">
                                     <ArenaStats
                                         stats={progressStats}
-                                        totalEntries={stats.explorer}
+                                        totalEntries={stats.explorer ?? 0}
                                     />
                                 </div>
                             )}
@@ -134,8 +130,9 @@ const ArenaPage: React.FC = () => {
                             {stats && (
                                 <div className="mt-6 text-center text-sm text-slate-500">
                                     <p>
-                                        {stats.explorer.toLocaleString()} tirages disponibles •
-                                        {stats.premium.toLocaleString()} avec lettres chères
+                                        {(stats.explorer ?? 0).toLocaleString()} tirages disponibles •{' '}
+                                        {(stats.premium ?? 0).toLocaleString()} avec lettres chères •{' '}
+                                        {(stats.morphology ?? 0).toLocaleString()} avec un affixe repéré
                                     </p>
                                 </div>
                             )}
