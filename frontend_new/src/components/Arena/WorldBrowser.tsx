@@ -188,7 +188,11 @@ export const WorldBrowser: React.FC<WorldBrowserProps> = ({
                             animate={{ opacity: 1, y: 0 }}
                             transition={{ delay: Math.min(index * 0.02, 0.5) }}
                         >
-                            <EntryCard entry={entry} showTags={true} />
+                            <EntryCard
+                                entry={entry}
+                                showTags={true}
+                                familyId={world === 'morphology' ? selectedSubcategory : null}
+                            />
                         </motion.div>
                     ))}
                 </div>

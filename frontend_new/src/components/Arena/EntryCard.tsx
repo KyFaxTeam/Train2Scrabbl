@@ -1,8 +1,9 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { ChevronRight, Minus, ChevronLeft, AlertCircle } from 'lucide-react';
 import { clsx } from 'clsx';
 import type { DrawEntry } from '../../types/dictionary';
+import { formatFamilyLabel, getFamilyEvidence, getMorphologyFamily } from '../../services/arenaService';
 import Tile from '../Tile';
 import TagsDisplay from './TagsDisplay';
 import { useLearningStore } from '../../store/useLearningStore';
@@ -11,6 +12,8 @@ interface EntryCardProps {
     entry: DrawEntry;
     showTags?: boolean;
     isHighlighted?: boolean;
+    /** Famille d'affixes filtrée : la carte doit alors dire ce qui l'y range. */
+    familyId?: string | null;
 }
 
 const ITEMS_PER_PAGE = 6;
@@ -18,7 +21,8 @@ const ITEMS_PER_PAGE = 6;
 export const EntryCard: React.FC<EntryCardProps> = ({
     entry,
     showTags = true,
-    isHighlighted = false
+    isHighlighted = false,
+    familyId = null
 }) => {
     const [expanded, setExpanded] = useState(false);
     const [page, setPage] = useState(0);
@@ -29,19 +33,45 @@ export const EntryCard: React.FC<EntryCardProps> = ({
     const hasTracked = useRef(new Set<number>());
 
     const totalPages = Math.ceil(entry.extensions.length / ITEMS_PER_PAGE);
-    
+
+    // Un tirage peut appartenir a la famille par une rallonge 7+1, donc par une
+    // lettre absente du chevalet. La preuve doit rester visible carte fermee,
+    // sinon le filtre a l'air casse.
+    const family = familyId ? getMorphologyFamily(familyId) : undefined;
+    const evidence = useMemo(
+        () => (family ? getFamilyEvidence(entry, family.id) : null),
+        [entry, family]
+    );
+
+    // ... et une fois la carte ouverte, elle doit etre sur la premiere page :
+    // ATONIQUE etait la 13e des 32 rallonges de AEINOTU, donc invisible.
+    const matched = useMemo(
+        () => new Set(evidence?.extensions.map(e => e.word) ?? []),
+        [evidence]
+    );
+
+    // Memoise : `currentExtensions` sert de dependance a l'effet de suivi, et
+    // un tableau recree a chaque rendu le relancerait sans arret.
+    const currentExtensions = useMemo(() => {
+        const ordered = matched.size > 0
+            ? [...entry.extensions].sort((a, b) =>
+                Number(matched.has(b.word)) - Number(matched.has(a.word)))
+            : entry.extensions;
+        return ordered.slice(page * ITEMS_PER_PAGE, (page + 1) * ITEMS_PER_PAGE);
+    }, [entry.extensions, matched, page]);
+
     useEffect(() => {
         if (!expanded || entry.extensions.length === 0) return;
         
         if (!hasTracked.current.has(page)) {
-            const pageExtensions = entry.extensions.slice(page * ITEMS_PER_PAGE, (page + 1) * ITEMS_PER_PAGE);
+            const pageExtensions = currentExtensions;
             pageExtensions.forEach(ext => {
                 trackExtensionView(entry.draw, ext.letter, ext.word);
             });
             hasTracked.current.add(page);
             setViewedPages(prev => new Set(prev).add(page));
         }
-    }, [expanded, page, entry.extensions, entry.draw, trackExtensionView]);
+    }, [expanded, page, currentExtensions, entry.extensions.length, entry.draw, trackExtensionView]);
 
     const handleToggle = () => {
         if (expanded && entry.extensions.length > 0) {
@@ -75,8 +105,6 @@ export const EntryCard: React.FC<EntryCardProps> = ({
         ? Math.round((viewedCount / entry.extensions.length) * 100)
         : 100;
 
-    const currentExtensions = entry.extensions.slice(page * ITEMS_PER_PAGE, (page + 1) * ITEMS_PER_PAGE);
-
     return (
         <div
             className={clsx(
@@ -100,6 +128,17 @@ export const EntryCard: React.FC<EntryCardProps> = ({
                             ))}
                         </div>
                         
+                        {/* Preuve d'appartenance a la famille filtree */}
+                        {family && evidence && (evidence.solutions.length > 0 || evidence.extensions.length > 0) && (
+                            <span className="hidden sm:flex items-center gap-1 flex-shrink-0 text-[11px] px-1.5 py-0.5 rounded bg-rose-50 text-rose-700 font-medium">
+                                {formatFamilyLabel(family)}
+                                <span className="font-semibold">
+                                    {evidence.solutions[0]
+                                        ?? `${evidence.extensions[0].word} (+${evidence.extensions[0].letter})`}
+                                </span>
+                            </span>
+                        )}
+
                         {/* Base words preview */}
                         {entry.solutions.length > 0 && (
                             <div className="flex items-center gap-1 text-xs text-slate-500 truncate">
@@ -158,11 +197,11 @@ export const EntryCard: React.FC<EntryCardProps> = ({
                         className="overflow-hidden"
                     >
                         <div className="px-3 pb-3 pt-0 border-t border-slate-100">
-                            {/* Full tags display */}
-                            {entry.tags && (
-                                <TagsDisplay tags={entry.tags} variant="full" className="mt-3" />
-                            )}
-                            
+                            {/* Le bloc de stats deplie (voyelles, consonnes, valeur, rang)
+                                repetait l'entete compacte "4V 7pts #1" : deux lignes de
+                                hauteur pour zero information nouvelle, au detriment des
+                                mots - qui sont ce qu'on vient reviser. */}
+
                             {/* Solutions (7 letters - scrabbles) */}
                             {entry.solutions.length > 0 && (
                                 <div className="mt-3">
@@ -200,7 +239,12 @@ export const EntryCard: React.FC<EntryCardProps> = ({
                                                 initial={{ opacity: 0, scale: 0.95 }}
                                                 animate={{ opacity: 1, scale: 1 }}
                                                 transition={{ duration: 0.2, delay: i * 0.05 }}
-                                                className="flex items-center gap-1.5 px-2 py-1.5 bg-emerald-50 rounded text-sm"
+                                                className={clsx(
+                                                    'flex items-center gap-1.5 px-2 py-1.5 rounded text-sm',
+                                                    matched.has(ext.word)
+                                                        ? 'bg-rose-50 ring-1 ring-rose-200'
+                                                        : 'bg-emerald-50'
+                                                )}
                                             >
                                                 <span className="font-bold text-emerald-600">
                                                     +{ext.letter}

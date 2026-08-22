@@ -4,7 +4,7 @@
  * Gère le calcul des tags, les index et la navigation pour l'Arène du Vocabulaire.
  */
 
-import type { DrawEntry, DrawTags, DictionaryCategory, WorldType, SubCategory } from '../types/dictionary';
+import type { DrawEntry, DrawTags, DictionaryCategory, WorldType, SubCategory, Extension } from '../types/dictionary';
 import {
     MORPHOLOGY_FAMILIES,
     FEATURED_FAMILIES,
@@ -178,6 +178,23 @@ export function getEntryFamilies(entry: DrawEntry): string[] {
         for (const id of getWordFamilies(ext.word)) found.add(id);
     }
     return [...found];
+}
+
+/**
+ * Ce qui, dans ce tirage, justifie son classement dans la famille.
+ *
+ * Sans cette information l'ecran ment par omission : AEINOTU est bien un
+ * tirage de la famille -IQUE, mais par la rallonge ATONIQUE (+Q) - le joueur
+ * qui regarde le chevalet n'y voit aucun Q et croit a un bug.
+ */
+export function getFamilyEvidence(
+    entry: DrawEntry,
+    familyId: string
+): { solutions: string[]; extensions: Extension[] } {
+    return {
+        solutions: entry.solutions.filter(w => getWordFamilies(w).includes(familyId)),
+        extensions: entry.extensions.filter(e => getWordFamilies(e.word).includes(familyId)),
+    };
 }
 
 export function getMorphologyFamily(id: string): AffixFamily | undefined {
