@@ -1,0 +1,10 @@
+
+=== STRESS TEST RESULTS ===
+Puzzles generated: 20
+Failures: 20
+Average Time (inc. UI render): 5079.86 ms/puzzle
+Min Time: 5065.83 ms/puzzle
+Max Time: 5120.35 ms/puzzle
+P95 Time: 5120.35 ms/puzzle
+===========================
+            
