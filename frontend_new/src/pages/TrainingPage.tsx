@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { generateBatch } from '../services/trainingService';
 import type { Puzzle } from '../services/trainingService';
+import { EngineWorkerClient, type InitProgress } from '../engine/WorkerClient';
 import { ArenaBoard } from '../components/Arena/ArenaBoard';
 import { useLearningStore } from '../store/useLearningStore';
 import { XPFeedback } from '../components/Learning/XPFeedback';
@@ -26,6 +27,7 @@ const TrainingPage: React.FC = () => {
     const [rackTiles, setRackTiles] = useState<{ char: string; id: number; used: boolean }[]>([]);
     const [feedback, setFeedback] = useState<'idle' | 'success' | 'error'>('idle');
     const [error, setError] = useState<string | null>(null);
+    const [progress, setProgress] = useState<InitProgress | null>(null);
     const [puzzleStartTime, setPuzzleStartTime] = useState<number>(Date.now());
     const [showXPFeedback, setShowXPFeedback] = useState(false);
     const [lastResult, setLastResult] = useState<{
@@ -79,15 +81,26 @@ const TrainingPage: React.FC = () => {
     const startNewBatch = async () => {
         try {
             setError(null);
+            setPuzzles([]);
+            EngineWorkerClient.getInstance().setProgressListener(setProgress);
+
             const batch = await generateBatch(5);
             setPuzzles(batch);
             setCurrentPuzzleIndex(0);
-            if (batch.length > 0) {
-                setupPuzzle(batch[0]);
+
+            // Un lot vide n'est pas une reussite : c'est ce silence qui laissait
+            // la page sur "Chargement..." indefiniment, sans erreur ni recours.
+            if (batch.length === 0) {
+                setError("Aucun exercice n'a pu etre genere. Reessaie — si le probleme persiste, vide le cache du navigateur.");
+                return;
             }
+            setupPuzzle(batch[0]);
         } catch (e) {
             console.error("Error starting batch:", e);
-            setError("Impossible de charger l'entraînement. Vérifiez que le serveur backend est lancé (port 8000).");
+            setError(e instanceof Error ? e.message : "Impossible de charger l'entrainement.");
+        } finally {
+            EngineWorkerClient.getInstance().setProgressListener(null);
+            setProgress(null);
         }
     };
 
@@ -207,9 +220,35 @@ const TrainingPage: React.FC = () => {
     }
 
     if (!currentPuzzle) {
+        // Le dictionnaire du moteur pese 3,2 Mo : sans barre de progression,
+        // vingt secondes de telechargement legitime sont indiscernables d'un
+        // plantage.
+        const pct = progress && progress.total
+            ? Math.round((progress.received / progress.total) * 100)
+            : null;
+
         return (
-            <div className="h-full flex items-center justify-center text-slate-400 font-medium">
-                Chargement...
+            <div className="h-full flex flex-col items-center justify-center gap-3 px-8 text-slate-500">
+                <div className="w-full max-w-xs">
+                    <div className="h-1.5 bg-slate-200 rounded-full overflow-hidden">
+                        <div
+                            className={clsx(
+                                'h-full bg-emerald-500 transition-all duration-200',
+                                pct === null && 'animate-pulse w-1/3'
+                            )}
+                            style={pct === null ? undefined : { width: pct + '%' }}
+                        />
+                    </div>
+                </div>
+                <p className="text-sm font-medium">
+                    {progress
+                        ? `Chargement du ${progress.step}${pct === null ? '' : ` — ${pct}%`}`
+                        : 'Preparation des exercices...'}
+                </p>
+                <p className="text-xs text-slate-400 text-center">
+                    Le dictionnaire du moteur (3 Mo) n est telecharge qu une fois,
+                    puis conserve sur l appareil.
+                </p>
             </div>
         );
     }
