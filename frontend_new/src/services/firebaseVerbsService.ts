@@ -1,0 +1,326 @@
+import { initializeApp, getApps, getApp, type FirebaseApp } from 'firebase/app';
+import {
+  getDatabase,
+  ref,
+  get,
+  set,
+  onValue,
+  push,
+  Database,
+  type Unsubscribe,
+} from 'firebase/database';
+
+export const FIREBASE_CONFIG = {
+  projectId: "wwl-faizers",
+  appId: "1:786855234991:web:09ac0a62936768c193f35a",
+  databaseURL: "https://wwl-faizers-default-rtdb.europe-west1.firebasedatabase.app",
+  storageBucket: "wwl-faizers.firebasestorage.app",
+  apiKey: "AIzaSyCyO2jd_IWntdanzZLC8LDM7RaiHAcgiZQ",
+  authDomain: "wwl-faizers.firebaseapp.com",
+  messagingSenderId: "786855234991",
+};
+
+export interface PlayerVerbProfile {
+  displayName: string;
+  slug: string;
+  currentBatch: number; // 0-indexed (lot 1 = 0)
+  completedBatches: number;
+  validatedBatches: number[]; // e.g. [1, 2, 3]
+  drawIndex: number; // 0 to 59
+  drawWords: string[];
+  masteredWordsCount: number;
+  streakDays: number;
+  lastActive: string;
+  stats: {
+    totalDrawsAttempted: number;
+    totalDrawsCorrect: number;
+    bestValidationScore: number;
+  };
+}
+
+export interface ClubActivityEvent {
+  id?: string;
+  player: string;
+  type: 'BATCH_VALIDATED' | 'TRAINING_MILESTONE';
+  batchNumber: number;
+  score?: string;
+  details?: string;
+  timestamp: number;
+}
+
+export interface ClubStats {
+  totalBatchesValidated: number;
+  totalWordsConquered: number;
+  uniqueVerbsConqueredCount: number;
+  activePlayersCount: number;
+  lastUpdated: string;
+}
+
+class FirebaseVerbsService {
+  private app: FirebaseApp | null = null;
+  private db: Database | null = null;
+  private isConnected = false;
+
+  constructor() {
+    this.init();
+  }
+
+  private init() {
+    try {
+      if (!getApps().length) {
+        this.app = initializeApp(FIREBASE_CONFIG);
+      } else {
+        this.app = getApp();
+      }
+      this.db = getDatabase(this.app);
+      this.isConnected = true;
+    } catch (err) {
+      console.warn('Firebase Realtime Database initialisation fallback to local storage:', err);
+      this.isConnected = false;
+    }
+  }
+
+  public slugify(name: string): string {
+    let s = name.normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+    s = s.toUpperCase().replace(/[^A-Z0-9]/g, '_').replace(/_+/g, '_').replace(/^_+|_+$/g, '');
+    if (!s) s = 'JOUEUR';
+    return s.slice(0, 60);
+  }
+
+  public async loadPlayerProfile(slug: string, defaultName: string): Promise<PlayerVerbProfile> {
+    const localKey = `verb_player_${slug}`;
+    const rawLocal = localStorage.getItem(localKey);
+    let localProfile: PlayerVerbProfile | null = null;
+    if (rawLocal) {
+      try {
+        localProfile = JSON.parse(rawLocal);
+      } catch (e) {
+        // ignore
+      }
+    }
+
+    if (this.isConnected && this.db) {
+      try {
+        const playerRef = ref(this.db, `verb_mastery/players/${slug}`);
+        const snap = await get(playerRef);
+        if (snap.exists()) {
+          const data = snap.val() as PlayerVerbProfile;
+          // Ensure arrays and default structures
+          const profile: PlayerVerbProfile = {
+            displayName: data.displayName || defaultName,
+            slug: slug,
+            currentBatch: typeof data.currentBatch === 'number' ? data.currentBatch : 0,
+            completedBatches: typeof data.completedBatches === 'number' ? data.completedBatches : 0,
+            validatedBatches: Array.isArray(data.validatedBatches) ? data.validatedBatches : [],
+            drawIndex: typeof data.drawIndex === 'number' ? data.drawIndex : 0,
+            drawWords: Array.isArray(data.drawWords) ? data.drawWords : [],
+            masteredWordsCount: typeof data.masteredWordsCount === 'number' ? data.masteredWordsCount : 0,
+            streakDays: typeof data.streakDays === 'number' ? data.streakDays : 1,
+            lastActive: data.lastActive || new Date().toISOString(),
+            stats: data.stats || { totalDrawsAttempted: 0, totalDrawsCorrect: 0, bestValidationScore: 0 },
+          };
+          localStorage.setItem(localKey, JSON.stringify(profile));
+          return profile;
+        }
+      } catch (err) {
+        console.warn('Erreur lecture Firebase, utilisation du profil local:', err);
+      }
+    }
+
+    if (localProfile) {
+      return localProfile;
+    }
+
+    // Création d'un nouveau profil vierge
+    const newProfile: PlayerVerbProfile = {
+      displayName: defaultName,
+      slug: slug,
+      currentBatch: 0,
+      completedBatches: 0,
+      validatedBatches: [],
+      drawIndex: 0,
+      drawWords: [],
+      masteredWordsCount: 0,
+      streakDays: 1,
+      lastActive: new Date().toISOString(),
+      stats: {
+        totalDrawsAttempted: 0,
+        totalDrawsCorrect: 0,
+        bestValidationScore: 0,
+      },
+    };
+    await this.savePlayerProfile(newProfile);
+    return newProfile;
+  }
+
+  public async savePlayerProfile(profile: PlayerVerbProfile): Promise<void> {
+    const localKey = `verb_player_${profile.slug}`;
+    profile.lastActive = new Date().toISOString();
+    localStorage.setItem(localKey, JSON.stringify(profile));
+
+    if (this.isConnected && this.db) {
+      try {
+        const playerRef = ref(this.db, `verb_mastery/players/${profile.slug}`);
+        await set(playerRef, profile);
+      } catch (err) {
+        console.warn('Erreur sauvegarde profil Firebase:', err);
+      }
+    }
+  }
+
+  public async recordBatchValidation(
+    slug: string,
+    playerName: string,
+    batchNumber: number,
+    score: number
+  ): Promise<void> {
+    const profile = await this.loadPlayerProfile(slug, playerName);
+    if (!profile.validatedBatches.includes(batchNumber)) {
+      profile.validatedBatches.push(batchNumber);
+      profile.validatedBatches.sort((a, b) => a - b);
+    }
+    profile.completedBatches = profile.validatedBatches.length;
+    profile.masteredWordsCount = profile.completedBatches * 30;
+    profile.currentBatch = Math.max(profile.currentBatch, batchNumber); // unlock next batch (batchNumber is 1-indexed)
+    profile.drawIndex = 0;
+    profile.drawWords = [];
+
+    await this.savePlayerProfile(profile);
+
+    // Publication de l'activité du club
+    if (this.isConnected && this.db) {
+      try {
+        const activityRef = ref(this.db, 'verb_mastery/club_activity');
+        await push(activityRef, {
+          player: playerName,
+          type: 'BATCH_VALIDATED',
+          batchNumber: batchNumber,
+          score: `${score}/30`,
+          timestamp: Date.now(),
+        });
+      } catch (err) {
+        console.warn('Erreur ajout événement activité club:', err);
+      }
+    }
+  }
+
+  public subscribeToLeaderboard(callback: (players: PlayerVerbProfile[]) => void): Unsubscribe {
+    if (!this.isConnected || !this.db) {
+      callback(this.getLocalLeaderboard());
+      return () => {};
+    }
+
+    try {
+      const playersRef = ref(this.db, 'verb_mastery/players');
+      return onValue(
+        playersRef,
+        (snapshot) => {
+          if (snapshot.exists()) {
+            const val = snapshot.val();
+            const list: PlayerVerbProfile[] = Object.values(val);
+            list.sort((a, b) => (b.completedBatches || 0) - (a.completedBatches || 0));
+            callback(list);
+          } else {
+            callback(this.getLocalLeaderboard());
+          }
+        },
+        (error) => {
+          console.warn('Erreur écoute classement club:', error);
+          callback(this.getLocalLeaderboard());
+        }
+      );
+    } catch (e) {
+      callback(this.getLocalLeaderboard());
+      return () => {};
+    }
+  }
+
+  public subscribeToClubActivity(callback: (events: ClubActivityEvent[]) => void): Unsubscribe {
+    if (!this.isConnected || !this.db) {
+      callback([]);
+      return () => {};
+    }
+
+    try {
+      const activityRef = ref(this.db, 'verb_mastery/club_activity');
+      return onValue(activityRef, (snapshot) => {
+        if (snapshot.exists()) {
+          const val = snapshot.val();
+          const list: ClubActivityEvent[] = Object.keys(val).map((k) => ({
+            id: k,
+            ...val[k],
+          }));
+          list.sort((a, b) => (b.timestamp || 0) - (a.timestamp || 0));
+          callback(list.slice(0, 20));
+        } else {
+          callback([]);
+        }
+      });
+    } catch {
+      callback([]);
+      return () => {};
+    }
+  }
+
+  public async addReactorEnergy(amount: number = 1): Promise<void> {
+    const localKey = 'faizers_reactor_energy';
+    const localVal = Number(localStorage.getItem(localKey) || 0) + amount;
+    localStorage.setItem(localKey, String(localVal));
+
+    if (this.isConnected && this.db) {
+      try {
+        const reactorRef = ref(this.db, 'verb_mastery/reactor/weekly_energy');
+        const snap = await get(reactorRef);
+        const current = snap.exists() ? Number(snap.val()) : 0;
+        await set(reactorRef, current + amount);
+      } catch (err) {
+        console.warn('Erreur mise à jour réacteur club:', err);
+      }
+    }
+  }
+
+  public subscribeToReactor(callback: (energy: number) => void): Unsubscribe {
+    const localKey = 'faizers_reactor_energy';
+    const fallback = Number(localStorage.getItem(localKey) || 0);
+
+    if (!this.isConnected || !this.db) {
+      callback(fallback);
+      return () => {};
+    }
+
+    try {
+      const reactorRef = ref(this.db, 'verb_mastery/reactor/weekly_energy');
+      return onValue(reactorRef, (snapshot) => {
+        if (snapshot.exists()) {
+          callback(Number(snapshot.val()) || 0);
+        } else {
+          callback(fallback);
+        }
+      });
+    } catch {
+      callback(fallback);
+      return () => {};
+    }
+  }
+
+  private getLocalLeaderboard(): PlayerVerbProfile[] {
+    const rows: PlayerVerbProfile[] = [];
+    for (let i = 0; i < localStorage.length; i++) {
+      const k = localStorage.key(i);
+      if (k && k.startsWith('verb_player_')) {
+        try {
+          const item = JSON.parse(localStorage.getItem(k) || '');
+          if (item && item.displayName) {
+            rows.push(item);
+          }
+        } catch (e) {
+          // ignore
+        }
+      }
+    }
+    rows.sort((a, b) => (b.completedBatches || 0) - (a.completedBatches || 0));
+    return rows;
+  }
+}
+
+export const firebaseVerbsService = new FirebaseVerbsService();

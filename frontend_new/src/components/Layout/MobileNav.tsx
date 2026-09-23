@@ -1,6 +1,6 @@
 import React from 'react';
 import { Link, useLocation } from 'react-router-dom';
-import { BookOpen, Swords, BarChart2, Compass } from 'lucide-react';
+import { BookOpen, Swords, BarChart2, Compass, Flame } from 'lucide-react';
 import { clsx } from 'clsx';
 
 export const MobileNav: React.FC = () => {
@@ -10,6 +10,7 @@ export const MobileNav: React.FC = () => {
         { path: '/', icon: BookOpen, label: 'Codex' },
         { path: '/arena', icon: Compass, label: 'Arena' },
         { path: '/training', icon: Swords, label: 'Train' },
+        { path: '/verbs', icon: Flame, label: 'Verbes' },
         { path: '/stats', icon: BarChart2, label: 'Stats' },
     ];
 

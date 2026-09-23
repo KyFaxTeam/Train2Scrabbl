@@ -24,6 +24,7 @@ const StudySession = lazy(() =>
 const ReflexChallenge = lazy(() =>
   import('./components/Arena/ReflexChallenge').then(m => ({ default: m.ReflexChallenge }))
 );
+const ClubVerbsPage = lazy(() => import('./pages/ClubVerbsPage'));
 
 const RouteFallback: React.FC = () => (
   <div className="h-full flex items-center justify-center text-slate-400">
@@ -45,6 +46,7 @@ const App: React.FC = () => {
             <Route path="/arena/reflex" element={<ReflexChallenge />} />
             <Route path="/arena/entry/:entryId" element={<StudySession singleEntry />} />
             <Route path="/training" element={<TrainingPage />} />
+            <Route path="/verbs" element={<ClubVerbsPage />} />
             <Route path="/stats" element={<StatsPage />} />
           </Routes>
         </Suspense>

@@ -1,6 +1,6 @@
 import React from 'react';
 import { Link, useLocation } from 'react-router-dom';
-import { BookOpen, Swords, BarChart2, ChevronLeft, ChevronRight, Compass } from 'lucide-react';
+import { BookOpen, Swords, BarChart2, ChevronLeft, ChevronRight, Compass, Flame } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { useAppStore } from '../../store/useAppStore';
 import { clsx } from 'clsx';
@@ -13,6 +13,7 @@ export const Sidebar: React.FC = () => {
         { path: '/codex', icon: BookOpen, label: 'The Codex' },
         { path: '/arena', icon: Compass, label: 'The Arena' },
         { path: '/training', icon: Swords, label: 'Training' },
+        { path: '/verbs', icon: Flame, label: 'Verbes Club' },
         { path: '/stats', icon: BarChart2, label: 'Stats' },
     ];
 
