@@ -81,9 +81,9 @@ class FirebaseVerbsService {
   }
 
   public slugify(name: string): string {
-    let s = name.normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+    let s = (name || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '');
     s = s.toUpperCase().replace(/[^A-Z0-9]/g, '_').replace(/_+/g, '_').replace(/^_+|_+$/g, '');
-    if (!s) s = 'JOUEUR';
+    if (!s) s = 'MEMBRE';
     return s.slice(0, 60);
   }
 
@@ -218,8 +218,11 @@ class FirebaseVerbsService {
           if (snapshot.exists()) {
             const val = snapshot.val();
             const list: PlayerVerbProfile[] = Object.values(val);
-            list.sort((a, b) => (b.completedBatches || 0) - (a.completedBatches || 0));
-            callback(list);
+            const filtered = list.filter(
+              (p) => p && p.slug && p.slug.toUpperCase() !== 'JOUEUR' && p.displayName?.toUpperCase() !== 'JOUEUR'
+            );
+            filtered.sort((a, b) => (b.completedBatches || 0) - (a.completedBatches || 0));
+            callback(filtered);
           } else {
             callback(this.getLocalLeaderboard());
           }
@@ -250,8 +253,11 @@ class FirebaseVerbsService {
             id: k,
             ...val[k],
           }));
-          list.sort((a, b) => (b.timestamp || 0) - (a.timestamp || 0));
-          callback(list.slice(0, 20));
+          const filtered = list.filter(
+            (e) => e && e.player && e.player.toUpperCase() !== 'JOUEUR'
+          );
+          filtered.sort((a, b) => (b.timestamp || 0) - (a.timestamp || 0));
+          callback(filtered.slice(0, 20));
         } else {
           callback([]);
         }
@@ -310,7 +316,12 @@ class FirebaseVerbsService {
       if (k && k.startsWith('verb_player_')) {
         try {
           const item = JSON.parse(localStorage.getItem(k) || '');
-          if (item && item.displayName) {
+          if (
+            item &&
+            item.displayName &&
+            item.displayName.toUpperCase() !== 'JOUEUR' &&
+            item.slug?.toUpperCase() !== 'JOUEUR'
+          ) {
             rows.push(item);
           }
         } catch (e) {

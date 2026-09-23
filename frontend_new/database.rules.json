@@ -1,0 +1,10 @@
+{
+  "rules": {
+    "verb_mastery": {
+      ".read": true,
+      ".write": true
+    },
+    ".read": false,
+    ".write": false
+  }
+}

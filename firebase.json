@@ -1,4 +1,7 @@
 {
+  "database": {
+    "rules": "frontend_new/database.rules.json"
+  },
   "hosting": {
     "public": "frontend_new/dist",
     "ignore": [

@@ -94,10 +94,12 @@ export const ClubVerbsPage: React.FC = () => {
 
   // Identité joueur
   const [playerName, setPlayerName] = useState<string>(() => {
-    return localStorage.getItem('faizers_verb_user') || 'JOUEUR';
+    const saved = localStorage.getItem('faizers_verb_user');
+    return (saved && saved.trim().toUpperCase() !== 'JOUEUR') ? saved.trim() : '';
   });
   const [isAuthModalOpen, setIsAuthModalOpen] = useState<boolean>(() => {
-    return !localStorage.getItem('faizers_verb_user');
+    const saved = localStorage.getItem('faizers_verb_user');
+    return !saved || saved.trim().toUpperCase() === 'JOUEUR';
   });
   const [typedAuthName, setTypedAuthName] = useState('');
 
@@ -136,6 +138,10 @@ export const ClubVerbsPage: React.FC = () => {
 
   // Charger le profil lors du changement de joueur
   useEffect(() => {
+    if (!playerName || playerName.toUpperCase() === 'JOUEUR') {
+      setProfile(null);
+      return;
+    }
     const slug = firebaseVerbsService.slugify(playerName);
     firebaseVerbsService.loadPlayerProfile(slug, playerName).then((p) => {
       setProfile(p);
@@ -218,14 +224,14 @@ export const ClubVerbsPage: React.FC = () => {
   // Joueur correspondant à la saisie dans le modal d'authentification
   const matchedPlayer = useMemo(() => {
     const clean = typedAuthName.trim().toUpperCase();
-    if (!clean) return null;
+    if (!clean || clean === 'JOUEUR') return null;
     const targetSlug = firebaseVerbsService.slugify(clean);
     return leaderboard.find((p) => p.slug === targetSlug) || null;
   }, [typedAuthName, leaderboard]);
 
   const handleSelectPlayer = (name: string) => {
     const clean = name.trim().toUpperCase();
-    if (clean) {
+    if (clean && clean !== 'JOUEUR') {
       localStorage.setItem('faizers_verb_user', clean);
       setPlayerName(clean);
       setIsAuthModalOpen(false);
@@ -434,24 +440,26 @@ export const ClubVerbsPage: React.FC = () => {
           <div className="flex items-center gap-3">
             <button
               onClick={() => {
-                setTypedAuthName(playerName === 'JOUEUR' ? '' : playerName);
+                setTypedAuthName(playerName);
                 setIsAuthModalOpen(true);
               }}
               className="cursor-pointer bg-slate-100 hover:bg-slate-200 px-3 py-1.5 rounded-xl flex items-center gap-2 transition text-left"
               title="Cliquer pour changer de joueur ou créer un profil"
             >
               <div className="w-7 h-7 rounded-full bg-indigo-600 text-white flex items-center justify-center text-xs font-bold shadow-sm">
-                {playerName.slice(0, 1)}
+                {playerName ? playerName.slice(0, 1) : '?'}
               </div>
               <div>
                 <div className="text-xs font-extrabold text-slate-800 flex items-center gap-1.5">
-                  {playerName}
+                  {playerName || 'Choisir un pseudo'}
                   <span className="text-[10px] bg-slate-200 text-slate-600 font-semibold px-1.5 py-0.2 rounded">
-                    Changer
+                    {playerName ? 'Changer' : 'Connexion'}
                   </span>
                 </div>
                 <div className="text-[10px] text-slate-500">
-                  {profile?.completedBatches || 0} lot{(profile?.completedBatches || 0) > 1 ? 's' : ''} validé
+                  {playerName && profile
+                    ? `${profile.completedBatches || 0} lot${(profile.completedBatches || 0) > 1 ? 's' : ''} validé`
+                    : 'Non connecté'}
                 </div>
               </div>
             </button>
@@ -483,7 +491,7 @@ export const ClubVerbsPage: React.FC = () => {
                       <p className="text-xs text-slate-500">Choisis ou crée ton prénom</p>
                     </div>
                   </div>
-                  {playerName !== 'JOUEUR' && (
+                  {playerName && playerName !== 'JOUEUR' && (
                     <button
                       onClick={() => setIsAuthModalOpen(false)}
                       className="text-slate-400 hover:text-slate-600 p-1 font-bold text-lg"
@@ -530,7 +538,7 @@ export const ClubVerbsPage: React.FC = () => {
                         Reprendre ma progression en tant que {matchedPlayer.displayName} ➔
                       </button>
                     </div>
-                  ) : typedAuthName.trim().length > 0 ? (
+                  ) : typedAuthName.trim().length > 0 && typedAuthName.trim().toUpperCase() !== 'JOUEUR' ? (
                     <div className="p-4 bg-blue-50 border border-blue-200 rounded-2xl">
                       <div className="text-xs font-black text-blue-800 uppercase flex items-center gap-1.5">
                         <Sparkles className="w-4 h-4 text-blue-600" />
@@ -608,7 +616,7 @@ export const ClubVerbsPage: React.FC = () => {
             }`}
           >
             <Users className="w-4 h-4" />
-            Mur du Club & Équipe
+            Évolution des membres
             <span className="bg-emerald-500 text-white text-[10px] px-1.5 py-0.2 rounded-full font-bold">
               Live
             </span>
@@ -1093,7 +1101,7 @@ export const ClubVerbsPage: React.FC = () => {
         )}
 
         {/* ============================================================ */}
-        {/* ONGLET 2 : MUR DU CLUB & PROGRESSION ÉQUIPE                  */}
+        {/* ONGLET 2 : ÉVOLUTION DES MEMBRES                             */}
         {/* ============================================================ */}
         {activeTab === 'team' && (
           <div className="space-y-8">
