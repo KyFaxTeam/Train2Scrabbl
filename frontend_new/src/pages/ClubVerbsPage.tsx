@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef, useMemo } from 'react';
+import { createPortal } from 'react-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import confetti from 'canvas-confetti';
 import {
@@ -414,191 +415,82 @@ export const ClubVerbsPage: React.FC = () => {
   return (
     <div className="min-h-screen bg-slate-50 text-lexis-slate pb-20">
       {/* Header FAIZERS Club */}
-      <div className="bg-white border-b border-slate-200 sticky top-0 z-20 shadow-sm backdrop-blur-md bg-white/90">
-        <div className="max-w-6xl mx-auto px-4 py-4 flex flex-col sm:flex-row items-center justify-between gap-3">
-          <div className="flex items-center gap-3">
-            <div className="w-12 h-12 bg-gradient-to-br from-blue-700 to-indigo-900 rounded-2xl flex items-center justify-center text-white shadow-md font-black tracking-wider text-xl">
+      <div className="bg-white/95 border-b border-slate-200 sticky top-0 z-20 shadow-sm backdrop-blur-md">
+        <div className="max-w-6xl mx-auto px-3 sm:px-4 py-2 sm:py-3.5 flex items-center justify-between gap-2">
+          {/* Logo & Title */}
+          <div className="flex items-center gap-2 sm:gap-3 min-w-0">
+            <div className="w-8 h-8 sm:w-11 sm:h-11 bg-gradient-to-br from-blue-700 to-indigo-900 rounded-xl sm:rounded-2xl flex items-center justify-center text-white shadow-md font-black tracking-wider text-xs sm:text-base shrink-0">
               FZ
             </div>
-            <div>
-              <div className="flex items-center gap-2">
-                <h1 className="font-extrabold text-xl tracking-tight text-lexis-slate">
-                  FAIZERS <span className="text-emerald-600 font-semibold text-sm">CLUB SCRABBLE</span>
+            <div className="min-w-0">
+              <div className="flex items-center gap-1.5 sm:gap-2">
+                <h1 className="font-extrabold text-sm sm:text-xl tracking-tight text-lexis-slate truncate">
+                  FAIZERS <span className="text-emerald-600 font-semibold text-xs sm:text-sm">VERBES</span>
                 </h1>
-                <span className="bg-emerald-100 text-emerald-800 text-[10px] font-bold px-2 py-0.5 rounded-full flex items-center gap-1">
+                <span className="bg-emerald-100 text-emerald-800 text-[9px] sm:text-[10px] font-bold px-1.5 sm:px-2 py-0.2 rounded-full flex items-center gap-1 shrink-0">
                   <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></span>
-                  Firebase Club
+                  <span className="hidden sm:inline">Firebase Club</span>
+                  <span className="sm:hidden">ODS</span>
                 </span>
               </div>
-              <p className="text-xs text-slate-500">
+              <p className="text-[11px] text-slate-500 hidden sm:block">
                 3 742 verbes ODS • 125 lots progressifs • Sas de validation collective
               </p>
             </div>
           </div>
 
           {/* Profil Joueur & Stats Rapides */}
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-1.5 sm:gap-3 shrink-0">
             <button
               onClick={() => {
                 setTypedAuthName(playerName);
                 setIsAuthModalOpen(true);
               }}
-              className="cursor-pointer bg-slate-100 hover:bg-slate-200 px-3 py-1.5 rounded-xl flex items-center gap-2 transition text-left"
+              className="cursor-pointer bg-slate-100 hover:bg-slate-200 px-2 sm:px-3 py-1 sm:py-1.5 rounded-xl flex items-center gap-1.5 transition text-left"
               title="Cliquer pour changer de joueur ou créer un profil"
             >
-              <div className="w-7 h-7 rounded-full bg-indigo-600 text-white flex items-center justify-center text-xs font-bold shadow-sm">
+              <div className="w-6 h-6 sm:w-7 sm:h-7 rounded-full bg-indigo-600 text-white flex items-center justify-center text-[10px] sm:text-xs font-bold shadow-sm notranslate" translate="no">
                 {playerName ? playerName.slice(0, 1) : '?'}
               </div>
-              <div>
-                <div className="text-xs font-extrabold text-slate-800 flex items-center gap-1.5">
-                  {playerName || 'Choisir un pseudo'}
-                  <span className="text-[10px] bg-slate-200 text-slate-600 font-semibold px-1.5 py-0.2 rounded">
+              <div className="notranslate" translate="no">
+                <div className="text-[11px] sm:text-xs font-extrabold text-slate-800 flex items-center gap-1 leading-tight">
+                  <span className="max-w-[65px] sm:max-w-[120px] truncate">{playerName || 'Pseudo'}</span>
+                  <span className="text-[9px] bg-slate-200 text-slate-600 font-semibold px-1 py-0.2 rounded hidden sm:inline">
                     {playerName ? 'Changer' : 'Connexion'}
                   </span>
                 </div>
-                <div className="text-[10px] text-slate-500">
+                <div className="text-[9px] sm:text-[10px] text-slate-500 leading-tight">
                   {playerName && profile
-                    ? `${profile.completedBatches || 0} lot${(profile.completedBatches || 0) > 1 ? 's' : ''} validé`
+                    ? `${profile.completedBatches || 0} lot${(profile.completedBatches || 0) > 1 ? 's' : ''}`
                     : 'Non connecté'}
                 </div>
               </div>
             </button>
 
-            <div className="bg-amber-50 border border-amber-200 px-3 py-1.5 rounded-xl flex items-center gap-1.5 text-amber-800 text-xs font-bold">
-              <Flame className="w-4 h-4 text-amber-500 fill-amber-500" />
-              <span>Lot {selectedBatch + 1} / {TOTAL_BATCHES}</span>
+            <div className="bg-amber-50 border border-amber-200 px-2 sm:px-3 py-1 sm:py-1.5 rounded-xl flex items-center gap-1 text-amber-800 text-[11px] sm:text-xs font-bold">
+              <Flame className="w-3.5 h-3.5 text-amber-500 fill-amber-500 shrink-0" />
+              <span>Lot {selectedBatch + 1}<span className="hidden sm:inline"> / {TOTAL_BATCHES}</span></span>
             </div>
           </div>
         </div>
 
-        {/* Modal de Connexion / Création de Profil */}
-        <AnimatePresence>
-          {isAuthModalOpen && (
-            <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm">
-              <motion.div
-                initial={{ opacity: 0, scale: 0.95 }}
-                animate={{ opacity: 1, scale: 1 }}
-                exit={{ opacity: 0, scale: 0.95 }}
-                className="bg-white rounded-3xl p-6 sm:p-8 max-w-md w-full shadow-2xl border border-slate-200"
-              >
-                <div className="flex items-center justify-between mb-4">
-                  <div className="flex items-center gap-2.5">
-                    <div className="w-10 h-10 rounded-2xl bg-indigo-100 text-indigo-700 flex items-center justify-center font-black">
-                      FZ
-                    </div>
-                    <div>
-                      <h3 className="font-extrabold text-slate-900 text-lg">Espace Joueur Club</h3>
-                      <p className="text-xs text-slate-500">Choisis ou crée ton prénom</p>
-                    </div>
-                  </div>
-                  {playerName && playerName !== 'JOUEUR' && (
-                    <button
-                      onClick={() => setIsAuthModalOpen(false)}
-                      className="text-slate-400 hover:text-slate-600 p-1 font-bold text-lg"
-                    >
-                      ✕
-                    </button>
-                  )}
-                </div>
-
-                <div className="space-y-4">
-                  <div>
-                    <label className="text-xs font-bold text-slate-600 mb-1.5 block uppercase tracking-wide">
-                      Ton prénom ou pseudo :
-                    </label>
-                    <input
-                      type="text"
-                      value={typedAuthName}
-                      onChange={(e) => setTypedAuthName(e.target.value.toUpperCase())}
-                      placeholder="Ex: MARIE, WILLIAM, DIVIN..."
-                      className="w-full px-4 py-3 text-lg font-black uppercase tracking-wider bg-slate-50 border-2 border-slate-200 rounded-2xl focus:outline-none focus:border-indigo-600 focus:bg-white transition"
-                      autoFocus
-                    />
-                  </div>
-
-                  {/* Détection en direct */}
-                  {matchedPlayer ? (
-                    <div className="p-4 bg-emerald-50 border border-emerald-200 rounded-2xl">
-                      <div className="flex items-center justify-between">
-                        <span className="text-xs font-black text-emerald-800 uppercase flex items-center gap-1.5">
-                          <CheckCircle2 className="w-4 h-4 text-emerald-600" />
-                          Joueur reconnu !
-                        </span>
-                        <span className="text-xs font-bold text-emerald-700">
-                          {matchedPlayer.completedBatches} lot(s) validé(s)
-                        </span>
-                      </div>
-                      <p className="text-xs text-slate-600 mt-1">
-                        Bon retour, <strong>{matchedPlayer.displayName}</strong> ! Ton entraînement reprend au Lot {(matchedPlayer.currentBatch || 0) + 1}.
-                      </p>
-                      <button
-                        onClick={() => handleSelectPlayer(matchedPlayer.displayName)}
-                        className="w-full mt-3 py-3 bg-emerald-600 hover:bg-emerald-700 text-white font-black text-sm rounded-xl shadow-md transition"
-                      >
-                        Reprendre ma progression en tant que {matchedPlayer.displayName} ➔
-                      </button>
-                    </div>
-                  ) : typedAuthName.trim().length > 0 && typedAuthName.trim().toUpperCase() !== 'JOUEUR' ? (
-                    <div className="p-4 bg-blue-50 border border-blue-200 rounded-2xl">
-                      <div className="text-xs font-black text-blue-800 uppercase flex items-center gap-1.5">
-                        <Sparkles className="w-4 h-4 text-blue-600" />
-                        Nouveau membre au Club !
-                      </div>
-                      <p className="text-xs text-slate-600 mt-1">
-                        Le prénom <strong>{typedAuthName.trim()}</strong> n'est pas encore enregistré. Tu débuteras au Lot n°1.
-                      </p>
-                      <button
-                        onClick={() => handleSelectPlayer(typedAuthName.trim())}
-                        className="w-full mt-3 py-3 bg-indigo-600 hover:bg-indigo-700 text-white font-black text-sm rounded-xl shadow-md transition"
-                      >
-                        Créer le profil de {typedAuthName.trim()} et commencer ➔
-                      </button>
-                    </div>
-                  ) : null}
-
-                  {/* Liste rapide des membres déjà enregistrés au club */}
-                  {leaderboard.length > 0 && (
-                    <div className="pt-2">
-                      <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wide block mb-2">
-                        Ou clique sur ton prénom dans le club :
-                      </span>
-                      <div className="flex flex-wrap gap-1.5 max-h-36 overflow-y-auto pr-1">
-                        {leaderboard.map((p) => (
-                          <button
-                            key={p.slug}
-                            onClick={() => handleSelectPlayer(p.displayName)}
-                            className="px-3 py-1.5 bg-slate-100 hover:bg-indigo-50 hover:border-indigo-200 border border-slate-200 rounded-xl text-xs font-bold text-slate-700 hover:text-indigo-700 transition flex items-center gap-1.5"
-                          >
-                            <span>{p.displayName}</span>
-                            <span className="text-[10px] bg-white text-slate-500 px-1.5 py-0.5 rounded-full border border-slate-200">
-                              {p.completedBatches || 0}
-                            </span>
-                          </button>
-                        ))}
-                      </div>
-                    </div>
-                  )}
-                </div>
-              </motion.div>
-            </div>
-          )}
-        </AnimatePresence>
-
         {/* Barre d'onglets de navigation */}
-        <div className="max-w-6xl mx-auto px-4 flex gap-2 border-t border-slate-100 pt-2">
+        <div className="max-w-6xl mx-auto px-2 sm:px-4 flex gap-1.5 sm:gap-2 border-t border-slate-100 pt-1.5 sm:pt-2 overflow-x-auto no-scrollbar scrollbar-none">
           <button
             onClick={() => {
               setActiveTab('training');
               setScreenMode('selector');
             }}
-            className={`flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-bold transition-all relative ${
+            className={`flex items-center gap-1.5 sm:gap-2 px-3 sm:px-4 py-2 sm:py-2.5 rounded-xl text-xs sm:text-sm font-bold transition-all relative shrink-0 ${
               activeTab === 'training'
                 ? 'text-emerald-700 bg-emerald-50'
                 : 'text-slate-500 hover:text-slate-800 hover:bg-slate-50'
             }`}
           >
-            <Compass className="w-4 h-4" />
-            Entraînement & Lots
+            <Compass className="w-3.5 h-3.5 sm:w-4 sm:h-4 shrink-0" />
+            <span className="hidden sm:inline">Entraînement & Lots</span>
+            <span className="sm:hidden">Entraînement</span>
+            <span className="text-[10px] sm:text-xs text-slate-400 font-normal">#{selectedBatch + 1}</span>
             {activeTab === 'training' && (
               <motion.div
                 layoutId="activeTabUnderline"
@@ -609,15 +501,16 @@ export const ClubVerbsPage: React.FC = () => {
 
           <button
             onClick={() => setActiveTab('team')}
-            className={`flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-bold transition-all relative ${
+            className={`flex items-center gap-1.5 sm:gap-2 px-3 sm:px-4 py-2 sm:py-2.5 rounded-xl text-xs sm:text-sm font-bold transition-all relative shrink-0 ${
               activeTab === 'team'
                 ? 'text-emerald-700 bg-emerald-50'
                 : 'text-slate-500 hover:text-slate-800 hover:bg-slate-50'
             }`}
           >
-            <Users className="w-4 h-4" />
-            Évolution des membres
-            <span className="bg-emerald-500 text-white text-[10px] px-1.5 py-0.2 rounded-full font-bold">
+            <Users className="w-3.5 h-3.5 sm:w-4 sm:h-4 shrink-0" />
+            <span className="hidden sm:inline">Évolution des membres</span>
+            <span className="sm:hidden">Membres</span>
+            <span className="bg-emerald-500 text-white text-[9px] px-1.5 py-0.2 rounded-full font-bold">
               Live
             </span>
             {activeTab === 'team' && (
@@ -630,14 +523,15 @@ export const ClubVerbsPage: React.FC = () => {
 
           <button
             onClick={() => setActiveTab('codex')}
-            className={`flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-bold transition-all relative ${
+            className={`flex items-center gap-1.5 sm:gap-2 px-3 sm:px-4 py-2 sm:py-2.5 rounded-xl text-xs sm:text-sm font-bold transition-all relative shrink-0 ${
               activeTab === 'codex'
                 ? 'text-emerald-700 bg-emerald-50'
                 : 'text-slate-500 hover:text-slate-800 hover:bg-slate-50'
             }`}
           >
-            <BookOpen className="w-4 h-4" />
-            Codex des Verbes ({TOTAL_VERBS})
+            <BookOpen className="w-3.5 h-3.5 sm:w-4 sm:h-4 shrink-0" />
+            <span>Codex</span>
+            <span className="text-[10px] sm:text-xs text-slate-400 font-normal">({TOTAL_VERBS})</span>
             {activeTab === 'codex' && (
               <motion.div
                 layoutId="activeTabUnderline"
@@ -647,6 +541,128 @@ export const ClubVerbsPage: React.FC = () => {
           </button>
         </div>
       </div>
+
+      {/* Modal de Connexion / Création de Profil (attaché au body via Portal) */}
+      {typeof document !== 'undefined' &&
+        createPortal(
+          <AnimatePresence>
+            {isAuthModalOpen && (
+              <div className="fixed inset-0 z-[100] flex items-center justify-center p-3 sm:p-4 bg-slate-900/75 backdrop-blur-sm overflow-y-auto">
+                <motion.div
+                  initial={{ opacity: 0, scale: 0.95, y: 10 }}
+                  animate={{ opacity: 1, scale: 1, y: 0 }}
+                  exit={{ opacity: 0, scale: 0.95, y: 10 }}
+                  className="bg-white rounded-2xl sm:rounded-3xl p-5 sm:p-7 max-w-sm sm:max-w-md w-full shadow-2xl border border-slate-200 my-auto"
+                >
+                  <div className="flex items-center justify-between mb-4">
+                    <div className="flex items-center gap-2.5">
+                      <div className="w-9 h-9 sm:w-10 sm:h-10 rounded-xl sm:rounded-2xl bg-indigo-100 text-indigo-700 flex items-center justify-center font-black text-sm sm:text-base">
+                        FZ
+                      </div>
+                      <div>
+                        <h3 className="font-extrabold text-slate-900 text-base sm:text-lg leading-tight">Espace Joueur Club</h3>
+                        <p className="text-[11px] sm:text-xs text-slate-500">Choisis ou crée ton prénom</p>
+                      </div>
+                    </div>
+                    <button
+                      onClick={() => setIsAuthModalOpen(false)}
+                      className="text-slate-400 hover:text-slate-600 p-1 font-bold text-base sm:text-lg rounded-lg hover:bg-slate-100 transition"
+                      title="Fermer"
+                    >
+                      ✕
+                    </button>
+                  </div>
+
+                  <div className="space-y-3.5 sm:space-y-4">
+                    <div>
+                      <label className="text-[11px] sm:text-xs font-bold text-slate-600 mb-1 block uppercase tracking-wide">
+                        Ton prénom ou pseudo :
+                      </label>
+                      <input
+                        type="text"
+                        value={typedAuthName}
+                        onChange={(e) => setTypedAuthName(e.target.value.toUpperCase())}
+                        placeholder="Ex: MARIE, ALEX, FARES..."
+                        translate="no"
+                        className="notranslate w-full px-3.5 py-2.5 sm:px-4 sm:py-3 text-base sm:text-lg font-bold sm:font-black uppercase tracking-normal sm:tracking-wider bg-slate-50 border-2 border-slate-200 rounded-xl sm:rounded-2xl focus:outline-none focus:border-indigo-600 focus:bg-white transition"
+                        autoFocus
+                        autoComplete="off"
+                        autoCapitalize="characters"
+                        autoCorrect="off"
+                        spellCheck="false"
+                      />
+                    </div>
+
+                    {/* Détection en direct */}
+                    {matchedPlayer ? (
+                      <div className="p-3 sm:p-4 bg-emerald-50 border border-emerald-200 rounded-xl sm:rounded-2xl">
+                        <div className="flex items-center justify-between">
+                          <span className="text-[11px] sm:text-xs font-black text-emerald-800 uppercase flex items-center gap-1.5">
+                            <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />
+                            Joueur reconnu !
+                          </span>
+                          <span className="text-[11px] sm:text-xs font-bold text-emerald-700">
+                            {matchedPlayer.completedBatches} lot(s) validé(s)
+                          </span>
+                        </div>
+                        <p className="text-xs text-slate-600 mt-1">
+                          Bon retour, <strong translate="no" className="notranslate">{matchedPlayer.displayName}</strong> ! Ton entraînement reprend au Lot {(matchedPlayer.currentBatch || 0) + 1}.
+                        </p>
+                        <button
+                          onClick={() => handleSelectPlayer(matchedPlayer.displayName)}
+                          className="w-full mt-2.5 sm:mt-3 py-2.5 sm:py-3 bg-emerald-600 hover:bg-emerald-700 text-white font-black text-xs sm:text-sm rounded-xl shadow-md transition"
+                        >
+                          Reprendre en tant que {matchedPlayer.displayName} ➔
+                        </button>
+                      </div>
+                    ) : typedAuthName.trim().length > 0 && typedAuthName.trim().toUpperCase() !== 'JOUEUR' ? (
+                      <div className="p-3 sm:p-4 bg-blue-50 border border-blue-200 rounded-xl sm:rounded-2xl">
+                        <div className="text-[11px] sm:text-xs font-black text-blue-800 uppercase flex items-center gap-1.5">
+                          <Sparkles className="w-4 h-4 text-blue-600 shrink-0" />
+                          Nouveau membre au Club !
+                        </div>
+                        <p className="text-xs text-slate-600 mt-1">
+                          Le prénom <strong translate="no" className="notranslate">{typedAuthName.trim()}</strong> n'est pas encore enregistré. Tu débuteras au Lot n°1.
+                        </p>
+                        <button
+                          onClick={() => handleSelectPlayer(typedAuthName.trim())}
+                          className="w-full mt-2.5 sm:mt-3 py-2.5 sm:py-3 bg-indigo-600 hover:bg-indigo-700 text-white font-black text-xs sm:text-sm rounded-xl shadow-md transition"
+                        >
+                          Créer le profil et commencer ➔
+                        </button>
+                      </div>
+                    ) : null}
+
+                    {/* Liste rapide des membres déjà enregistrés au club */}
+                    {leaderboard.length > 0 && (
+                      <div className="pt-1">
+                        <span className="text-[10px] sm:text-[11px] font-bold text-slate-400 uppercase tracking-wide block mb-1.5">
+                          Ou clique sur ton prénom dans le club :
+                        </span>
+                        <div className="flex flex-wrap gap-1.5 max-h-32 sm:max-h-40 overflow-y-auto pr-1">
+                          {leaderboard.map((p) => (
+                            <button
+                              key={p.slug}
+                              onClick={() => handleSelectPlayer(p.displayName)}
+                              translate="no"
+                              className="notranslate px-2.5 py-1 sm:px-3 sm:py-1.5 bg-slate-100 hover:bg-indigo-50 hover:border-indigo-200 border border-slate-200 rounded-lg sm:rounded-xl text-xs font-bold text-slate-700 hover:text-indigo-700 transition flex items-center gap-1.5"
+                            >
+                              <span translate="no" className="notranslate">{p.displayName}</span>
+                              <span className="text-[10px] bg-white text-slate-500 px-1.5 py-0.2 rounded-full border border-slate-200 font-semibold">
+                                {p.completedBatches || 0}
+                              </span>
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                </motion.div>
+              </div>
+            )}
+          </AnimatePresence>,
+          document.body
+        )}
 
       {/* Contenu Principal */}
       <div className="max-w-5xl mx-auto px-4 py-6">
@@ -744,21 +760,24 @@ export const ClubVerbsPage: React.FC = () => {
                     <span className="text-xs text-slate-400">Cliquez pour voir les détails ODS</span>
                   </div>
 
-                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2.5">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2 sm:gap-2.5">
                     {currentBatchWords.map((v) => (
                       <div
                         key={v.word}
-                        className="p-3 bg-slate-50 hover:bg-emerald-50/60 border border-slate-200/80 hover:border-emerald-200 rounded-xl transition flex flex-col justify-between"
+                        className="p-2.5 sm:p-3 bg-slate-50 hover:bg-emerald-50/60 border border-slate-200/80 hover:border-emerald-200 rounded-xl transition flex flex-col justify-between"
                       >
                         <div className="flex items-center justify-between">
-                          <span className="font-black text-slate-800 tracking-wide text-base">
+                          <span
+                            translate="no"
+                            className="notranslate font-black text-slate-800 tracking-wide text-sm sm:text-base"
+                          >
                             {v.word}
                           </span>
-                          <span className="bg-slate-200/70 text-slate-700 text-[10px] font-bold px-2 py-0.5 rounded">
+                          <span className="bg-slate-200/70 text-slate-700 text-[10px] font-bold px-1.5 sm:px-2 py-0.5 rounded">
                             {v.length}L
                           </span>
                         </div>
-                        <p className="text-xs text-slate-500 mt-1 line-clamp-1">
+                        <p className="text-[11px] sm:text-xs text-slate-500 mt-1 line-clamp-1">
                           {v.details || 'Verbe officiel Scrabble (ODS)'}
                         </p>
                       </div>
@@ -824,11 +843,11 @@ export const ClubVerbsPage: React.FC = () => {
                 </div>
 
                 {/* Arène du Tirage */}
-                <div className="bg-white rounded-3xl p-8 border border-slate-200 shadow-lg text-center relative">
+                <div className="bg-white rounded-2xl sm:rounded-3xl p-4 sm:p-8 border border-slate-200 shadow-lg text-center relative">
                   {/* Chrono */}
-                  <div className="flex items-center justify-center gap-1.5 mb-6">
+                  <div className="flex items-center justify-center gap-1.5 mb-4 sm:mb-6">
                     <Clock className={`w-5 h-5 ${timeLeft <= 5 ? 'text-red-500 animate-bounce' : 'text-slate-400'}`} />
-                    <span className={`text-2xl font-black font-mono tabular-nums ${
+                    <span className={`text-xl sm:text-2xl font-black font-mono tabular-nums ${
                       timeLeft <= 5 ? 'text-red-500' : 'text-slate-700'
                     }`}>
                       {timeLeft}s
@@ -836,14 +855,19 @@ export const ClubVerbsPage: React.FC = () => {
                   </div>
 
                   {/* Tuiles de Scrabble (Rack Anagrammé) */}
-                  <div className="flex items-center justify-center flex-wrap gap-2 mb-8">
+                  <div className="flex items-center justify-center flex-wrap gap-1.5 sm:gap-2 mb-6 sm:mb-8 notranslate" translate="no">
                     {currentRack.split('').map((char, idx) => (
                       <motion.div
                         key={`${char}-${idx}`}
                         initial={{ scale: 0.8, opacity: 0 }}
                         animate={{ scale: 1, opacity: 1 }}
-                        transition={{ delay: idx * 0.04 }}
-                        className="w-12 h-14 sm:w-14 sm:h-16 bg-[#f7e6c4] border-2 border-[#d2b887] text-[#4a3520] rounded-xl flex items-center justify-center text-2xl sm:text-3xl font-black shadow-md select-none transform hover:-translate-y-1 transition"
+                        transition={{ delay: idx * 0.03 }}
+                        translate="no"
+                        className={`${
+                          currentRack.length >= 7
+                            ? 'w-9 h-11 sm:w-13 sm:h-15 text-lg sm:text-2xl'
+                            : 'w-10 h-12 sm:w-14 sm:h-16 text-xl sm:text-3xl'
+                        } bg-[#f7e6c4] border-2 border-[#d2b887] text-[#4a3520] rounded-xl flex items-center justify-center font-black shadow-md select-none transform hover:-translate-y-1 transition notranslate`}
                       >
                         {char}
                       </motion.div>
@@ -852,26 +876,29 @@ export const ClubVerbsPage: React.FC = () => {
 
                   {/* Formulaire de Saisie */}
                   {!showSolution ? (
-                    <form onSubmit={handleSubmitAnswer} className="max-w-md mx-auto space-y-4">
-                      <div className="flex gap-2">
+                    <form onSubmit={handleSubmitAnswer} className="max-w-md mx-auto space-y-3 sm:space-y-4">
+                      <div className="flex gap-1.5 sm:gap-2">
                         <input
                           ref={inputRef}
                           type="text"
                           value={userInput}
                           onChange={(e) => setUserInput(e.target.value.toUpperCase())}
                           placeholder="Tapez l'infinitif..."
-                          className="flex-1 px-4 py-3.5 text-center text-xl font-black uppercase tracking-wider bg-slate-50 border-2 border-slate-300 rounded-2xl focus:outline-none focus:border-emerald-500 focus:bg-white transition"
+                          translate="no"
+                          className="notranslate flex-1 px-3 sm:px-4 py-2.5 sm:py-3.5 text-center text-lg sm:text-xl font-black uppercase tracking-wider bg-slate-50 border-2 border-slate-300 rounded-xl sm:rounded-2xl focus:outline-none focus:border-emerald-500 focus:bg-white transition"
                           autoComplete="off"
                           autoCapitalize="characters"
+                          autoCorrect="off"
+                          spellCheck="false"
                         />
                         <button
                           type="submit"
-                          className="px-6 py-3.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-2xl font-bold text-sm shadow-md transition"
+                          className="px-4 sm:px-6 py-2.5 sm:py-3.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl sm:rounded-2xl font-bold text-xs sm:text-sm shadow-md transition shrink-0"
                         >
                           Valider
                         </button>
                       </div>
-                      <p className="text-[11px] text-slate-400">
+                      <p className="text-[10px] sm:text-[11px] text-slate-400">
                         Appuyez sur Entrée pour valider directement
                       </p>
                     </form>
@@ -880,7 +907,7 @@ export const ClubVerbsPage: React.FC = () => {
                     <motion.div
                       initial={{ scale: 0.95, opacity: 0 }}
                       animate={{ scale: 1, opacity: 1 }}
-                      className={`p-6 rounded-2xl border-2 max-w-md mx-auto ${
+                      className={`p-4 sm:p-6 rounded-2xl border-2 max-w-md mx-auto ${
                         lastAnswerCorrect
                           ? 'bg-emerald-50 border-emerald-300'
                           : 'bg-red-50 border-red-300'
@@ -889,32 +916,38 @@ export const ClubVerbsPage: React.FC = () => {
                       <div className="flex items-center justify-center gap-2 mb-2">
                         {lastAnswerCorrect ? (
                           <>
-                            <CheckCircle2 className="w-6 h-6 text-emerald-600" />
-                            <span className="font-black text-emerald-800 text-lg">
+                            <CheckCircle2 className="w-5 h-5 sm:w-6 sm:h-6 text-emerald-600" />
+                            <span className="font-black text-emerald-800 text-base sm:text-lg">
                               Excellent réflexe !
                             </span>
                           </>
                         ) : (
                           <>
-                            <XCircle className="w-6 h-6 text-red-600" />
-                            <span className="font-black text-red-800 text-lg">
+                            <XCircle className="w-5 h-5 sm:w-6 sm:h-6 text-red-600" />
+                            <span className="font-black text-red-800 text-base sm:text-lg">
                               Temps écoulé ou mot incorrect
                             </span>
                           </>
                         )}
                       </div>
 
-                      <div className="text-3xl font-black text-slate-900 tracking-wider my-2">
+                      <div
+                        translate="no"
+                        className="notranslate text-2xl sm:text-3xl font-black text-slate-900 tracking-wider my-2"
+                      >
                         {targetWord}
                       </div>
 
                       {alternateMatch && (
-                        <div className="bg-amber-100 text-amber-900 border border-amber-300 rounded-xl p-2.5 my-2 text-xs font-bold text-center">
+                        <div
+                          translate="no"
+                          className="notranslate bg-amber-100 text-amber-900 border border-amber-300 rounded-xl p-2.5 my-2 text-xs font-bold text-center"
+                        >
                           🌟 Superbe réflexe ! <strong>{alternateMatch}</strong> est une anagramme verbale officielle acceptée ! (La cible de base était {targetWord}).
                         </div>
                       )}
 
-                      <p className="text-xs text-slate-600 mb-4 max-w-xs mx-auto">
+                      <p className="text-[11px] sm:text-xs text-slate-600 mb-4 max-w-xs mx-auto">
                         {targetInfo.details || 'Verbe officiel Scrabble (ODS)'}
                       </p>
 
@@ -1104,37 +1137,37 @@ export const ClubVerbsPage: React.FC = () => {
         {/* ONGLET 2 : ÉVOLUTION DES MEMBRES                             */}
         {/* ============================================================ */}
         {activeTab === 'team' && (
-          <div className="space-y-8">
+          <div className="space-y-6 sm:space-y-8">
             {/* La Grande Pyramide Collective */}
-            <div className="bg-gradient-to-br from-indigo-900 via-slate-900 to-slate-950 rounded-3xl p-8 text-white shadow-xl relative overflow-hidden">
+            <div className="bg-gradient-to-br from-indigo-900 via-slate-900 to-slate-950 rounded-2xl sm:rounded-3xl p-5 sm:p-8 text-white shadow-xl relative overflow-hidden">
               <div className="relative z-10">
                 <div className="flex items-center gap-2 mb-2">
-                  <Trophy className="w-5 h-5 text-amber-400" />
-                  <span className="text-amber-300 text-xs font-black tracking-widest uppercase">
+                  <Trophy className="w-4 h-4 sm:w-5 sm:h-5 text-amber-400" />
+                  <span className="text-amber-300 text-[10px] sm:text-xs font-black tracking-widest uppercase">
                     La Jauge Collective du Club Faizers
                   </span>
                 </div>
 
-                <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-4 mb-4">
+                <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-3 sm:gap-4 mb-4">
                   <div>
-                    <h2 className="text-3xl sm:text-4xl font-black tracking-tight">
-                      {clubTotalConqueredVerbs} <span className="text-slate-400 text-xl font-normal">/ {TOTAL_VERBS}</span>
+                    <h2 className="text-2xl sm:text-4xl font-black tracking-tight">
+                      {clubTotalConqueredVerbs} <span className="text-slate-400 text-lg sm:text-xl font-normal">/ {TOTAL_VERBS}</span>
                     </h2>
-                    <p className="text-slate-300 text-sm mt-1">
+                    <p className="text-slate-300 text-xs sm:text-sm mt-1">
                       Verbes uniques conquis par au moins un joueur du club.
                     </p>
                   </div>
 
-                  <div className="text-right">
-                    <span className="text-2xl font-black text-emerald-400">
+                  <div className="text-left sm:text-right">
+                    <span className="text-xl sm:text-2xl font-black text-emerald-400">
                       {((clubTotalConqueredVerbs / TOTAL_VERBS) * 100).toFixed(1)}%
                     </span>
-                    <span className="text-xs text-slate-400 block">du dictionnaire ODS conquis</span>
+                    <span className="text-[11px] sm:text-xs text-slate-400 block">du dictionnaire ODS conquis</span>
                   </div>
                 </div>
 
                 {/* Barre collective */}
-                <div className="w-full bg-slate-800 rounded-full h-4 overflow-hidden border border-slate-700 p-0.5">
+                <div className="w-full bg-slate-800 rounded-full h-3.5 sm:h-4 overflow-hidden border border-slate-700 p-0.5">
                   <div
                     className="bg-gradient-to-r from-emerald-500 to-teal-400 h-full rounded-full transition-all duration-500"
                     style={{ width: `${Math.max(2, (clubTotalConqueredVerbs / TOTAL_VERBS) * 100)}%` }}
@@ -1144,24 +1177,24 @@ export const ClubVerbsPage: React.FC = () => {
             </div>
 
             {/* Le Réacteur Hebdomadaire Faizers */}
-            <div className="bg-gradient-to-r from-amber-500 via-orange-500 to-amber-600 rounded-3xl p-6 sm:p-7 text-white shadow-lg relative overflow-hidden">
+            <div className="bg-gradient-to-r from-amber-500 via-orange-500 to-amber-600 rounded-2xl sm:rounded-3xl p-4 sm:p-7 text-white shadow-lg relative overflow-hidden">
               <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
                 <div>
                   <div className="flex items-center gap-2 mb-1">
-                    <Zap className="w-5 h-5 text-yellow-200 fill-yellow-200 animate-pulse" />
-                    <span className="text-xs uppercase font-black tracking-widest text-amber-100">
+                    <Zap className="w-4 h-4 sm:w-5 sm:h-5 text-yellow-200 fill-yellow-200 animate-pulse" />
+                    <span className="text-[10px] sm:text-xs uppercase font-black tracking-widest text-amber-100">
                       Le Réacteur de la Semaine • Énergie Collective
                     </span>
                   </div>
-                  <h3 className="text-2xl sm:text-3xl font-black">
-                    {weeklyEnergy} <span className="text-lg font-normal text-amber-100">/ 1 500 pts</span>
+                  <h3 className="text-xl sm:text-3xl font-black">
+                    {weeklyEnergy} <span className="text-base sm:text-lg font-normal text-amber-100">/ 1 500 pts</span>
                   </h3>
-                  <p className="text-xs text-amber-100 mt-1 max-w-xl leading-relaxed">
-                    Chaque tirage réussi par n'importe quel joueur au club rapporte <strong>1 point d'énergie</strong> (et <strong>+25 pts</strong> par lot validé). Tous les membres, du débutant au champion, font monter ensemble cette jauge hebdomadaire !
+                  <p className="text-[11px] sm:text-xs text-amber-100 mt-1 max-w-xl leading-relaxed">
+                    Chaque tirage réussi rapporte <strong>1 pt</strong> (+25 pts par lot validé). Tous les membres font monter ensemble cette jauge !
                   </p>
                 </div>
 
-                <div className="w-full sm:w-56 bg-black/20 rounded-full h-3.5 overflow-hidden p-0.5 shrink-0 border border-white/20">
+                <div className="w-full sm:w-56 bg-black/20 rounded-full h-3 sm:h-3.5 overflow-hidden p-0.5 shrink-0 border border-white/20">
                   <div
                     className="bg-white h-full rounded-full transition-all duration-500 shadow"
                     style={{ width: `${Math.min(100, Math.max(4, (weeklyEnergy / 1500) * 100))}%` }}
@@ -1173,29 +1206,29 @@ export const ClubVerbsPage: React.FC = () => {
             {/* Grille : Classement & Fil d'Activité en Direct */}
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
               {/* Tableau d'Honneur des Membres */}
-              <div className="lg:col-span-2 bg-white rounded-3xl p-6 border border-slate-200 shadow-sm">
+              <div className="lg:col-span-2 bg-white rounded-2xl sm:rounded-3xl p-4 sm:p-6 border border-slate-200 shadow-sm">
                 <div className="flex items-center justify-between mb-4">
                   <div>
-                    <h3 className="font-extrabold text-slate-900 text-lg flex items-center gap-2">
+                    <h3 className="font-extrabold text-slate-900 text-base sm:text-lg flex items-center gap-2">
                       <Award className="w-5 h-5 text-indigo-600" />
                       Tableau d'Honneur des Faizers
                     </h3>
-                    <p className="text-xs text-slate-500">Mise à jour en temps réel via Firebase</p>
+                    <p className="text-[11px] sm:text-xs text-slate-500">Mise à jour en temps réel via Firebase</p>
                   </div>
                   <span className="text-xs font-bold text-slate-400">
                     {leaderboard.length} joueur{leaderboard.length > 1 ? 's' : ''}
                   </span>
                 </div>
 
-                <div className="overflow-x-auto">
-                  <table className="w-full text-left text-sm">
+                <div className="overflow-x-auto -mx-1 sm:mx-0">
+                  <table className="w-full text-left text-xs sm:text-sm">
                     <thead>
-                      <tr className="border-b border-slate-100 text-slate-400 text-xs font-bold uppercase">
-                        <th className="pb-3 pl-2">Rang</th>
-                        <th className="pb-3">Joueur</th>
-                        <th className="pb-3 text-center">Lots Validés</th>
-                        <th className="pb-3 text-center">Verbes Maîtrisés</th>
-                        <th className="pb-3 text-right pr-2">Lot en cours</th>
+                      <tr className="border-b border-slate-100 text-slate-400 text-[10px] sm:text-xs font-bold uppercase">
+                        <th className="pb-2.5 sm:pb-3 pl-1 sm:pl-2">Rang</th>
+                        <th className="pb-2.5 sm:pb-3">Joueur</th>
+                        <th className="pb-2.5 sm:pb-3 text-center">Lots</th>
+                        <th className="pb-2.5 sm:pb-3 text-center">Verbes</th>
+                        <th className="pb-2.5 sm:pb-3 text-right pr-1 sm:pr-2">En cours</th>
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-slate-100">
@@ -1213,24 +1246,24 @@ export const ClubVerbsPage: React.FC = () => {
                               player.slug === profile?.slug ? 'bg-emerald-50/50 font-bold' : ''
                             }`}
                           >
-                            <td className="py-3.5 pl-2 font-black text-slate-500">
+                            <td className="py-2.5 sm:py-3.5 pl-1 sm:pl-2 font-black text-slate-500">
                               {idx === 0 ? '🥇' : idx === 1 ? '🥈' : idx === 2 ? '🥉' : `#${idx + 1}`}
                             </td>
-                            <td className="py-3.5 font-bold text-slate-800">
+                            <td className="py-2.5 sm:py-3.5 font-bold text-slate-800 notranslate" translate="no">
                               {player.displayName}
                               {player.slug === profile?.slug && (
-                                <span className="ml-2 text-[10px] bg-emerald-100 text-emerald-800 px-2 py-0.5 rounded-full font-bold">
+                                <span className="ml-1 text-[9px] bg-emerald-100 text-emerald-800 px-1.5 py-0.2 rounded-full font-bold">
                                   Moi
                                 </span>
                               )}
                             </td>
-                            <td className="py-3.5 text-center font-black text-indigo-600">
+                            <td className="py-2.5 sm:py-3.5 text-center font-black text-indigo-600">
                               {player.completedBatches || 0}
                             </td>
-                            <td className="py-3.5 text-center font-black text-emerald-600">
+                            <td className="py-2.5 sm:py-3.5 text-center font-black text-emerald-600">
                               {(player.completedBatches || 0) * BATCH_SIZE}
                             </td>
-                            <td className="py-3.5 text-right pr-2 text-xs font-semibold text-slate-500">
+                            <td className="py-2.5 sm:py-3.5 text-right pr-1 sm:pr-2 text-[11px] sm:text-xs font-semibold text-slate-500">
                               Lot {(player.currentBatch || 0) + 1}
                             </td>
                           </tr>
@@ -1242,16 +1275,16 @@ export const ClubVerbsPage: React.FC = () => {
               </div>
 
               {/* Fil d'Activité en Direct */}
-              <div className="bg-white rounded-3xl p-6 border border-slate-200 shadow-sm flex flex-col justify-between">
+              <div className="bg-white rounded-2xl sm:rounded-3xl p-4 sm:p-6 border border-slate-200 shadow-sm flex flex-col justify-between">
                 <div>
                   <div className="flex items-center gap-2 mb-4">
                     <span className="w-2.5 h-2.5 rounded-full bg-emerald-500 animate-pulse"></span>
-                    <h3 className="font-extrabold text-slate-900 text-base">
+                    <h3 className="font-extrabold text-slate-900 text-sm sm:text-base">
                       Activité du Club en Direct
                     </h3>
                   </div>
 
-                  <div className="space-y-3 max-h-[380px] overflow-y-auto pr-1">
+                  <div className="space-y-2.5 max-h-[360px] overflow-y-auto pr-1">
                     {clubActivities.length === 0 ? (
                       <div className="text-center py-12 text-slate-400 text-xs">
                         Le flux d'activité s'animera dès les premières validations de lots.
@@ -1260,14 +1293,14 @@ export const ClubVerbsPage: React.FC = () => {
                       clubActivities.map((act, i) => (
                         <div
                           key={act.id || i}
-                          className="p-3 bg-slate-50 rounded-2xl border border-slate-100 flex items-start gap-2.5 text-xs"
+                          className="p-2.5 sm:p-3 bg-slate-50 rounded-xl sm:rounded-2xl border border-slate-100 flex items-start gap-2.5 text-xs"
                         >
-                          <div className="w-7 h-7 rounded-xl bg-emerald-100 text-emerald-700 flex items-center justify-center shrink-0 font-bold">
+                          <div className="w-6 h-6 sm:w-7 sm:h-7 rounded-xl bg-emerald-100 text-emerald-700 flex items-center justify-center shrink-0 font-bold text-xs">
                             ✓
                           </div>
                           <div>
                             <p className="text-slate-800 leading-snug">
-                              <strong>{act.player}</strong> a validé le{' '}
+                              <strong translate="no" className="notranslate">{act.player}</strong> a validé le{' '}
                               <strong className="text-emerald-700">Lot #{act.batchNumber}</strong>
                               {act.score && ` (${act.score})`} !
                             </p>
@@ -1343,21 +1376,24 @@ export const ClubVerbsPage: React.FC = () => {
             </div>
 
             {/* Grille des Verbes */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3">
+            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-2.5 sm:gap-3">
               {filteredVerbs.slice(0, 120).map((v) => (
                 <div
                   key={v.word}
-                  className="bg-white p-4 rounded-2xl border border-slate-200/90 shadow-sm hover:shadow-md transition flex flex-col justify-between"
+                  className="bg-white p-3 sm:p-4 rounded-xl sm:rounded-2xl border border-slate-200/90 shadow-sm hover:shadow-md transition flex flex-col justify-between"
                 >
                   <div className="flex items-center justify-between">
-                    <span className="font-black text-slate-900 tracking-wide text-lg">
+                    <span
+                      translate="no"
+                      className="notranslate font-black text-slate-900 tracking-wide text-base sm:text-lg"
+                    >
                       {v.word}
                     </span>
-                    <span className="bg-slate-100 text-slate-600 text-[10px] font-bold px-2 py-0.5 rounded-md">
-                      {v.length} lettres
+                    <span className="bg-slate-100 text-slate-600 text-[10px] font-bold px-1.5 sm:px-2 py-0.5 rounded-md">
+                      {v.length}L
                     </span>
                   </div>
-                  <p className="text-xs text-slate-500 mt-2 line-clamp-2">
+                  <p className="text-[11px] sm:text-xs text-slate-500 mt-1.5 line-clamp-2">
                     {v.details || 'Verbe du dictionnaire officiel du Scrabble (ODS).'}
                   </p>
                 </div>
