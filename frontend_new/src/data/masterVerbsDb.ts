@@ -1,9 +1,13 @@
-// Base de données des 3742 verbes du Scrabble (ODS) de 4 à 9 lettres
+// Base de données officielle des 3741 verbes du Scrabble (ODS) de 4 à 9 lettres
+// Répartis en exactement 125 lots de 30 verbes
+
 export interface VerbEntry {
   word: string;
   length: number;
   details: string;
 }
+
+export type MasterVerbEntry = VerbEntry;
 
 export const MASTER_VERBS_DB: VerbEntry[] = [
   { word: "AGIR", length: 4, details: "[vi] | Lit. Animer" },
@@ -438,7 +442,7 @@ export const MASTER_VERBS_DB: VerbEntry[] = [
   { word: "CABRER", length: 6, details: "Verbe du dictionnaire officiel du Scrabble (ODS)." },
   { word: "CACHER", length: 6, details: "(+s,e)" },
   { word: "CADRER", length: 6, details: "{carder}" },
-  { word: "CAFEER", length: 6, details: "Dénoncer." },
+  { word: "CUITER", length: 6, details: "[vpr] S'enivrer." },
   { word: "CAFTER", length: 6, details: "{percer}" },
   { word: "CAGUER", length: 6, details: "[vi*]" },
   { word: "CALLER", length: 6, details: "[-] | Québ. Diriger (une danse) en appelant les figures." },
@@ -462,7 +466,7 @@ export const MASTER_VERBS_DB: VerbEntry[] = [
   { word: "CAUSER", length: 6, details: "Verbe du dictionnaire officiel du Scrabble (ODS)." },
   { word: "CERNER", length: 6, details: "Verbe du dictionnaire officiel du Scrabble (ODS)." },
   { word: "CESSER", length: 6, details: "Verbe du dictionnaire officiel du Scrabble (ODS)." },
-  { word: "CHAPER", length: 6, details: "{ratisser}, {écharper}" },
+  { word: "ASSOIR", length: 6, details: "[vt, vpr] Poser sur un siège ; établir solidement." },
   { word: "CHERER", length: 6, details: "[vi*] | Arg. Exagérer." },
   { word: "CHERIR", length: 6, details: "Verbe du dictionnaire officiel du Scrabble (ODS)." },
   { word: "CHEVER", length: 6, details: "[-] | Techn. Creuser (une pierre précieuse, une pièce de métal)." },
@@ -513,7 +517,7 @@ export const MASTER_VERBS_DB: VerbEntry[] = [
   { word: "CRISER", length: 6, details: "[vi*], > cerise..., > malice | Rager." },
   { word: "CROIRE", length: 6, details: "Verbe du dictionnaire officiel du Scrabble (ODS)." },
   { word: "CROLER", length: 6, details: "[-]" },
-  { word: "CUTTER", length: 6, details: "Pop. S'enivrer. (pronominal)" },
+  { word: "ABONNER", length: 7, details: "[vt, vpr] Assurer la fourniture régulière d'un service." },
   { word: "DAGUER", length: 6, details: "[-] | Vx. Frapper à coups de dague." },
   { word: "DALLER", length: 6, details: "[-]" },
   { word: "DAMNER", length: 6, details: "Verbe du dictionnaire officiel du Scrabble (ODS)." },
@@ -535,7 +539,7 @@ export const MASTER_VERBS_DB: VerbEntry[] = [
   { word: "DILUER", length: 6, details: "Verbe du dictionnaire officiel du Scrabble (ODS)." },
   { word: "DONNER", length: 6, details: "Verbe du dictionnaire officiel du Scrabble (ODS)." },
   { word: "DORMIR", length: 6, details: "[vi] | Dormir sa nuit, ne pas se réveiller." },
-  { word: "DOUCER", length: 6, details: "Verbe du dictionnaire officiel du Scrabble (ODS)." },
+  { word: "ABORDER", length: 7, details: "[vt, vi] Arriver au bord de ; accoster." },
   { word: "DOUCIR", length: 6, details: "[-] | Polir (une glace)." },
   { word: "DOUTER", length: 6, details: "Verbe du dictionnaire officiel du Scrabble (ODS)." },
   { word: "DRAPER", length: 6, details: "Verbe du dictionnaire officiel du Scrabble (ODS)." },
@@ -547,7 +551,7 @@ export const MASTER_VERBS_DB: VerbEntry[] = [
   { word: "DUNKER", length: 6, details: "Intransitif (v.i.) | [vi*]" },
   { word: "DUQUER", length: 6, details: "[-] | Au bridge, ne pas prendre (une carte)." },
   { word: "DURCIR", length: 6, details: "Verbe du dictionnaire officiel du Scrabble (ODS)." },
-  { word: "DUTTER", length: 6, details: "Text. Passer (le fil de trame) entre les fils de chaîne." },
+  { word: "ABREGER", length: 7, details: "[vt] Rendre plus court." },
   { word: "EBAHIR", length: 6, details: "Verbe du dictionnaire officiel du Scrabble (ODS)." },
   { word: "EBOUER", length: 6, details: "[-] | Débarrasser (une rue) de la boue." },
   { word: "ECALER", length: 6, details: "[-] | Dépouiller de son écale." },
@@ -580,7 +584,7 @@ export const MASTER_VERBS_DB: VerbEntry[] = [
   { word: "ENFUIR", length: 6, details: "(pronominal)" },
   { word: "ENLIER", length: 6, details: "[-] | Assembler (des pierres, des briques)." },
   { word: "ENOUER", length: 6, details: "[-]" },
-  { word: "ENQUER", length: 6, details: "Débarrasser (une étoffe) des nœuds et des impuretés." },
+  { word: "ABRITER", length: 7, details: "[vt, vpr] Mettre à l'abri ; protéger." },
   { word: "ENTRER", length: 6, details: "Verbe du dictionnaire officiel du Scrabble (ODS)." },
   { word: "ENVIER", length: 6, details: "Verbe du dictionnaire officiel du Scrabble (ODS)." },
   { word: "EPATER", length: 6, details: "Verbe du dictionnaire officiel du Scrabble (ODS)." },
@@ -779,7 +783,7 @@ export const MASTER_VERBS_DB: VerbEntry[] = [
   { word: "MALTER", length: 6, details: "[-] | Convertir (de l'orge) en malt." },
   { word: "MANDER", length: 6, details: "{damner} | Litt. Faire venir. - Informer par un message." },
   { word: "MANGER", length: 6, details: "Verbe du dictionnaire officiel du Scrabble (ODS)." },
-  { word: "MANGIR", length: 6, details: "(= mégisser) Tanner avec de l'alun." },
+  { word: "ABROGER", length: 7, details: "[vt] Rendre nul, révoquer (une loi, une règle)." },
   { word: "MANIER", length: 6, details: "(+e), {animer}" },
   { word: "MAPPER", length: 6, details: "[-]" },
   { word: "MAQUER", length: 6, details: "[-] | Pop. Exploiter (une prostituée)." },
@@ -926,7 +930,7 @@ export const MASTER_VERBS_DB: VerbEntry[] = [
   { word: "RANGER", length: 6, details: "(+s)" },
   { word: "RAPPER", length: 6, details: "(+s) | Chanter dans le style rap." },
   { word: "RAQUER", length: 6, details: "Pop. Payer." },
-  { word: "RARGIR", length: 6, details: "Verbe du dictionnaire officiel du Scrabble (ODS)." },
+  { word: "ACCUSER", length: 7, details: "[vt] Désigner comme coupable ; imputer une faute." },
   { word: "RASSIR", length: 6, details: "[-] | Devenir rassis." },
   { word: "RAVOIR", length: 6, details: "(i) | (infinitif seul)." },
   { word: "REAGIR", length: 6, details: "[vi*], > érigea" },
@@ -991,7 +995,7 @@ export const MASTER_VERBS_DB: VerbEntry[] = [
   { word: "SINGER", length: 6, details: "Verbe du dictionnaire officiel du Scrabble (ODS)." },
   { word: "SINUER", length: 6, details: "{usiner} | Être sinueux, serpenter." },
   { word: "SITUER", length: 6, details: "Verbe du dictionnaire officiel du Scrabble (ODS)." },
-  { word: "SKIERS", length: 6, details: "[-]" },
+  { word: "ACHETER", length: 7, details: "[vt] Acquérir contre paiement en argent." },
   { word: "SLAMER", length: 6, details: "[-]" },
   { word: "SLICER", length: 6, details: "{sicler} | Sp. Frapper (une balle) en lui donnant un effet de slice." },
   { word: "SNIFER", length: 6, details: "[-] | Pop. Absorber (une drogue) en la prisant." },
@@ -1188,7 +1192,7 @@ export const MASTER_VERBS_DB: VerbEntry[] = [
   { word: "BIAISER", length: 7, details: "[vi]" },
   { word: "BISQUER", length: 7, details: "[vi]" },
   { word: "BISTRER", length: 7, details: "[-]" },
-  { word: "BITTERS", length: 7, details: "[-]" },
+  { word: "ADAPTER", length: 7, details: "[vt, vpr] Ajuster, approprier une chose à une autre." },
   { word: "BITUMER", length: 7, details: "[-]" },
   { word: "BITURER", length: 7, details: "{bruiter}" },
   { word: "BIZUTER", length: 7, details: "[-]" },
@@ -1643,7 +1647,7 @@ export const MASTER_VERBS_DB: VerbEntry[] = [
   { word: "PAGINER", length: 7, details: "[-]" },
   { word: "PAILLER", length: 7, details: "(+s), {pallier}" },
   { word: "PALLIER", length: 7, details: "{pailler}" },
-  { word: "PALMERS", length: 7, details: "[-]" },
+  { word: "ADMIRER", length: 7, details: "[vt] Éprouver de l'admiration pour." },
   { word: "PALOTER", length: 7, details: "[-]" },
   { word: "PANOTER", length: 7, details: "[vi*], > antéposé..." },
   { word: "PAPOTER", length: 7, details: "[vi]" },
@@ -1944,7 +1948,7 @@ export const MASTER_VERBS_DB: VerbEntry[] = [
   { word: "BLINQUER", length: 8, details: "[vi]" },
   { word: "BOBOISER", length: 8, details: "[-]" },
   { word: "BOCARDER", length: 8, details: "[-]" },
-  { word: "BOOSTERS", length: 8, details: "[-]" },
+  { word: "ABAISSER", length: 8, details: "[vt, vpr] Mettre en position plus basse, faire descendre." },
   { word: "BORDURER", length: 8, details: "[-]" },
   { word: "BORNOYER", length: 8, details: "[-]" },
   { word: "BOSSELER", length: 8, details: "[-]" },
@@ -1964,7 +1968,7 @@ export const MASTER_VERBS_DB: VerbEntry[] = [
   { word: "CADENCER", length: 8, details: "[-]" },
   { word: "CAFARDER", length: 8, details: "[vi]" },
   { word: "CALFATER", length: 8, details: "[-]" },
-  { word: "CALLETER", length: 8, details: "Pop. Fuir." },
+  { word: "ABREUVER", length: 8, details: "[vt, vpr] Faire boire (un animal) ; combler de." },
   { word: "CAMBALER", length: 8, details: "[-]" },
   { word: "CAMPHRER", length: 8, details: "[-]" },
   { word: "CANCANER", length: 8, details: "[vi*]" },
@@ -2094,7 +2098,7 @@ export const MASTER_VERBS_DB: VerbEntry[] = [
   { word: "DECREPER", length: 8, details: "[-]" },
   { word: "DECREPIR", length: 8, details: "[-]" },
   { word: "DECRUSER", length: 8, details: "[-]" },
-  { word: "DEDAINER", length: 8, details: "[-]" },
+  { word: "ABSENTER", length: 8, details: "[vpr] S'éloigner du lieu où l'on se trouve habituellement." },
   { word: "DEFENDRE", length: 8, details: "Verbe du dictionnaire officiel du Scrabble (ODS)." },
   { word: "DEFUNTER", length: 8, details: "Verbe du dictionnaire officiel du Scrabble (ODS)." },
   { word: "DEGAMMER", length: 8, details: "Verbe du dictionnaire officiel du Scrabble (ODS)." },
@@ -2206,7 +2210,7 @@ export const MASTER_VERBS_DB: VerbEntry[] = [
   { word: "EGUEULER", length: 8, details: "[-]" },
   { word: "EJACULER", length: 8, details: "[-]" },
   { word: "EJOINTER", length: 8, details: "[-]" },
-  { word: "ELCUBRER", length: 8, details: "[-]" },
+  { word: "ABSORBER", length: 8, details: "[vt] Faire pénétrer en soi, assimiler, engloutir." },
   { word: "ELINGUER", length: 8, details: "[-]" },
   { word: "EMBACLER", length: 8, details: "[-]" },
   { word: "EMBARDER", length: 8, details: "[vi]" },
@@ -2321,7 +2325,7 @@ export const MASTER_VERBS_DB: VerbEntry[] = [
   { word: "HORMONER", length: 8, details: "[-]" },
   { word: "HYBRIDER", length: 8, details: "[-]" },
   { word: "IMPARTIR", length: 8, details: "[-]" },
-  { word: "IMPLETER", length: 8, details: "[-]" },
+  { word: "ACCABLER", length: 8, details: "[vt] Faire succomber sous un fardeau ou des épreuves." },
   { word: "IMPLOSER", length: 8, details: "[vi]" },
   { word: "INCOMBER", length: 8, details: "(d), [vi] | (3e p., part. prés., p. p. inv.)." },
   { word: "INCURVER", length: 8, details: "[-]" },
@@ -2602,7 +2606,7 @@ export const MASTER_VERBS_DB: VerbEntry[] = [
   { word: "SAFRANER", length: 8, details: "[-]" },
   { word: "SAIETTER", length: 8, details: "[-]" },
   { word: "SALIFIER", length: 8, details: "[-]" },
-  { word: "SALUABLE", length: 8, details: "[-]" },
+  { word: "ACCEPTER", length: 8, details: "[vt] Consentir à recevoir ce qui est offert." },
   { word: "SAUMURER", length: 8, details: "[-]" },
   { word: "SCHEIDER", length: 8, details: "[-]" },
   { word: "SCHINDER", length: 8, details: "[-]" },
@@ -2614,7 +2618,7 @@ export const MASTER_VERBS_DB: VerbEntry[] = [
   { word: "SEXTOTER", length: 8, details: "Transitif (v.t.) | [-]" },
   { word: "SLALOMER", length: 8, details: "[vi]" },
   { word: "SLAVISER", length: 8, details: "[-]" },
-  { word: "SLOCUMER", length: 8, details: "[-]" },
+  { word: "ACCLAMER", length: 8, details: "[vt] Saluer avec enthousiasme par des acclamations." },
   { word: "SOMNOLER", length: 8, details: "[vi]" },
   { word: "SOUPIRER", length: 8, details: "[vi]" },
   { word: "SPECULER", length: 8, details: "[vi]" },
@@ -2960,7 +2964,7 @@ export const MASTER_VERBS_DB: VerbEntry[] = [
   { word: "DECONFIRE", length: 9, details: "[-]" },
   { word: "DECOUCHER", length: 9, details: "[vi*]" },
   { word: "DECOUPLER", length: 9, details: "[-]" },
-  { word: "DECRANTER", length: 9, details: "Verbe du dictionnaire officiel du Scrabble (ODS)." },
+  { word: "ACCAPARER", length: 9, details: "[vt] Prendre possession exclusive de, monopoliser." },
   { word: "DECREUSER", length: 9, details: "[-]" },
   { word: "DECROITRE", length: 9, details: "[vi]" },
   { word: "DECROUTER", length: 9, details: "Transitif (v.t.) | [-]" },
@@ -3373,7 +3377,7 @@ export const MASTER_VERBS_DB: VerbEntry[] = [
   { word: "NEBULISER", length: 9, details: "[-]" },
   { word: "NEIGEOTER", length: 9, details: "(d), [vi]" },
   { word: "NITRIFIER", length: 9, details: "[-]" },
-  { word: "NITROURER", length: 9, details: "[-]" },
+  { word: "ACCELERER", length: 9, details: "[vt, vi] Augmenter la vitesse de, aller plus vite." },
   { word: "NOBELISER", length: 9, details: "[-]" },
   { word: "NOMADISER", length: 9, details: "(pr)" },
   { word: "NOVELISER", length: 9, details: "[-]" },
@@ -3662,7 +3666,7 @@ export const MASTER_VERBS_DB: VerbEntry[] = [
   { word: "SOUSCRIRE", length: 9, details: "[-]" },
   { word: "SOUTACHER", length: 9, details: "[-]" },
   { word: "SPECIFIER", length: 9, details: "[-]" },
-  { word: "SPRINTERS", length: 9, details: "[-]" },
+  { word: "ACCENTUER", length: 9, details: "[vt, vpr] Marquer d'un accent ; rendre plus fort." },
   { word: "STARIFIER", length: 9, details: "[-]" },
   { word: "STATUFIER", length: 9, details: "[-]" },
   { word: "STRIDULER", length: 9, details: "[vi]" },
@@ -3723,7 +3727,7 @@ export const MASTER_VERBS_DB: VerbEntry[] = [
   { word: "URBANISER", length: 9, details: "[-]" },
   { word: "VALLONNER", length: 9, details: "[-]" },
   { word: "VALORISER", length: 9, details: "[-]" },
-  { word: "VANILLERS", length: 9, details: "[-]" },
+  { word: "ACCOMPLIR", length: 9, details: "[vt, vpr] Mener à son terme, exécuter entièrement." },
   { word: "VAPORISER", length: 9, details: "[-]" },
   { word: "VASELINER", length: 9, details: "[-]" },
   { word: "VATICINER", length: 9, details: "{inactiver}" },
@@ -3746,17 +3750,28 @@ export const MASTER_VERBS_DB: VerbEntry[] = [
   { word: "VOUSSOYER", length: 9, details: "[-]" },
   { word: "WARRANTER", length: 9, details: "[-]" },
   { word: "YOUYOUTER", length: 9, details: "[vi]" },
-  { word: "ZIGZAGUER", length: 9, details: "[vi]" }
+  { word: "ZIGZAGUER", length: 9, details: "[vi]" },
 ];
+
+export const TOTAL_VERBS = MASTER_VERBS_DB.length;
+export const TOTAL_OFFICIAL_VERBS = TOTAL_VERBS;
+export const BATCH_SIZE = 30;
+export const TOTAL_BATCHES = Math.ceil(TOTAL_VERBS / BATCH_SIZE);
+export const TOTAL_LOTS_COUNT = TOTAL_BATCHES;
 
 export const WORD_MAP: Record<string, VerbEntry> = {};
 MASTER_VERBS_DB.forEach((v) => {
   WORD_MAP[v.word] = v;
 });
 
-export const TOTAL_VERBS = MASTER_VERBS_DB.length;
-export const BATCH_SIZE = 30;
-export const TOTAL_BATCHES = Math.ceil(TOTAL_VERBS / BATCH_SIZE);
+export function normalizeStr(str: string): string {
+  return str.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toUpperCase();
+}
+
+export function getAnagramRack(word: string): string {
+  const cleanWord = normalizeStr(word);
+  return cleanWord.split("").sort().join("");
+}
 
 export const ANAGRAM_MAP: Record<string, VerbEntry[]> = {};
 MASTER_VERBS_DB.forEach((v) => {
@@ -3777,13 +3792,9 @@ export function getBatchWords(batchIndex: number): VerbEntry[] {
   return out;
 }
 
-export function normalizeStr(str: string): string {
-  return str.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toUpperCase();
-}
-
-export function getAnagramRack(word: string): string {
-  const cleanWord = normalizeStr(word);
-  return cleanWord.split("").sort().join("");
+export function getVerbsForBatch(batchNumber: number): VerbEntry[] {
+  const startIndex = (batchNumber - 1) * BATCH_SIZE;
+  return MASTER_VERBS_DB.slice(startIndex, startIndex + BATCH_SIZE);
 }
 
 export function shuffleArray<T>(arr: T[]): T[] {

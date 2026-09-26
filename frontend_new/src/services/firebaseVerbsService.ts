@@ -20,6 +20,15 @@ export const FIREBASE_CONFIG = {
   messagingSenderId: "786855234991",
 };
 
+export interface ActiveSessionData {
+  batchIndex: number;
+  currentIndex: number; // 0 to 29
+  sessionWords: string[];
+  validationScore: number;
+  sessionErrors: string[];
+  lastSaved: number;
+}
+
 export interface PlayerVerbProfile {
   displayName: string;
   slug: string;
@@ -36,6 +45,7 @@ export interface PlayerVerbProfile {
     totalDrawsCorrect: number;
     bestValidationScore: number;
   };
+  activeSession?: ActiveSessionData | null;
 }
 
 export interface ClubActivityEvent {
@@ -87,17 +97,14 @@ class FirebaseVerbsService {
     return s.slice(0, 60);
   }
 
-  public async loadPlayerProfile(slug: string, defaultName: string): Promise<PlayerVerbProfile> {
-    const localKey = `verb_player_${slug}`;
-    const rawLocal = localStorage.getItem(localKey);
-    let localProfile: PlayerVerbProfile | null = null;
-    if (rawLocal) {
-      try {
-        localProfile = JSON.parse(rawLocal);
-      } catch (e) {
-        // ignore
-      }
+  public async loadPlayerProfile(slug: string, defaultName: string): Promise<PlayerVerbProfile | null> {
+    if (!slug || ['ANTIGRAVITY', 'JOUEUR', 'MEMBRE'].includes(slug.toUpperCase())) {
+      localStorage.removeItem(`verb_player_${slug}`);
+      localStorage.removeItem('faizers_verb_user');
+      return null;
     }
+
+    const localKey = `verb_player_${slug}`;
 
     if (this.isConnected && this.db) {
       try {
@@ -105,7 +112,6 @@ class FirebaseVerbsService {
         const snap = await get(playerRef);
         if (snap.exists()) {
           const data = snap.val() as PlayerVerbProfile;
-          // Ensure arrays and default structures
           const profile: PlayerVerbProfile = {
             displayName: data.displayName || defaultName,
             slug: slug,
@@ -118,22 +124,28 @@ class FirebaseVerbsService {
             streakDays: typeof data.streakDays === 'number' ? data.streakDays : 1,
             lastActive: data.lastActive || new Date().toISOString(),
             stats: data.stats || { totalDrawsAttempted: 0, totalDrawsCorrect: 0, bestValidationScore: 0 },
+            activeSession: data.activeSession || null,
           };
           localStorage.setItem(localKey, JSON.stringify(profile));
           return profile;
+        } else {
+          // Joueur inexistant sur Firebase (supprimé ou non encore créé)
+          localStorage.removeItem(localKey);
+          localStorage.removeItem('faizers_verb_user');
+          return null;
         }
       } catch (err) {
-        console.warn('Erreur lecture Firebase, utilisation du profil local:', err);
+        console.warn('Erreur lecture Firebase:', err);
       }
     }
 
-    if (localProfile) {
-      return localProfile;
-    }
+    return null;
+  }
 
-    // Création d'un nouveau profil vierge
+  public async createPlayerProfile(displayName: string): Promise<PlayerVerbProfile> {
+    const slug = this.slugify(displayName);
     const newProfile: PlayerVerbProfile = {
-      displayName: defaultName,
+      displayName: displayName.trim().toUpperCase(),
       slug: slug,
       currentBatch: 0,
       completedBatches: 0,
@@ -174,7 +186,10 @@ class FirebaseVerbsService {
     batchNumber: number,
     score: number
   ): Promise<void> {
-    const profile = await this.loadPlayerProfile(slug, playerName);
+    let profile = await this.loadPlayerProfile(slug, playerName);
+    if (!profile) {
+      profile = await this.createPlayerProfile(playerName);
+    }
     if (!profile.validatedBatches.includes(batchNumber)) {
       profile.validatedBatches.push(batchNumber);
       profile.validatedBatches.sort((a, b) => a - b);
@@ -184,8 +199,19 @@ class FirebaseVerbsService {
     profile.currentBatch = Math.max(profile.currentBatch, batchNumber); // unlock next batch (batchNumber is 1-indexed)
     profile.drawIndex = 0;
     profile.drawWords = [];
+    profile.activeSession = null;
 
     await this.savePlayerProfile(profile);
+
+    // Nettoyage de la session active sur Firebase
+    if (this.isConnected && this.db) {
+      try {
+        const sessionRef = ref(this.db, `verb_mastery/players/${slug}/activeSession`);
+        await set(sessionRef, null);
+      } catch (err) {
+        console.warn('Erreur reset activeSession:', err);
+      }
+    }
 
     // Publication de l'activité du club
     if (this.isConnected && this.db) {
@@ -200,6 +226,50 @@ class FirebaseVerbsService {
         });
       } catch (err) {
         console.warn('Erreur ajout événement activité club:', err);
+      }
+    }
+  }
+
+  public async saveActiveSession(slug: string, session: ActiveSessionData): Promise<void> {
+    const localKey = `verb_player_${slug}`;
+    const rawLocal = localStorage.getItem(localKey);
+    if (rawLocal) {
+      try {
+        const p = JSON.parse(rawLocal);
+        p.activeSession = session;
+        p.lastActive = new Date().toISOString();
+        localStorage.setItem(localKey, JSON.stringify(p));
+      } catch {}
+    }
+
+    if (this.isConnected && this.db) {
+      try {
+        const sessionRef = ref(this.db, `verb_mastery/players/${slug}/activeSession`);
+        await set(sessionRef, session);
+      } catch (err) {
+        console.warn('Erreur sauvegarde activeSession:', err);
+      }
+    }
+  }
+
+  public async clearActiveSession(slug: string): Promise<void> {
+    const localKey = `verb_player_${slug}`;
+    const rawLocal = localStorage.getItem(localKey);
+    if (rawLocal) {
+      try {
+        const p = JSON.parse(rawLocal);
+        delete p.activeSession;
+        p.lastActive = new Date().toISOString();
+        localStorage.setItem(localKey, JSON.stringify(p));
+      } catch {}
+    }
+
+    if (this.isConnected && this.db) {
+      try {
+        const sessionRef = ref(this.db, `verb_mastery/players/${slug}/activeSession`);
+        await set(sessionRef, null);
+      } catch (err) {
+        console.warn('Erreur clear activeSession:', err);
       }
     }
   }
@@ -219,21 +289,25 @@ class FirebaseVerbsService {
             const val = snapshot.val();
             const list: PlayerVerbProfile[] = Object.values(val);
             const filtered = list.filter(
-              (p) => p && p.slug && p.slug.toUpperCase() !== 'JOUEUR' && p.displayName?.toUpperCase() !== 'JOUEUR'
+              (p) =>
+                p &&
+                p.slug &&
+                !['JOUEUR', 'ANTIGRAVITY', 'MEMBRE'].includes(p.slug.toUpperCase()) &&
+                !['JOUEUR', 'ANTIGRAVITY', 'MEMBRE'].includes(p.displayName?.toUpperCase())
             );
             filtered.sort((a, b) => (b.completedBatches || 0) - (a.completedBatches || 0));
             callback(filtered);
           } else {
-            callback(this.getLocalLeaderboard());
+            callback([]);
           }
         },
         (error) => {
           console.warn('Erreur écoute classement club:', error);
-          callback(this.getLocalLeaderboard());
+          callback([]);
         }
       );
     } catch (e) {
-      callback(this.getLocalLeaderboard());
+      callback([]);
       return () => {};
     }
   }

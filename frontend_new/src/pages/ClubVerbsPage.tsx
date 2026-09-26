@@ -31,7 +31,6 @@ import {
   getBatchWords,
   getAnagramRack,
   normalizeStr,
-  buildTrainingSequence,
 } from '../data/masterVerbsDb';
 import {
   firebaseVerbsService,
@@ -88,6 +87,42 @@ function playChime(type: 'correct' | 'wrong' | 'victory') {
   }
 }
 
+const VerbDetailsDisplay: React.FC<{ details: string; className?: string }> = ({ details, className = '' }) => {
+  if (!details) return null;
+
+  const match = details.match(/^\[([^\]]+)\]\s*(.*)$/);
+  if (!match) {
+    return <span className={className}>{details}</span>;
+  }
+
+  const rawBadges = match[1].split(',').map((b) => b.trim());
+  const text = match[2];
+
+  return (
+    <span className={`inline ${className}`}>
+      {rawBadges.map((badge, idx) => {
+        let badgeColor = 'bg-slate-100 text-slate-700 border-slate-300';
+        if (badge === 'déf.') badgeColor = 'bg-amber-100 text-amber-900 border-amber-300 font-bold';
+        else if (badge === 'imp.') badgeColor = 'bg-sky-100 text-sky-900 border-sky-300 font-bold';
+        else if (badge === 'vt') badgeColor = 'bg-indigo-100 text-indigo-900 border-indigo-300 font-semibold';
+        else if (badge === 'vi') badgeColor = 'bg-teal-100 text-teal-900 border-teal-300 font-semibold';
+        else if (badge === 'vti') badgeColor = 'bg-emerald-100 text-emerald-900 border-emerald-300 font-semibold';
+        else if (badge === 'pr') badgeColor = 'bg-fuchsia-100 text-fuchsia-900 border-fuchsia-300 font-semibold';
+
+        return (
+          <span
+            key={idx}
+            className={`inline-block mr-1.5 align-baseline border text-[10px] px-1.5 py-0.5 rounded leading-none shrink-0 ${badgeColor}`}
+          >
+            {badge}
+          </span>
+        );
+      })}
+      {text && <span className="align-baseline">{text}</span>}
+    </span>
+  );
+};
+
 export const ClubVerbsPage: React.FC = () => {
   // Navigation
   const [activeTab, setActiveTab] = useState<TabMode>('training');
@@ -96,11 +131,15 @@ export const ClubVerbsPage: React.FC = () => {
   // Identité joueur
   const [playerName, setPlayerName] = useState<string>(() => {
     const saved = localStorage.getItem('faizers_verb_user');
-    return (saved && saved.trim().toUpperCase() !== 'JOUEUR') ? saved.trim() : '';
+    if (saved && ['JOUEUR', 'ANTIGRAVITY', 'MEMBRE'].includes(saved.trim().toUpperCase())) {
+      localStorage.removeItem('faizers_verb_user');
+      return '';
+    }
+    return saved ? saved.trim() : '';
   });
   const [isAuthModalOpen, setIsAuthModalOpen] = useState<boolean>(() => {
     const saved = localStorage.getItem('faizers_verb_user');
-    return !saved || saved.trim().toUpperCase() === 'JOUEUR';
+    return !saved || ['JOUEUR', 'ANTIGRAVITY', 'MEMBRE'].includes(saved.trim().toUpperCase());
   });
   const [typedAuthName, setTypedAuthName] = useState('');
 
@@ -122,9 +161,9 @@ export const ClubVerbsPage: React.FC = () => {
   const [isPaused, setIsPaused] = useState(false);
   const [showSolution, setShowSolution] = useState(false);
   const [lastAnswerCorrect, setLastAnswerCorrect] = useState<boolean | null>(null);
-  const [alternateMatch, setAlternateMatch] = useState<string | null>(null);
   const [sessionErrors, setSessionErrors] = useState<string[]>([]);
   const [validationScore, setValidationScore] = useState(0);
+  const [foundSolutions, setFoundSolutions] = useState<string[]>([]);
 
   // Réacteur Collectif Hebdomadaire
   const [weeklyEnergy, setWeeklyEnergy] = useState<number>(0);
@@ -139,14 +178,27 @@ export const ClubVerbsPage: React.FC = () => {
 
   // Charger le profil lors du changement de joueur
   useEffect(() => {
-    if (!playerName || playerName.toUpperCase() === 'JOUEUR') {
+    if (!playerName || ['JOUEUR', 'ANTIGRAVITY', 'MEMBRE'].includes(playerName.toUpperCase())) {
       setProfile(null);
+      setIsAuthModalOpen(true);
       return;
     }
     const slug = firebaseVerbsService.slugify(playerName);
     firebaseVerbsService.loadPlayerProfile(slug, playerName).then((p) => {
-      setProfile(p);
-      setSelectedBatch(p.currentBatch || 0);
+      if (p) {
+        setProfile(p);
+        if (p.activeSession && typeof p.activeSession.batchIndex === 'number' && p.activeSession.currentIndex < 30) {
+          setSelectedBatch(p.activeSession.batchIndex);
+        } else {
+          setSelectedBatch(p.currentBatch || 0);
+        }
+      } else {
+        // Le profil n'existe pas ou plus sur Firebase -> vider le cache et inviter à créer
+        localStorage.removeItem('faizers_verb_user');
+        setPlayerName('');
+        setProfile(null);
+        setIsAuthModalOpen(true);
+      }
     });
   }, [playerName]);
 
@@ -222,6 +274,13 @@ export const ClubVerbsPage: React.FC = () => {
     return targetWord ? getAnagramRack(targetWord) : '';
   }, [targetWord]);
 
+  // Toutes les solutions verbales officielles pour ce tirage
+  const allSolutions = useMemo(() => {
+    if (!currentRack) return [];
+    const matches = ANAGRAM_MAP[currentRack] || [];
+    return Array.from(new Set(matches.map((v) => v.word)));
+  }, [currentRack]);
+
   // Joueur correspondant à la saisie dans le modal d'authentification
   const matchedPlayer = useMemo(() => {
     const clean = typedAuthName.trim().toUpperCase();
@@ -230,28 +289,25 @@ export const ClubVerbsPage: React.FC = () => {
     return leaderboard.find((p) => p.slug === targetSlug) || null;
   }, [typedAuthName, leaderboard]);
 
-  const handleSelectPlayer = (name: string) => {
+  const handleSelectPlayer = async (name: string) => {
     const clean = name.trim().toUpperCase();
-    if (clean && clean !== 'JOUEUR') {
+    if (clean && !['JOUEUR', 'ANTIGRAVITY', 'MEMBRE'].includes(clean)) {
+      const slug = firebaseVerbsService.slugify(clean);
+      let p = await firebaseVerbsService.loadPlayerProfile(slug, clean);
+      if (!p) {
+        p = await firebaseVerbsService.createPlayerProfile(clean);
+      }
       localStorage.setItem('faizers_verb_user', clean);
       setPlayerName(clean);
+      setProfile(p);
+      if (p.activeSession && typeof p.activeSession.batchIndex === 'number' && p.activeSession.currentIndex < 30) {
+        setSelectedBatch(p.activeSession.batchIndex);
+      } else {
+        setSelectedBatch(p.currentBatch || 0);
+      }
       setIsAuthModalOpen(false);
       setTypedAuthName('');
     }
-  };
-
-  const handleStartTraining = () => {
-    const batchWords = getBatchWords(selectedBatch).map((w) => w.word);
-    const sequence = buildTrainingSequence(batchWords);
-    setSessionWords(sequence);
-    setCurrentIndex(0);
-    setSessionErrors([]);
-    setIsValidationSession(false);
-    setShowSolution(false);
-    setTimeLeft(20);
-    setIsPaused(false);
-    setUserInput('');
-    setScreenMode('quiz');
   };
 
   const handleStartValidation = () => {
@@ -261,6 +317,39 @@ export const ClubVerbsPage: React.FC = () => {
     setCurrentIndex(0);
     setSessionErrors([]);
     setValidationScore(0);
+    setFoundSolutions([]);
+    setIsValidationSession(true);
+    setIsTieBreakSession(false);
+    setShowSolution(false);
+    setTimeLeft(15);
+    setIsPaused(false);
+    setUserInput('');
+    setScreenMode('quiz');
+
+    // Sauvegarde initiale de la session
+    if (profile) {
+      const sessionData = {
+        batchIndex: selectedBatch,
+        currentIndex: 0,
+        sessionWords: shuffled,
+        validationScore: 0,
+        sessionErrors: [],
+        lastSaved: Date.now(),
+      };
+      firebaseVerbsService.saveActiveSession(profile.slug, sessionData);
+      setProfile((prev) => prev ? { ...prev, activeSession: sessionData } : null);
+    }
+  };
+
+  const handleResumeSession = () => {
+    if (!profile?.activeSession) return;
+    const session = profile.activeSession;
+    setSelectedBatch(session.batchIndex);
+    setSessionWords(session.sessionWords);
+    setCurrentIndex(session.currentIndex);
+    setValidationScore(session.validationScore);
+    setSessionErrors(session.sessionErrors || []);
+    setFoundSolutions([]);
     setIsValidationSession(true);
     setIsTieBreakSession(false);
     setShowSolution(false);
@@ -270,12 +359,21 @@ export const ClubVerbsPage: React.FC = () => {
     setScreenMode('quiz');
   };
 
+  const handleRestartSession = () => {
+    if (profile) {
+      firebaseVerbsService.clearActiveSession(profile.slug);
+      setProfile((prev) => prev ? { ...prev, activeSession: null } : null);
+    }
+    handleStartValidation();
+  };
+
   const handleStartTieBreak = () => {
     const errorWords = [...sessionErrors];
     if (errorWords.length === 0) return;
     setSessionWords(errorWords);
     setCurrentIndex(0);
     setValidationScore(0);
+    setFoundSolutions([]);
     setIsValidationSession(false);
     setIsTieBreakSession(true);
     setShowSolution(false);
@@ -290,29 +388,40 @@ export const ClubVerbsPage: React.FC = () => {
     if (!targetWord || showSolution) return;
 
     const normalizedInput = normalizeStr(userInput.trim());
-    const validMatches = ANAGRAM_MAP[currentRack] || [];
-    const matched = validMatches.find((v) => normalizeStr(v.word) === normalizedInput);
-    const isCorrect = !!matched;
+    if (!normalizedInput) return;
 
-    if (isCorrect) {
-      playChime('correct');
-      setLastAnswerCorrect(true);
-      setAlternateMatch(matched.word !== targetWord ? matched.word : null);
-      if (isValidationSession || isTieBreakSession) {
-        setValidationScore((prev) => prev + 1);
+    const isMatch = allSolutions.includes(normalizedInput);
+
+    if (isMatch) {
+      if (foundSolutions.includes(normalizedInput)) {
+        // Déjà entré
+        setUserInput('');
+        return;
       }
-      // Gain d'XP Solo & Réacteur Collectif Club
-      addXPToDb(10);
-      firebaseVerbsService.addReactorEnergy(1);
-      displaySolutionAndAdvance(true);
+
+      const updatedFound = [...foundSolutions, normalizedInput];
+      setFoundSolutions(updatedFound);
+      setUserInput('');
+
+      // Est-ce que toutes les solutions du tirage ont été trouvées ?
+      if (updatedFound.length >= allSolutions.length) {
+        playChime('correct');
+        setLastAnswerCorrect(true);
+        if (isValidationSession || isTieBreakSession) {
+          setValidationScore((prev) => prev + 1);
+        }
+        addXPToDb(10 * allSolutions.length);
+        firebaseVerbsService.addReactorEnergy(allSolutions.length);
+        displaySolutionAndAdvance(true);
+      } else {
+        // Solution partielle trouvée avec succès !
+        playChime('correct');
+        // Bonus de temps pour chercher les autres solutions
+        setTimeLeft((prev) => Math.min(25, prev + 5));
+      }
     } else {
       playChime('wrong');
-      setLastAnswerCorrect(false);
-      setAlternateMatch(null);
-      if (!sessionErrors.includes(targetWord)) {
-        setSessionErrors((prev) => [...prev, targetWord]);
-      }
-      displaySolutionAndAdvance(false);
+      setUserInput('');
     }
   };
 
@@ -320,7 +429,6 @@ export const ClubVerbsPage: React.FC = () => {
     if (showSolution) return;
     playChime('wrong');
     setLastAnswerCorrect(false);
-    setAlternateMatch(null);
     if (!sessionErrors.includes(targetWord)) {
       setSessionErrors((prev) => [...prev, targetWord]);
     }
@@ -331,22 +439,48 @@ export const ClubVerbsPage: React.FC = () => {
     setShowSolution(true);
     if (timerRef.current) clearInterval(timerRef.current);
 
-    // Enchaînement automatique après 2s (sauf si pause)
     autoAdvanceRef.current = setTimeout(() => {
-      handleNextTurn();
-    }, wasCorrect ? 1800 : 2600);
+      handleNextTurn(wasCorrect);
+    }, wasCorrect ? 1800 : 2800);
   };
 
-  const handleNextTurn = () => {
+  const handleNextTurn = (lastWasCorrect?: boolean) => {
     if (autoAdvanceRef.current) clearTimeout(autoAdvanceRef.current);
     setShowSolution(false);
     setUserInput('');
+    setFoundSolutions([]);
 
     if (currentIndex + 1 < sessionWords.length) {
-      setCurrentIndex((prev) => prev + 1);
+      const nextIdx = currentIndex + 1;
+      setCurrentIndex(nextIdx);
       setTimeLeft(isValidationSession ? 15 : isTieBreakSession ? 12 : 20);
+
+      // Persistance en direct de la session
+      if (profile && isValidationSession) {
+        const nextScore = lastWasCorrect !== undefined 
+          ? (lastWasCorrect ? validationScore + 1 : validationScore)
+          : validationScore;
+        const nextErrors = lastWasCorrect === false && !sessionErrors.includes(targetWord)
+          ? [...sessionErrors, targetWord]
+          : sessionErrors;
+
+        const sessionData = {
+          batchIndex: selectedBatch,
+          currentIndex: nextIdx,
+          sessionWords,
+          validationScore: nextScore,
+          sessionErrors: nextErrors,
+          lastSaved: Date.now(),
+        };
+        firebaseVerbsService.saveActiveSession(profile.slug, sessionData);
+        setProfile((prev) => prev ? { ...prev, activeSession: sessionData } : null);
+      }
     } else {
       // Fin de session
+      if (profile && isValidationSession) {
+        firebaseVerbsService.clearActiveSession(profile.slug);
+        setProfile((prev) => prev ? { ...prev, activeSession: null } : null);
+      }
       finishSession();
     }
   };
@@ -434,7 +568,7 @@ export const ClubVerbsPage: React.FC = () => {
                 </span>
               </div>
               <p className="text-[11px] text-slate-500 hidden sm:block">
-                3 742 verbes ODS • 125 lots progressifs • Sas de validation collective
+                {TOTAL_VERBS.toLocaleString()} verbes ODS • {TOTAL_BATCHES} lots progressifs • Certification collective
               </p>
             </div>
           </div>
@@ -694,26 +828,39 @@ export const ClubVerbsPage: React.FC = () => {
                         Programme de 30 verbes ODS
                       </h2>
                       <p className="text-emerald-100/80 text-sm mt-1 max-w-xl">
-                        {currentBatchWords[0]?.length} à {currentBatchWords[currentBatchWords.length - 1]?.length} lettres • Répétez le lot, consolidez vos réflexes d'anagramme, puis passez le sas de validation.
+                        {currentBatchWords[0]?.length} à {currentBatchWords[currentBatchWords.length - 1]?.length} lettres • Révisez le lot, consolidez vos réflexes d'anagramme, puis passez la Certification officielle du lot.
                       </p>
                     </div>
 
-                    <div className="flex flex-col sm:flex-row gap-3 w-full sm:w-auto">
-                      <button
-                        onClick={handleStartTraining}
-                        className="flex items-center justify-center gap-2 px-6 py-3.5 bg-white text-emerald-900 hover:bg-emerald-50 rounded-2xl font-black text-sm shadow-lg transition transform hover:-translate-y-0.5"
-                      >
-                        <Play className="w-4 h-4 fill-emerald-900" />
-                        Entraînement (60 tirages)
-                      </button>
-
-                      <button
-                        onClick={handleStartValidation}
-                        className="flex items-center justify-center gap-2 px-6 py-3.5 bg-gradient-to-r from-amber-400 to-amber-500 hover:from-amber-500 hover:to-amber-600 text-amber-950 rounded-2xl font-black text-sm shadow-lg transition transform hover:-translate-y-0.5 border border-amber-300"
-                      >
-                        <Award className="w-4 h-4" />
-                        Sas de Validation
-                      </button>
+                    <div className="w-full sm:w-auto">
+                      {profile?.activeSession && profile.activeSession.batchIndex === selectedBatch && profile.activeSession.currentIndex < 30 ? (
+                        <div className="flex flex-col gap-2 w-full sm:w-auto">
+                          <button
+                            onClick={handleResumeSession}
+                            className="w-full sm:w-auto flex items-center justify-center gap-2.5 px-6 sm:px-8 py-3.5 sm:py-4 bg-gradient-to-r from-amber-400 via-amber-300 to-amber-500 hover:from-amber-500 hover:to-amber-600 text-amber-950 rounded-2xl font-black text-sm sm:text-base shadow-xl transition transform hover:-translate-y-0.5 border border-amber-200"
+                          >
+                            <Play className="w-5 h-5 text-amber-950 fill-amber-950 shrink-0" />
+                            <span>Reprendre le Lot (Tirage {profile.activeSession.currentIndex + 1}/30)</span>
+                          </button>
+                          <div className="flex items-center justify-between px-1 text-xs text-amber-200">
+                            <span>Score en cours : {profile.activeSession.validationScore} / {profile.activeSession.currentIndex}</span>
+                            <button
+                              onClick={handleRestartSession}
+                              className="underline hover:text-white transition font-medium"
+                            >
+                              Recommencer le lot
+                            </button>
+                          </div>
+                        </div>
+                      ) : (
+                        <button
+                          onClick={handleStartValidation}
+                          className="w-full sm:w-auto flex items-center justify-center gap-2.5 px-6 sm:px-8 py-3.5 sm:py-4 bg-gradient-to-r from-amber-400 via-amber-300 to-amber-500 hover:from-amber-500 hover:to-amber-600 text-amber-950 rounded-2xl font-black text-sm sm:text-base shadow-xl transition transform hover:-translate-y-0.5 border border-amber-200"
+                        >
+                          <Award className="w-5 h-5 text-amber-950 shrink-0" />
+                          <span>Lancer la Certification (30 mots)</span>
+                        </button>
+                      )}
                     </div>
                   </div>
 
@@ -764,9 +911,9 @@ export const ClubVerbsPage: React.FC = () => {
                     {currentBatchWords.map((v) => (
                       <div
                         key={v.word}
-                        className="p-2.5 sm:p-3 bg-slate-50 hover:bg-emerald-50/60 border border-slate-200/80 hover:border-emerald-200 rounded-xl transition flex flex-col justify-between"
+                        className="p-2.5 sm:p-3 bg-slate-50 hover:bg-emerald-50/60 border border-slate-200/80 hover:border-emerald-200 rounded-xl transition flex flex-col justify-start"
                       >
-                        <div className="flex items-center justify-between">
+                        <div className="flex items-center justify-between mb-1">
                           <span
                             translate="no"
                             className="notranslate font-black text-slate-800 tracking-wide text-sm sm:text-base"
@@ -777,15 +924,15 @@ export const ClubVerbsPage: React.FC = () => {
                             {v.length}L
                           </span>
                         </div>
-                        <p className="text-[11px] sm:text-xs text-slate-500 mt-1 line-clamp-1">
-                          {v.details || 'Verbe officiel Scrabble (ODS)'}
-                        </p>
+                        <div className="text-[11px] sm:text-xs text-slate-500 line-clamp-2 leading-snug">
+                          <VerbDetailsDisplay details={v.details || 'Verbe officiel Scrabble (ODS)'} />
+                        </div>
                       </div>
                     ))}
                   </div>
                 </div>
 
-                {/* Encadré Pédagogique : La Règle du Sas de Validation */}
+                {/* Encadré Pédagogique : La Règle de Certification */}
                 <div className="bg-amber-50 border border-amber-200 rounded-3xl p-6 flex items-start gap-4">
                   <div className="w-10 h-10 rounded-2xl bg-amber-500/20 text-amber-700 flex items-center justify-center shrink-0">
                     <ShieldCheck className="w-6 h-6" />
@@ -796,26 +943,22 @@ export const ClubVerbsPage: React.FC = () => {
                     </h4>
                     <p className="text-amber-900/80 text-sm mt-1 leading-relaxed">
                       Comme le théorisait le professeur <strong>K. Anders Ericsson</strong> et l'illustre champion de Scrabble <strong>Nigel Richards</strong>, une liste de mots n'est assimilée que si elle est rappelée sous pression temporelle.
-                      Le <strong>Sas de Validation</strong> exige <strong>au moins 90% de bonnes réponses</strong> (27 sur 30). Une fois franchi, le lot est validé pour toujours dans la base de données du club, et votre contribution augmente la jauge collective de l'équipe !
+                      La <strong>Certification du Lot</strong> exige <strong>au moins 90% de bonnes réponses</strong> (27 sur 30). Une fois franchie, le lot est gravé pour toujours dans la base de données du club, et votre contribution augmente la jauge collective de l'équipe !
                     </p>
                   </div>
                 </div>
               </div>
             )}
 
-            {/* Mode Quiz (Entraînement ou Sas de Validation) */}
+            {/* Mode Quiz (Échauffement ou Certification) */}
             {screenMode === 'quiz' && (
               <div className="max-w-2xl mx-auto space-y-6">
                 {/* Barre de progression & Header du tirage */}
                 <div className="bg-white rounded-3xl p-6 border border-slate-200 shadow-sm">
                   <div className="flex items-center justify-between mb-3">
                     <div className="flex items-center gap-2">
-                      <span className={`text-xs font-black uppercase px-2.5 py-1 rounded-lg ${
-                        isValidationSession
-                          ? 'bg-amber-100 text-amber-800'
-                          : 'bg-emerald-100 text-emerald-800'
-                      }`}>
-                        {isValidationSession ? '⚡ Épreuve Officielle de Validation' : '🎯 Entraînement Double Passe'}
+                      <span className="text-xs font-black uppercase px-2.5 py-1 rounded-lg bg-amber-100 text-amber-800 flex items-center gap-1.5">
+                        <Award className="w-3.5 h-3.5" /> Certification Officielle du Lot
                       </span>
                       <span className="text-xs text-slate-400 font-semibold">
                         Verbe de {targetInfo.length} lettres
@@ -830,9 +973,7 @@ export const ClubVerbsPage: React.FC = () => {
                   {/* Jauge animée */}
                   <div className="w-full bg-slate-100 rounded-full h-2.5 overflow-hidden">
                     <motion.div
-                      className={`h-full ${
-                        isValidationSession ? 'bg-amber-500' : 'bg-emerald-500'
-                      }`}
+                      className="h-full bg-amber-500"
                       initial={false}
                       animate={{
                         width: `${((currentIndex + 1) / sessionWords.length) * 100}%`,
@@ -874,6 +1015,40 @@ export const ClubVerbsPage: React.FC = () => {
                     ))}
                   </div>
 
+                  {/* Indicateur Multi-Solutions */}
+                  {allSolutions.length > 1 && (
+                    <div className="mb-5 max-w-md mx-auto">
+                      <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-indigo-50 border border-indigo-200 text-indigo-700 text-xs font-black uppercase tracking-wider mb-2.5">
+                        <Sparkles className="w-3.5 h-3.5 text-indigo-600" />
+                        <span>{allSolutions.length} verbes à trouver ({foundSolutions.length} / {allSolutions.length} trouvés)</span>
+                      </div>
+                      <div className="flex items-center justify-center flex-wrap gap-2">
+                        {allSolutions.map((sol, idx) => {
+                          const isFound = foundSolutions.includes(sol);
+                          return (
+                            <div
+                              key={sol}
+                              className={`px-3 py-1.5 rounded-xl text-xs font-black transition flex items-center gap-1.5 ${
+                                isFound
+                                  ? 'bg-emerald-100 text-emerald-800 border border-emerald-300 shadow-sm'
+                                  : 'bg-slate-100 text-slate-400 border border-dashed border-slate-300'
+                              }`}
+                            >
+                              {isFound ? (
+                                <>
+                                  <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600" />
+                                  <span translate="no" className="notranslate">{sol}</span>
+                                </>
+                              ) : (
+                                <span>Verbe #{idx + 1}</span>
+                              )}
+                            </div>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  )}
+
                   {/* Formulaire de Saisie */}
                   {!showSolution ? (
                     <form onSubmit={handleSubmitAnswer} className="max-w-md mx-auto space-y-3 sm:space-y-4">
@@ -883,7 +1058,7 @@ export const ClubVerbsPage: React.FC = () => {
                           type="text"
                           value={userInput}
                           onChange={(e) => setUserInput(e.target.value.toUpperCase())}
-                          placeholder="Tapez l'infinitif..."
+                          placeholder={allSolutions.length > 1 ? `Tapez les ${allSolutions.length} verbes...` : "Tapez l'infinitif..."}
                           translate="no"
                           className="notranslate flex-1 px-3 sm:px-4 py-2.5 sm:py-3.5 text-center text-lg sm:text-xl font-black uppercase tracking-wider bg-slate-50 border-2 border-slate-300 rounded-xl sm:rounded-2xl focus:outline-none focus:border-emerald-500 focus:bg-white transition"
                           autoComplete="off"
@@ -899,7 +1074,9 @@ export const ClubVerbsPage: React.FC = () => {
                         </button>
                       </div>
                       <p className="text-[10px] sm:text-[11px] text-slate-400">
-                        Appuyez sur Entrée pour valider directement
+                        {allSolutions.length > 1 
+                          ? 'Entrez chaque solution puis validez avec la touche Entrée (+5s bonus par verbe trouvé)' 
+                          : 'Appuyez sur Entrée pour valider directement'}
                       </p>
                     </form>
                   ) : (
@@ -918,38 +1095,61 @@ export const ClubVerbsPage: React.FC = () => {
                           <>
                             <CheckCircle2 className="w-5 h-5 sm:w-6 sm:h-6 text-emerald-600" />
                             <span className="font-black text-emerald-800 text-base sm:text-lg">
-                              Excellent réflexe !
+                              {allSolutions.length > 1 ? 'Toutes les solutions trouvées !' : 'Excellent réflexe !'}
                             </span>
                           </>
                         ) : (
                           <>
                             <XCircle className="w-5 h-5 sm:w-6 sm:h-6 text-red-600" />
                             <span className="font-black text-red-800 text-base sm:text-lg">
-                              Temps écoulé ou mot incorrect
+                              Temps écoulé ou incomplet
                             </span>
                           </>
                         )}
                       </div>
 
-                      <div
-                        translate="no"
-                        className="notranslate text-2xl sm:text-3xl font-black text-slate-900 tracking-wider my-2"
-                      >
-                        {targetWord}
+                      {/* Liste de toutes les solutions avec leurs définitions */}
+                      <div className="space-y-2 my-3">
+                        {allSolutions.map((sol) => {
+                          const info = WORD_MAP[sol] || { details: '' };
+                          const wasFound = foundSolutions.includes(sol);
+                          return (
+                            <div
+                              key={sol}
+                              className={`p-2.5 sm:p-3 rounded-xl border text-left transition ${
+                                wasFound
+                                  ? 'bg-emerald-100/70 border-emerald-300'
+                                  : 'bg-white border-slate-200'
+                              }`}
+                            >
+                              <div className="flex items-center justify-between">
+                                <span
+                                  translate="no"
+                                  className={`notranslate font-black text-lg sm:text-xl tracking-wider ${
+                                    wasFound ? 'text-emerald-900' : 'text-slate-800'
+                                  }`}
+                                >
+                                  {wasFound ? '✓ ' : '• '}{sol}
+                                </span>
+                                <span
+                                  className={`text-[10px] font-extrabold px-2 py-0.5 rounded-full ${
+                                    wasFound
+                                      ? 'bg-emerald-200 text-emerald-900'
+                                      : 'bg-red-100 text-red-700'
+                                  }`}
+                                >
+                                  {wasFound ? 'Trouvé' : 'Non trouvé'}
+                                </span>
+                              </div>
+                              {info.details && (
+                                <div className="text-xs text-slate-600 mt-1">
+                                  <VerbDetailsDisplay details={info.details} />
+                                </div>
+                              )}
+                            </div>
+                          );
+                        })}
                       </div>
-
-                      {alternateMatch && (
-                        <div
-                          translate="no"
-                          className="notranslate bg-amber-100 text-amber-900 border border-amber-300 rounded-xl p-2.5 my-2 text-xs font-bold text-center"
-                        >
-                          🌟 Superbe réflexe ! <strong>{alternateMatch}</strong> est une anagramme verbale officielle acceptée ! (La cible de base était {targetWord}).
-                        </div>
-                      )}
-
-                      <p className="text-[11px] sm:text-xs text-slate-600 mb-4 max-w-xs mx-auto">
-                        {targetInfo.details || 'Verbe officiel Scrabble (ODS)'}
-                      </p>
 
                       <div className="flex items-center justify-center gap-3">
                         <button
@@ -964,7 +1164,7 @@ export const ClubVerbsPage: React.FC = () => {
                         </button>
 
                         <button
-                          onClick={handleNextTurn}
+                          onClick={() => handleNextTurn()}
                           className="px-5 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-bold transition flex items-center gap-1.5 shadow"
                         >
                           Suivant →
@@ -980,7 +1180,7 @@ export const ClubVerbsPage: React.FC = () => {
                     onClick={() => setScreenMode('selector')}
                     className="text-xs text-slate-400 hover:text-slate-600 font-semibold underline"
                   >
-                    Quitter et revenir au menu du lot
+                    Quitter le lot (progression sauvegardée)
                   </button>
                 </div>
               </div>
@@ -1015,7 +1215,7 @@ export const ClubVerbsPage: React.FC = () => {
                         {validationScore >= 25 ? 'Tout près du but !' : 'Presque là !'} Score : {validationScore} / 30
                       </h2>
                       <p className="text-slate-600 text-sm mt-2">
-                        Le Sas de Validation requiert au moins <strong>27 / 30</strong>.
+                        La Certification du Lot requiert au moins <strong>27 / 30</strong>.
                       </p>
 
                       {/* Carte Spéciale Tie-Break de Sauvetage */}
@@ -1073,10 +1273,10 @@ export const ClubVerbsPage: React.FC = () => {
                       <Sparkles className="w-8 h-8" />
                     </div>
                     <h2 className="text-2xl font-black text-slate-800">
-                      Entraînement Terminé !
+                      Échauffement Terminé !
                     </h2>
                     <p className="text-slate-600 text-sm mt-2">
-                      Vous avez parcouru les 60 tirages de consolidation. Vous êtes maintenant prêt pour l'épreuve officielle du Sas de Validation !
+                      Vous avez parcouru les 30 tirages d'échauffement. Vous êtes prêt pour la Certification Officielle du Lot !
                     </p>
                   </div>
                 )}
@@ -1107,7 +1307,7 @@ export const ClubVerbsPage: React.FC = () => {
                       className="px-6 py-3 bg-amber-500 hover:bg-amber-600 text-white rounded-2xl font-bold text-sm shadow transition"
                     >
                       <RotateCcw className="w-4 h-4 inline mr-1.5" />
-                      Retenter le Sas de Validation
+                      Retenter la Certification du Lot
                     </button>
                   ) : (
                     <button
@@ -1393,9 +1593,9 @@ export const ClubVerbsPage: React.FC = () => {
                       {v.length}L
                     </span>
                   </div>
-                  <p className="text-[11px] sm:text-xs text-slate-500 mt-1.5 line-clamp-2">
-                    {v.details || 'Verbe du dictionnaire officiel du Scrabble (ODS).'}
-                  </p>
+                  <div className="text-[11px] sm:text-xs text-slate-500 mt-1.5 line-clamp-2">
+                    <VerbDetailsDisplay details={v.details || 'Verbe du dictionnaire officiel du Scrabble (ODS).'} />
+                  </div>
                 </div>
               ))}
             </div>
