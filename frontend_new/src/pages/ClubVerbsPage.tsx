@@ -20,14 +20,20 @@ import {
   AlertCircle,
   Compass,
   Zap,
+  Lock,
+  LockOpen,
+  Crown,
 } from 'lucide-react';
 import {
   MASTER_VERBS_DB,
   WORD_MAP,
   ANAGRAM_MAP,
-  TOTAL_VERBS,
-  BATCH_SIZE,
   TOTAL_BATCHES,
+  MASTER_TIER_BATCHES,
+  ELITE_TIER_BATCHES,
+  MASTER_TIER_VERBS,
+  ELITE_TIER_VERBS,
+  isEliteBatch,
   getBatchWords,
   getAnagramRack,
   normalizeStr,
@@ -43,11 +49,15 @@ type TabMode = 'training' | 'team' | 'codex';
 type ScreenMode = 'selector' | 'preview' | 'quiz' | 'validation' | 'summary';
 
 // Synthétiseur audio Web Audio API pour les chimes de réussite (zéro fichier externe)
-function playChime(type: 'correct' | 'wrong' | 'victory') {
+function playChime(type: 'correct' | 'wrong' | 'victory' | 'unlock' | 'fanfare') {
   try {
     const AudioCtx = window.AudioContext || (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext;
     if (!AudioCtx) return;
     const ctx = new AudioCtx();
+    if (type === 'unlock' || type === 'fanfare') {
+      playCeremony(ctx, type);
+      return;
+    }
     const osc = ctx.createOscillator();
     const gain = ctx.createGain();
     osc.connect(gain);
@@ -87,6 +97,395 @@ function playChime(type: 'correct' | 'wrong' | 'victory') {
   }
 }
 
+// Sons de cérémonie du Panthéon : déclic de cadenas + fanfare de cuivres synthétiques
+function playCeremony(ctx: AudioContext, type: 'unlock' | 'fanfare') {
+  const master = ctx.createGain();
+  master.gain.value = type === 'unlock' ? 0.12 : 0.16;
+  master.connect(ctx.destination);
+  const t0 = ctx.currentTime + 0.03;
+
+  const note = (freq: number, start: number, dur: number, wave: OscillatorType, vol: number) => {
+    const o = ctx.createOscillator();
+    const g = ctx.createGain();
+    const f = ctx.createBiquadFilter();
+    f.type = 'lowpass';
+    f.frequency.value = 2600;
+    o.type = wave;
+    o.frequency.setValueAtTime(freq, t0 + start);
+    g.gain.setValueAtTime(0.0001, t0 + start);
+    g.gain.exponentialRampToValueAtTime(vol, t0 + start + 0.025);
+    g.gain.setValueAtTime(vol, t0 + start + dur * 0.65);
+    g.gain.exponentialRampToValueAtTime(0.0001, t0 + start + dur);
+    o.connect(f);
+    f.connect(g);
+    g.connect(master);
+    o.start(t0 + start);
+    o.stop(t0 + start + dur + 0.05);
+  };
+
+  if (type === 'unlock') {
+    // « clic-clac » métallique du cadenas qui cède
+    note(1400, 0, 0.05, 'square', 0.6);
+    note(2100, 0.07, 0.06, 'square', 0.5);
+    note(880, 0.16, 0.25, 'triangle', 0.6);
+    setTimeout(() => ctx.close().catch(() => undefined), 800);
+    return;
+  }
+
+  // Ta-ta-ta TAAA… ta-TAAAA, puis accord final de do majeur
+  const phrase: [number, number, number][] = [
+    [392.0, 0, 0.13],
+    [392.0, 0.15, 0.13],
+    [392.0, 0.3, 0.13],
+    [523.25, 0.45, 0.48],
+    [659.25, 0.95, 0.16],
+    [783.99, 1.13, 0.62],
+  ];
+  phrase.forEach(([freq, start, dur]) => {
+    note(freq, start, dur, 'sawtooth', 0.45);
+    note(freq * 2, start, dur, 'triangle', 0.18);
+  });
+  [523.25, 659.25, 783.99, 1046.5].forEach((freq) => note(freq, 1.85, 1.7, 'triangle', 0.32));
+  note(130.81, 1.85, 1.7, 'sawtooth', 0.28);
+  note(261.63, 1.85, 1.7, 'sawtooth', 0.2);
+  setTimeout(() => ctx.close().catch(() => undefined), 4200);
+}
+
+// ============================================================
+// Paliers : « Maître Club » (lots 1-125) puis « Panthéon ODS »
+// ============================================================
+const HAS_ELITE_TIER = ELITE_TIER_BATCHES > 0 && ELITE_TIER_VERBS > 0;
+const MASTER_WORD_SET = new Set(
+  Array.from({ length: MASTER_TIER_BATCHES }).flatMap((_, i) => getBatchWords(i).map((v) => v.word))
+);
+const ELITE_TEASER_WORDS = HAS_ELITE_TIER ? getBatchWords(MASTER_TIER_BATCHES).slice(0, 5).map((v) => v.word) : [];
+
+/** Nombre de verbes distincts couverts par une liste de lots validés (numéros 1-based). */
+function countVerbsInBatches(validated?: number[] | null): number {
+  if (!Array.isArray(validated)) return 0;
+  const words = new Set<string>();
+  validated.forEach((b) => {
+    if (b >= 1 && b <= TOTAL_BATCHES) getBatchWords(b - 1).forEach((v) => words.add(v.word));
+  });
+  return words.size;
+}
+
+// Overrides de test UNIQUEMENT en dev : ?unlock=1, ?celebrate=1, ?lots=N (faux nombre de lots validés)
+const DEV_QUERY = import.meta.env.DEV && typeof window !== 'undefined' ? window.location.search : '';
+const DEV_FORCE_UNLOCK = /[?&](unlock|celebrate)=1(&|$)/.test(DEV_QUERY);
+const DEV_FORCE_CELEBRATE = /[?&]celebrate=1(&|$)/.test(DEV_QUERY);
+const DEV_FAKE_MASTER_LOTS: number | null = (() => {
+  const m = DEV_QUERY.match(/[?&]lots=(\d+)/);
+  return m ? Math.min(MASTER_TIER_BATCHES, Number(m[1])) : null;
+})();
+
+function countMasterValidated(validated?: number[] | null): number {
+  if (!Array.isArray(validated)) return 0;
+  return new Set(validated.filter((b) => b >= 1 && b <= MASTER_TIER_BATCHES)).size;
+}
+
+/** Vrai si le joueur a réellement validé les 125 lots du palier 1. */
+function isPantheonMember(validated?: number[] | null): boolean {
+  return countMasterValidated(validated) >= MASTER_TIER_BATCHES;
+}
+
+/** Accès au palier 2 (inclut les overrides de dev). */
+function computePantheonUnlocked(validated?: number[] | null): boolean {
+  if (DEV_FORCE_UNLOCK) return true;
+  const count = DEV_FAKE_MASTER_LOTS ?? countMasterValidated(validated);
+  return count >= MASTER_TIER_BATCHES;
+}
+
+/** Ramène un index de lot dans la plage autorisée pour ce joueur. */
+function clampBatchIndex(index: number, unlocked: boolean): number {
+  const max = (unlocked ? TOTAL_BATCHES : Math.min(TOTAL_BATCHES, MASTER_TIER_BATCHES)) - 1;
+  if (!Number.isFinite(index)) return 0;
+  return Math.max(0, Math.min(max, Math.floor(index)));
+}
+
+const pantheonSeenKey = (slug: string) => `faizers_pantheon_celebrated_${slug}`;
+function readPantheonSeen(slug: string): boolean {
+  try {
+    return localStorage.getItem(pantheonSeenKey(slug)) === '1';
+  } catch {
+    return false;
+  }
+}
+function writePantheonSeen(slug: string) {
+  try {
+    localStorage.setItem(pantheonSeenKey(slug), '1');
+  } catch {
+    // stockage indisponible (navigation privée) : non bloquant
+  }
+}
+
+// Overlay plein écran de déblocage du Panthéon
+const PantheonCelebration: React.FC<{
+  open: boolean;
+  playerName: string;
+  onEnter: () => void;
+  onClose: () => void;
+}> = ({ open, playerName, onEnter, onClose }) => {
+  const [lockOpened, setLockOpened] = useState(false);
+
+  useEffect(() => {
+    if (!open) {
+      setLockOpened(false);
+      return;
+    }
+    const colors = ['#fbbf24', '#f59e0b', '#fde68a', '#fef3c7', '#10b981', '#34d399'];
+    const fire = (opts: confetti.Options) =>
+      confetti({ zIndex: 250, colors, disableForReducedMotion: true, ...opts });
+    const timers: ReturnType<typeof setTimeout>[] = [];
+    let raf = 0;
+
+    // 1) le cadenas tremble puis cède
+    timers.push(setTimeout(() => playChime('unlock'), 850));
+    timers.push(
+      setTimeout(() => {
+        setLockOpened(true);
+        playChime('fanfare');
+        fire({ particleCount: 150, spread: 100, startVelocity: 48, origin: { y: 0.45 } });
+      }, 1100)
+    );
+    // 2) canons latéraux
+    timers.push(
+      setTimeout(() => {
+        fire({ particleCount: 90, angle: 60, spread: 65, startVelocity: 60, origin: { x: 0, y: 0.8 } });
+        fire({ particleCount: 90, angle: 120, spread: 65, startVelocity: 60, origin: { x: 1, y: 0.8 } });
+      }, 1650)
+    );
+    // 3) pluie d'étoiles sur l'accord final
+    timers.push(
+      setTimeout(() => {
+        fire({ particleCount: 120, spread: 170, startVelocity: 32, scalar: 1.25, shapes: ['star'], origin: { y: 0.3 } });
+      }, 2950)
+    );
+    // 4) flux continu doré pendant ~2,5 s
+    timers.push(
+      setTimeout(() => {
+        const end = Date.now() + 2500;
+        const frame = () => {
+          fire({ particleCount: 3, angle: 60, spread: 55, origin: { x: 0, y: 0.65 } });
+          fire({ particleCount: 3, angle: 120, spread: 55, origin: { x: 1, y: 0.65 } });
+          if (Date.now() < end) raf = requestAnimationFrame(frame);
+        };
+        frame();
+      }, 3300)
+    );
+
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') onClose();
+    };
+    window.addEventListener('keydown', onKey);
+    return () => {
+      timers.forEach(clearTimeout);
+      cancelAnimationFrame(raf);
+      window.removeEventListener('keydown', onKey);
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [open]);
+
+  if (typeof document === 'undefined') return null;
+
+  const reveal = (delay: number) => ({
+    initial: { opacity: 0, y: 14 },
+    animate: lockOpened ? { opacity: 1, y: 0 } : { opacity: 0, y: 14 },
+    transition: { duration: 0.5, delay: lockOpened ? delay : 0 },
+  });
+
+  return createPortal(
+    <AnimatePresence>
+      {open && (
+        <motion.div
+          key="pantheon-celebration"
+          role="dialog"
+          aria-modal="true"
+          aria-label="Maître des Verbes Faizers"
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          exit={{ opacity: 0 }}
+          className="fixed inset-0 z-[120] overflow-y-auto bg-slate-950/95 backdrop-blur-md"
+        >
+          {/* Halo & rayons tournants */}
+          <div aria-hidden className="pointer-events-none fixed inset-0 overflow-hidden flex items-center justify-center">
+            <div
+              className="absolute inset-0"
+              style={{ background: 'radial-gradient(circle at 50% 38%, rgba(251,191,36,0.28), rgba(16,185,129,0.08) 38%, transparent 65%)' }}
+            />
+            <motion.div
+              className="w-[140vmax] h-[140vmax] shrink-0 rounded-full"
+              style={{
+                background:
+                  'repeating-conic-gradient(from 0deg, rgba(251,191,36,0.13) 0deg 7deg, transparent 7deg 22deg)',
+                maskImage: 'radial-gradient(circle, black 10%, transparent 55%)',
+                WebkitMaskImage: 'radial-gradient(circle, black 10%, transparent 55%)',
+              }}
+              initial={{ opacity: 0, rotate: 0 }}
+              animate={{ opacity: lockOpened ? 1 : 0.35, rotate: 360 }}
+              transition={{ rotate: { duration: 60, repeat: Infinity, ease: 'linear' }, opacity: { duration: 0.8 } }}
+            />
+          </div>
+
+          <div className="relative min-h-full flex items-center justify-center px-4 py-10">
+            <motion.div
+              initial={{ scale: 0.85, y: 30, opacity: 0 }}
+              animate={{ scale: 1, y: 0, opacity: 1 }}
+              exit={{ scale: 0.9, opacity: 0 }}
+              transition={{ type: 'spring', stiffness: 170, damping: 18 }}
+              className="w-full max-w-sm text-center"
+            >
+              {/* Médaillon : le cadenas qui s'ouvre */}
+              <div className="relative mx-auto w-28 h-28 sm:w-32 sm:h-32 mb-7">
+                <motion.div
+                  aria-hidden
+                  className="absolute inset-0 rounded-full bg-amber-400/40 blur-2xl"
+                  animate={lockOpened ? { scale: [1, 1.8, 1.35], opacity: [0.4, 1, 0.7] } : { scale: 1, opacity: 0.4 }}
+                  transition={{ duration: 1.1 }}
+                />
+                <motion.div
+                  className="relative w-full h-full rounded-full bg-gradient-to-br from-amber-100 via-amber-400 to-amber-600 border-4 border-amber-200/80 shadow-[0_0_60px_rgba(251,191,36,0.55)] flex items-center justify-center"
+                  animate={
+                    lockOpened
+                      ? { rotate: 0, scale: [1, 1.18, 1] }
+                      : { rotate: [0, -14, 14, -10, 10, -5, 5, 0], scale: 1 }
+                  }
+                  transition={lockOpened ? { duration: 0.55 } : { duration: 0.75, delay: 0.25 }}
+                >
+                  <AnimatePresence mode="wait" initial={false}>
+                    {lockOpened ? (
+                      <motion.span
+                        key="open"
+                        initial={{ scale: 0.3, rotate: -35, opacity: 0, y: 6 }}
+                        animate={{ scale: 1, rotate: 0, opacity: 1, y: 0 }}
+                        transition={{ type: 'spring', stiffness: 280, damping: 13 }}
+                      >
+                        <LockOpen className="w-12 h-12 sm:w-14 sm:h-14 text-amber-950" strokeWidth={2.4} />
+                      </motion.span>
+                    ) : (
+                      <motion.span key="closed" exit={{ scale: 0.5, opacity: 0, y: -8 }} transition={{ duration: 0.15 }}>
+                        <Lock className="w-12 h-12 sm:w-14 sm:h-14 text-amber-950" strokeWidth={2.4} />
+                      </motion.span>
+                    )}
+                  </AnimatePresence>
+                </motion.div>
+                <AnimatePresence>
+                  {lockOpened && (
+                    <motion.div
+                      className="absolute -top-8 left-1/2 -ml-5"
+                      initial={{ y: -40, opacity: 0, rotate: -25 }}
+                      animate={{ y: 0, opacity: 1, rotate: 0 }}
+                      transition={{ type: 'spring', stiffness: 220, damping: 12, delay: 0.3 }}
+                    >
+                      <Crown className="w-10 h-10 text-amber-300 fill-amber-300 drop-shadow-[0_0_12px_rgba(251,191,36,0.8)]" />
+                    </motion.div>
+                  )}
+                </AnimatePresence>
+              </div>
+
+              <motion.p {...reveal(0.15)} className="text-[10px] sm:text-xs font-black uppercase tracking-[0.25em] text-amber-300">
+                Palier 1 accompli · {MASTER_TIER_BATCHES} / {MASTER_TIER_BATCHES} lots
+              </motion.p>
+              <motion.h2
+                {...reveal(0.3)}
+                className="mt-2 text-3xl sm:text-4xl font-black leading-tight tracking-tight bg-gradient-to-r from-amber-200 via-yellow-50 to-amber-300 bg-clip-text text-transparent"
+              >
+                Maître des Verbes Faizers
+              </motion.h2>
+              <motion.p {...reveal(0.5)} className="mt-3 text-sm text-slate-300 leading-relaxed">
+                Bravo{' '}
+                <strong translate="no" className="notranslate text-white">
+                  {playerName || 'champion'}
+                </strong>{' '}
+                ! Tu as certifié les {MASTER_TIER_VERBS.toLocaleString('fr-FR')} verbes du programme Maître Club.
+              </motion.p>
+
+              <motion.div {...reveal(0.65)} className="mt-4 grid grid-cols-3 gap-2">
+                {[
+                  { v: String(MASTER_TIER_BATCHES), l: 'lots' },
+                  { v: MASTER_TIER_VERBS.toLocaleString('fr-FR'), l: 'verbes' },
+                  { v: '≥ 27/30', l: 'par lot' },
+                ].map((s) => (
+                  <div key={s.l} className="rounded-xl bg-white/5 border border-amber-300/20 py-2">
+                    <div className="text-base sm:text-lg font-black text-amber-200 leading-none">{s.v}</div>
+                    <div className="text-[10px] uppercase tracking-wide text-slate-400 mt-1">{s.l}</div>
+                  </div>
+                ))}
+              </motion.div>
+
+              <motion.p {...reveal(0.8)} className="mt-4 text-xs sm:text-sm text-amber-100/80 leading-relaxed">
+                {HAS_ELITE_TIER
+                  ? `Le Panthéon ODS t'ouvre ses portes : ${ELITE_TIER_BATCHES} lots bonus, ${ELITE_TIER_VERBS.toLocaleString('fr-FR')} verbes rares du dictionnaire.`
+                  : 'Le Panthéon ODS, palier bonus des verbes rares, ouvre bientôt ses portes. Ton accès est déjà réservé.'}
+              </motion.p>
+
+              <motion.div {...reveal(0.95)} className="mt-6 flex flex-col gap-2.5">
+                <button
+                  onClick={HAS_ELITE_TIER ? onEnter : onClose}
+                  className="w-full flex items-center justify-center gap-2 px-6 py-3.5 rounded-2xl font-black text-sm sm:text-base text-amber-950 bg-gradient-to-r from-amber-300 via-yellow-200 to-amber-400 hover:from-amber-400 hover:to-amber-500 shadow-[0_10px_40px_-8px_rgba(251,191,36,0.7)] border border-amber-100 transition"
+                >
+                  <Crown className="w-5 h-5 shrink-0" />
+                  {HAS_ELITE_TIER ? 'Entrer dans le Panthéon' : 'Continuer'}
+                </button>
+                {HAS_ELITE_TIER && (
+                  <button onClick={onClose} className="text-xs font-semibold text-slate-400 hover:text-slate-200 transition py-1">
+                    Rester au palier 1 pour l'instant
+                  </button>
+                )}
+              </motion.div>
+            </motion.div>
+          </div>
+        </motion.div>
+      )}
+    </AnimatePresence>,
+    document.body
+  );
+};
+
+const BADGE_COLORS: Record<string, string> = {
+  'déf.': 'bg-amber-100 text-amber-900 border-amber-300 font-bold',
+  'imp.': 'bg-sky-100 text-sky-900 border-sky-300 font-bold',
+  vt: 'bg-indigo-100 text-indigo-900 border-indigo-300 font-semibold',
+  vi: 'bg-teal-100 text-teal-900 border-teal-300 font-semibold',
+  vti: 'bg-emerald-100 text-emerald-900 border-emerald-300 font-semibold',
+  pr: 'bg-fuchsia-100 text-fuchsia-900 border-fuchsia-300 font-semibold',
+};
+
+const VERB_LEGEND: { badge: string; label: string; text: string }[] = [
+  { badge: 'déf.', label: 'Verbe défectif', text: 'conjugaison incomplète, certaines rallonges interdites (ESTER, CLORE, BRAIRE, RAVOIR, CHALOIR).' },
+  { badge: 'imp.', label: 'Verbe impersonnel', text: 'se conjugue uniquement à la 3ᵉ personne (NEIGER, PLEUVOIR, FALLOIR).' },
+  { badge: 'vt', label: 'Transitif direct', text: 'admet un COD, accord du participe passé en -ÉE, -ÉS, -ÉES.' },
+  { badge: 'vi', label: 'Intransitif', text: 'sans COD, participe passé non accordé au féminin au Scrabble.' },
+  { badge: 'vti', label: 'Transitif et intransitif', text: 'les deux emplois sont admis.' },
+  { badge: 'pr', label: 'Essentiellement pronominal', text: 'se conjugue avec « se ».' },
+];
+
+const VerbLegend: React.FC<{ className?: string }> = ({ className = '' }) => (
+  <details className={`group rounded-xl border border-slate-200 bg-slate-50/70 text-xs ${className}`}>
+    <summary className="cursor-pointer select-none list-none flex items-center justify-between gap-2 px-3 py-2 font-bold text-slate-600 hover:text-slate-900">
+      <span className="flex items-center gap-1.5">
+        <BookOpen className="w-3.5 h-3.5 text-emerald-600 shrink-0" />
+        Légende des indications
+      </span>
+      <span className="text-slate-400 transition-transform group-open:rotate-180">▾</span>
+    </summary>
+    <ul className="px-3 pb-3 pt-1 grid grid-cols-1 sm:grid-cols-2 gap-x-4 gap-y-1.5 text-slate-600">
+      {VERB_LEGEND.map(({ badge, label, text }) => (
+        <li key={badge} className="flex items-baseline gap-2">
+          <span className={`inline-block border text-[10px] px-1.5 py-0.5 rounded leading-none shrink-0 min-w-[2.25rem] text-center ${BADGE_COLORS[badge]}`}>
+            {badge}
+          </span>
+          <span><strong className="text-slate-800">{label}</strong> : {text}</span>
+        </li>
+      ))}
+      <li className="flex items-baseline gap-2 sm:col-span-2">
+        <span className="inline-block border text-[10px] px-1.5 py-0.5 rounded leading-none shrink-0 min-w-[2.25rem] text-center bg-slate-100 text-slate-700 border-slate-300">(+s)</span>
+        <span><strong className="text-slate-800">Rallonge</strong> : lettre ajoutable en fin de mot au Scrabble (ex. BIPER → BIPERS).</span>
+      </li>
+    </ul>
+  </details>
+);
+
 const VerbDetailsDisplay: React.FC<{ details: string; className?: string }> = ({ details, className = '' }) => {
   if (!details) return null;
 
@@ -101,13 +500,7 @@ const VerbDetailsDisplay: React.FC<{ details: string; className?: string }> = ({
   return (
     <span className={`inline ${className}`}>
       {rawBadges.map((badge, idx) => {
-        let badgeColor = 'bg-slate-100 text-slate-700 border-slate-300';
-        if (badge === 'déf.') badgeColor = 'bg-amber-100 text-amber-900 border-amber-300 font-bold';
-        else if (badge === 'imp.') badgeColor = 'bg-sky-100 text-sky-900 border-sky-300 font-bold';
-        else if (badge === 'vt') badgeColor = 'bg-indigo-100 text-indigo-900 border-indigo-300 font-semibold';
-        else if (badge === 'vi') badgeColor = 'bg-teal-100 text-teal-900 border-teal-300 font-semibold';
-        else if (badge === 'vti') badgeColor = 'bg-emerald-100 text-emerald-900 border-emerald-300 font-semibold';
-        else if (badge === 'pr') badgeColor = 'bg-fuchsia-100 text-fuchsia-900 border-fuchsia-300 font-semibold';
+        const badgeColor = BADGE_COLORS[badge] ?? 'bg-slate-100 text-slate-700 border-slate-300';
 
         return (
           <span
@@ -176,6 +569,83 @@ export const ClubVerbsPage: React.FC = () => {
   const autoAdvanceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const inputRef = useRef<HTMLInputElement | null>(null);
 
+  // Paliers : Maître Club (1-125) → Panthéon ODS (126+)
+  const [codexTier, setCodexTier] = useState<'master' | 'elite'>('master');
+  const [pantheonHint, setPantheonHint] = useState(0); // >0 : message de verrou visible (sert aussi de clé d'animation)
+  const [celebrationOpen, setCelebrationOpen] = useState(false);
+  const pantheonHintTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const masterValidatedCount = DEV_FAKE_MASTER_LOTS ?? countMasterValidated(profile?.validatedBatches);
+  const isPantheonUnlocked = computePantheonUnlocked(profile?.validatedBatches);
+  const isPantheonBadge = isPantheonMember(profile?.validatedBatches) || DEV_FORCE_UNLOCK;
+  const inPantheon = isEliteBatch(selectedBatch);
+  const masterProgressPct = Math.min(100, (masterValidatedCount / MASTER_TIER_BATCHES) * 100);
+  const eliteValidatedCount = (profile?.validatedBatches || []).filter((b) => b > MASTER_TIER_BATCHES).length;
+
+  const triggerPantheonHint = () => {
+    setPantheonHint((n) => n + 1);
+    if (pantheonHintTimer.current) clearTimeout(pantheonHintTimer.current);
+    pantheonHintTimer.current = setTimeout(() => setPantheonHint(0), 4500);
+  };
+
+  /** Seul point d'entrée pour changer de lot : applique le verrou du Panthéon. */
+  const goToBatch = (target: number) => {
+    if (isEliteBatch(target) && !isPantheonUnlocked) {
+      triggerPantheonHint();
+      setSelectedBatch(clampBatchIndex(target, false));
+      return;
+    }
+    setSelectedBatch(clampBatchIndex(target, isPantheonUnlocked));
+  };
+
+  const enterPantheon = () => {
+    setCelebrationOpen(false);
+    if (!isPantheonUnlocked || !HAS_ELITE_TIER) {
+      triggerPantheonHint();
+      return;
+    }
+    // Premier lot Panthéon non encore validé (lot 126 par défaut)
+    let target = MASTER_TIER_BATCHES;
+    const validated = profile?.validatedBatches || [];
+    while (target < TOTAL_BATCHES - 1 && validated.includes(target + 1)) target++;
+    setActiveTab('training');
+    setScreenMode('selector');
+    setSelectedBatch(target);
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  };
+
+  // Garde-fou global : aucun lot du palier 2 sans avoir validé les 125 lots du palier 1
+  useEffect(() => {
+    const clamped = clampBatchIndex(selectedBatch, isPantheonUnlocked);
+    if (clamped !== selectedBatch) setSelectedBatch(clamped);
+  }, [selectedBatch, isPantheonUnlocked]);
+
+  // Célébration de déblocage : une seule fois par joueur (profil Firebase + localStorage)
+  useEffect(() => {
+    if (!profile || celebrationOpen) return;
+    if (!isPantheonMember(profile.validatedBatches)) return;
+    if (profile.pantheonCelebrated || readPantheonSeen(profile.slug)) return;
+    const slug = profile.slug;
+    const t = setTimeout(() => {
+      writePantheonSeen(slug);
+      firebaseVerbsService.markPantheonCelebrated(slug);
+      setProfile((prev) => (prev && prev.slug === slug ? { ...prev, pantheonCelebrated: true } : prev));
+      setCelebrationOpen(true);
+    }, 900);
+    return () => clearTimeout(t);
+  }, [profile, celebrationOpen]);
+
+  // Dev uniquement : ?celebrate=1 rejoue la célébration sans rien mémoriser
+  useEffect(() => {
+    if (!DEV_FORCE_CELEBRATE) return;
+    const t = setTimeout(() => setCelebrationOpen(true), 700);
+    return () => clearTimeout(t);
+  }, []);
+
+  useEffect(() => () => {
+    if (pantheonHintTimer.current) clearTimeout(pantheonHintTimer.current);
+  }, []);
+
   // Charger le profil lors du changement de joueur
   useEffect(() => {
     if (!playerName || ['JOUEUR', 'ANTIGRAVITY', 'MEMBRE'].includes(playerName.toUpperCase())) {
@@ -187,10 +657,11 @@ export const ClubVerbsPage: React.FC = () => {
     firebaseVerbsService.loadPlayerProfile(slug, playerName).then((p) => {
       if (p) {
         setProfile(p);
+        const unlocked = computePantheonUnlocked(p.validatedBatches);
         if (p.activeSession && typeof p.activeSession.batchIndex === 'number' && p.activeSession.currentIndex < 30) {
-          setSelectedBatch(p.activeSession.batchIndex);
+          setSelectedBatch(clampBatchIndex(p.activeSession.batchIndex, unlocked));
         } else {
-          setSelectedBatch(p.currentBatch || 0);
+          setSelectedBatch(clampBatchIndex(p.currentBatch || 0, unlocked));
         }
       } else {
         // Le profil n'existe pas ou plus sur Firebase -> vider le cache et inviter à créer
@@ -253,7 +724,8 @@ export const ClubVerbsPage: React.FC = () => {
   }, [screenMode, currentIndex, showSolution]);
 
   // Statistiques du club calculées
-  const clubTotalConqueredVerbs = useMemo(() => {
+  // Jauge collective : objectif principal = verbes du palier 1, le Panthéon compte en bonus
+  const { clubTotalConqueredVerbs, clubEliteConqueredVerbs } = useMemo(() => {
     const setOfConquered = new Set<string>();
     leaderboard.forEach((p) => {
       (p.validatedBatches || []).forEach((b) => {
@@ -261,7 +733,11 @@ export const ClubVerbsPage: React.FC = () => {
         words.forEach((w) => setOfConquered.add(w.word));
       });
     });
-    return setOfConquered.size;
+    let master = 0;
+    setOfConquered.forEach((w) => {
+      if (MASTER_WORD_SET.has(w)) master++;
+    });
+    return { clubTotalConqueredVerbs: master, clubEliteConqueredVerbs: setOfConquered.size - master };
   }, [leaderboard]);
 
   const currentBatchWords = useMemo(() => {
@@ -300,10 +776,11 @@ export const ClubVerbsPage: React.FC = () => {
       localStorage.setItem('faizers_verb_user', clean);
       setPlayerName(clean);
       setProfile(p);
+      const unlocked = computePantheonUnlocked(p.validatedBatches);
       if (p.activeSession && typeof p.activeSession.batchIndex === 'number' && p.activeSession.currentIndex < 30) {
-        setSelectedBatch(p.activeSession.batchIndex);
+        setSelectedBatch(clampBatchIndex(p.activeSession.batchIndex, unlocked));
       } else {
-        setSelectedBatch(p.currentBatch || 0);
+        setSelectedBatch(clampBatchIndex(p.currentBatch || 0, unlocked));
       }
       setIsAuthModalOpen(false);
       setTypedAuthName('');
@@ -311,6 +788,10 @@ export const ClubVerbsPage: React.FC = () => {
   };
 
   const handleStartValidation = () => {
+    if (isEliteBatch(selectedBatch) && !isPantheonUnlocked) {
+      triggerPantheonHint();
+      return;
+    }
     const batchWords = getBatchWords(selectedBatch).map((w) => w.word);
     const shuffled = [...batchWords].sort(() => Math.random() - 0.5);
     setSessionWords(shuffled);
@@ -321,7 +802,7 @@ export const ClubVerbsPage: React.FC = () => {
     setIsValidationSession(true);
     setIsTieBreakSession(false);
     setShowSolution(false);
-    setTimeLeft(15);
+    setTimeLeft(20);
     setIsPaused(false);
     setUserInput('');
     setScreenMode('quiz');
@@ -344,6 +825,10 @@ export const ClubVerbsPage: React.FC = () => {
   const handleResumeSession = () => {
     if (!profile?.activeSession) return;
     const session = profile.activeSession;
+    if (isEliteBatch(session.batchIndex) && !isPantheonUnlocked) {
+      triggerPantheonHint();
+      return;
+    }
     setSelectedBatch(session.batchIndex);
     setSessionWords(session.sessionWords);
     setCurrentIndex(session.currentIndex);
@@ -353,7 +838,7 @@ export const ClubVerbsPage: React.FC = () => {
     setIsValidationSession(true);
     setIsTieBreakSession(false);
     setShowSolution(false);
-    setTimeLeft(15);
+    setTimeLeft(20);
     setIsPaused(false);
     setUserInput('');
     setScreenMode('quiz');
@@ -453,7 +938,7 @@ export const ClubVerbsPage: React.FC = () => {
     if (currentIndex + 1 < sessionWords.length) {
       const nextIdx = currentIndex + 1;
       setCurrentIndex(nextIdx);
-      setTimeLeft(isValidationSession ? 15 : isTieBreakSession ? 12 : 20);
+      setTimeLeft(isValidationSession ? 20 : isTieBreakSession ? 12 : 20);
 
       // Persistance en direct de la session
       if (profile && isValidationSession) {
@@ -536,7 +1021,8 @@ export const ClubVerbsPage: React.FC = () => {
 
   // Filtrage du Codex
   const filteredVerbs = useMemo(() => {
-    return MASTER_VERBS_DB.filter((v) => {
+    return MASTER_VERBS_DB.filter((v, i) => {
+      if ((codexTier === 'master') !== (i < MASTER_TIER_VERBS)) return false;
       const matchesSearch =
         !searchQuery ||
         v.word.includes(normalizeStr(searchQuery)) ||
@@ -544,7 +1030,7 @@ export const ClubVerbsPage: React.FC = () => {
       const matchesLength = lengthFilter === 'all' || v.length === lengthFilter;
       return matchesSearch && matchesLength;
     });
-  }, [searchQuery, lengthFilter]);
+  }, [searchQuery, lengthFilter, codexTier]);
 
   return (
     <div className="min-h-screen bg-slate-50 text-lexis-slate pb-20">
@@ -568,7 +1054,8 @@ export const ClubVerbsPage: React.FC = () => {
                 </span>
               </div>
               <p className="text-[11px] text-slate-500 hidden sm:block">
-                {TOTAL_VERBS.toLocaleString()} verbes ODS • {TOTAL_BATCHES} lots progressifs • Certification collective
+                {MASTER_TIER_VERBS.toLocaleString('fr-FR')} verbes ODS • {MASTER_TIER_BATCHES} lots Maître Club
+                {HAS_ELITE_TIER ? ' • + Panthéon bonus' : ''} • Certification collective
               </p>
             </div>
           </div>
@@ -583,12 +1070,31 @@ export const ClubVerbsPage: React.FC = () => {
               className="cursor-pointer bg-slate-100 hover:bg-slate-200 px-2 sm:px-3 py-1 sm:py-1.5 rounded-xl flex items-center gap-1.5 transition text-left"
               title="Cliquer pour changer de joueur ou créer un profil"
             >
-              <div className="w-6 h-6 sm:w-7 sm:h-7 rounded-full bg-indigo-600 text-white flex items-center justify-center text-[10px] sm:text-xs font-bold shadow-sm notranslate" translate="no">
+              <div
+                className={`relative w-6 h-6 sm:w-7 sm:h-7 rounded-full text-white flex items-center justify-center text-[10px] sm:text-xs font-bold shadow-sm notranslate shrink-0 ${
+                  isPantheonBadge && profile
+                    ? 'bg-gradient-to-br from-amber-300 via-amber-500 to-amber-700 text-amber-950 ring-2 ring-amber-300 ring-offset-1'
+                    : 'bg-indigo-600'
+                }`}
+                translate="no"
+              >
                 {playerName ? playerName.slice(0, 1) : '?'}
+                {isPantheonBadge && profile && (
+                  <Crown className="absolute -top-2.5 -right-1.5 w-3.5 h-3.5 text-amber-500 fill-amber-400 drop-shadow" aria-hidden />
+                )}
               </div>
               <div className="notranslate" translate="no">
                 <div className="text-[11px] sm:text-xs font-extrabold text-slate-800 flex items-center gap-1 leading-tight">
                   <span className="max-w-[65px] sm:max-w-[120px] truncate">{playerName || 'Pseudo'}</span>
+                  {isPantheonBadge && profile && (
+                    <span
+                      className="text-[9px] bg-gradient-to-r from-amber-300 to-amber-500 text-amber-950 font-black px-1 sm:px-1.5 py-0.2 rounded hidden sm:inline-flex items-center gap-0.5 shrink-0"
+                      title="Maître des Verbes Faizers : 125 lots validés, membre du Panthéon ODS"
+                    >
+                      <Crown className="w-2.5 h-2.5" aria-hidden />
+                      <span>Panthéon</span>
+                    </span>
+                  )}
                   <span className="text-[9px] bg-slate-200 text-slate-600 font-semibold px-1 py-0.2 rounded hidden sm:inline">
                     {playerName ? 'Changer' : 'Connexion'}
                   </span>
@@ -601,9 +1107,20 @@ export const ClubVerbsPage: React.FC = () => {
               </div>
             </button>
 
-            <div className="bg-amber-50 border border-amber-200 px-2 sm:px-3 py-1 sm:py-1.5 rounded-xl flex items-center gap-1 text-amber-800 text-[11px] sm:text-xs font-bold">
-              <Flame className="w-3.5 h-3.5 text-amber-500 fill-amber-500 shrink-0" />
-              <span>Lot {selectedBatch + 1}<span className="hidden sm:inline"> / {TOTAL_BATCHES}</span></span>
+            <div
+              className={`px-2 sm:px-3 py-1 sm:py-1.5 rounded-xl flex items-center gap-1 text-[11px] sm:text-xs font-bold border ${
+                inPantheon ? 'bg-slate-900 border-amber-400 text-amber-200' : 'bg-amber-50 border-amber-200 text-amber-800'
+              }`}
+            >
+              {inPantheon ? (
+                <Crown className="w-3.5 h-3.5 text-amber-300 fill-amber-300 shrink-0" />
+              ) : (
+                <Flame className="w-3.5 h-3.5 text-amber-500 fill-amber-500 shrink-0" />
+              )}
+              <span>
+                Lot {selectedBatch + 1}
+                <span className="hidden sm:inline"> / {inPantheon ? TOTAL_BATCHES : MASTER_TIER_BATCHES}</span>
+              </span>
             </div>
           </div>
         </div>
@@ -665,7 +1182,7 @@ export const ClubVerbsPage: React.FC = () => {
           >
             <BookOpen className="w-3.5 h-3.5 sm:w-4 sm:h-4 shrink-0" />
             <span>Codex</span>
-            <span className="text-[10px] sm:text-xs text-slate-400 font-normal">({TOTAL_VERBS})</span>
+            <span className="text-[10px] sm:text-xs text-slate-400 font-normal">({MASTER_TIER_VERBS})</span>
             {activeTab === 'codex' && (
               <motion.div
                 layoutId="activeTabUnderline"
@@ -798,6 +1315,14 @@ export const ClubVerbsPage: React.FC = () => {
           document.body
         )}
 
+      {/* Célébration : déblocage du Panthéon ODS (portal) */}
+      <PantheonCelebration
+        open={celebrationOpen}
+        playerName={profile?.displayName || playerName}
+        onEnter={enterPantheon}
+        onClose={() => setCelebrationOpen(false)}
+      />
+
       {/* Contenu Principal */}
       <div className="max-w-5xl mx-auto px-4 py-6">
         {/* ============================================================ */}
@@ -809,15 +1334,28 @@ export const ClubVerbsPage: React.FC = () => {
             {screenMode === 'selector' && (
               <div className="space-y-6">
                 {/* Carte de Statut du Lot Actuel */}
-                <div className="bg-gradient-to-r from-emerald-800 to-teal-900 rounded-3xl p-6 sm:p-8 text-white shadow-xl relative overflow-hidden">
+                <div
+                  className={`rounded-3xl p-6 sm:p-8 text-white shadow-xl relative overflow-hidden ${
+                    inPantheon
+                      ? 'bg-gradient-to-br from-slate-900 via-slate-800 to-amber-900 ring-1 ring-amber-400/40'
+                      : 'bg-gradient-to-r from-emerald-800 to-teal-900'
+                  }`}
+                >
                   <div className="absolute right-0 top-0 translate-x-12 -translate-y-8 w-64 h-64 bg-white/5 rounded-full blur-2xl pointer-events-none"></div>
 
                   <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 relative z-10">
                     <div>
-                      <div className="flex items-center gap-2 mb-1">
-                        <span className="bg-emerald-500/30 text-emerald-200 border border-emerald-400/30 text-xs uppercase tracking-widest font-black px-3 py-1 rounded-full">
-                          Lot n°{selectedBatch + 1} sur {TOTAL_BATCHES}
-                        </span>
+                      <div className="flex flex-wrap items-center gap-2 mb-1">
+                        {inPantheon ? (
+                          <span className="bg-amber-400/15 text-amber-200 border border-amber-300/40 text-xs uppercase tracking-widest font-black px-3 py-1 rounded-full flex items-center gap-1.5">
+                            <Crown className="w-3.5 h-3.5 text-amber-300 fill-amber-300 shrink-0" />
+                            Panthéon · Lot n°{selectedBatch + 1}
+                          </span>
+                        ) : (
+                          <span className="bg-emerald-500/30 text-emerald-200 border border-emerald-400/30 text-xs uppercase tracking-widest font-black px-3 py-1 rounded-full">
+                            Lot n°{selectedBatch + 1} sur {MASTER_TIER_BATCHES}
+                          </span>
+                        )}
                         {profile?.validatedBatches.includes(selectedBatch + 1) && (
                           <span className="bg-amber-400 text-amber-950 text-xs font-black px-2.5 py-0.5 rounded-full flex items-center gap-1 shadow">
                             <ShieldCheck className="w-3.5 h-3.5" /> Validé
@@ -825,9 +1363,9 @@ export const ClubVerbsPage: React.FC = () => {
                         )}
                       </div>
                       <h2 className="text-2xl sm:text-3xl font-black tracking-tight">
-                        Programme de 30 verbes ODS
+                        {inPantheon ? 'Lot bonus : 30 verbes rares' : 'Programme de 30 verbes ODS'}
                       </h2>
-                      <p className="text-emerald-100/80 text-sm mt-1 max-w-xl">
+                      <p className={`${inPantheon ? 'text-amber-100/80' : 'text-emerald-100/80'} text-sm mt-1 max-w-xl`}>
                         {currentBatchWords[0]?.length} à {currentBatchWords[currentBatchWords.length - 1]?.length} lettres • Révisez le lot, consolidez vos réflexes d'anagramme, puis passez la Certification officielle du lot.
                       </p>
                     </div>
@@ -865,36 +1403,211 @@ export const ClubVerbsPage: React.FC = () => {
                   </div>
 
                   {/* Sélecteur rapide de lots */}
-                  <div className="mt-6 pt-6 border-t border-white/10 flex items-center justify-between">
-                    <span className="text-xs text-emerald-200">Naviguer dans les lots :</span>
-                    <div className="flex items-center gap-2">
+                  <div className="mt-6 pt-6 border-t border-white/10 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
+                    <span className={`text-xs ${inPantheon ? 'text-amber-200' : 'text-emerald-200'}`}>Naviguer dans les lots :</span>
+                    <div className="flex items-center gap-2 w-full sm:w-auto min-w-0">
                       <button
                         disabled={selectedBatch <= 0}
-                        onClick={() => setSelectedBatch((prev) => Math.max(0, prev - 1))}
-                        className="px-3 py-1 bg-white/10 hover:bg-white/20 disabled:opacity-30 rounded-lg text-xs font-bold transition"
+                        onClick={() => goToBatch(selectedBatch - 1)}
+                        aria-label="Lot précédent"
+                        className="shrink-0 px-3 py-1.5 bg-white/10 hover:bg-white/20 disabled:opacity-30 rounded-lg text-xs font-bold transition whitespace-nowrap"
                       >
-                        ← Lot précédent
+                        ←<span className="hidden sm:inline"> Lot précédent</span>
                       </button>
                       <select
                         value={selectedBatch}
-                        onChange={(e) => setSelectedBatch(Number(e.target.value))}
-                        className="bg-white/10 text-white border border-white/20 rounded-lg text-xs font-bold px-2 py-1 focus:outline-none"
+                        onChange={(e) => goToBatch(Number(e.target.value))}
+                        className="flex-1 sm:flex-none min-w-0 bg-white/10 text-white border border-white/20 rounded-lg text-xs font-bold px-2 py-1.5 focus:outline-none"
                       >
-                        {Array.from({ length: TOTAL_BATCHES }).map((_, i) => (
-                          <option key={i} value={i} className="text-slate-900 font-medium">
-                            Lot n°{i + 1} {profile?.validatedBatches.includes(i + 1) ? '✓ (Validé)' : ''}
-                          </option>
-                        ))}
+                        <optgroup label={`Palier 1 · Maître Club (${MASTER_TIER_BATCHES} lots)`} className="text-slate-900">
+                          {Array.from({ length: Math.min(TOTAL_BATCHES, MASTER_TIER_BATCHES) }).map((_, i) => (
+                            <option key={i} value={i} className="text-slate-900 font-medium">
+                              Lot n°{i + 1} {profile?.validatedBatches.includes(i + 1) ? '✓ (Validé)' : ''}
+                            </option>
+                          ))}
+                        </optgroup>
+                        {HAS_ELITE_TIER && (
+                          <optgroup
+                            label={`Palier 2 · Panthéon ODS ${isPantheonUnlocked ? '👑' : `🔒 (${masterValidatedCount}/${MASTER_TIER_BATCHES})`}`}
+                            className="text-slate-900"
+                          >
+                            {Array.from({ length: ELITE_TIER_BATCHES }).map((_, k) => {
+                              const i = MASTER_TIER_BATCHES + k;
+                              return (
+                                <option key={i} value={i} disabled={!isPantheonUnlocked} className="text-slate-900 font-medium">
+                                  {isPantheonUnlocked ? '👑' : '🔒'} Lot n°{i + 1}{' '}
+                                  {profile?.validatedBatches.includes(i + 1) ? '✓ (Validé)' : ''}
+                                </option>
+                              );
+                            })}
+                          </optgroup>
+                        )}
                       </select>
-                      <button
-                        disabled={selectedBatch >= TOTAL_BATCHES - 1}
-                        onClick={() => setSelectedBatch((prev) => Math.min(TOTAL_BATCHES - 1, prev + 1))}
-                        className="px-3 py-1 bg-white/10 hover:bg-white/20 disabled:opacity-30 rounded-lg text-xs font-bold transition"
-                      >
-                        Lot suivant →
-                      </button>
+                      {(() => {
+                        const nextLocked = HAS_ELITE_TIER && isEliteBatch(selectedBatch + 1) && !isPantheonUnlocked;
+                        return (
+                          <button
+                            disabled={selectedBatch >= TOTAL_BATCHES - 1}
+                            onClick={() => goToBatch(selectedBatch + 1)}
+                            aria-label={nextLocked ? 'Lot suivant verrouillé (Panthéon)' : 'Lot suivant'}
+                            className={`shrink-0 px-3 py-1.5 rounded-lg text-xs font-bold transition whitespace-nowrap disabled:opacity-30 ${
+                              nextLocked ? 'bg-amber-400/20 text-amber-200 hover:bg-amber-400/30' : 'bg-white/10 hover:bg-white/20'
+                            }`}
+                          >
+                            <span className="hidden sm:inline">Lot suivant </span>
+                            {nextLocked ? <Lock className="w-3.5 h-3.5 inline -mt-0.5" /> : '→'}
+                          </button>
+                        );
+                      })()}
                     </div>
                   </div>
+                </div>
+
+                {/* Entrée du Panthéon ODS (palier 2) */}
+                <div>
+                  <motion.button
+                    type="button"
+                    onClick={() => {
+                      if (isPantheonUnlocked && HAS_ELITE_TIER) {
+                        if (inPantheon) goToBatch(MASTER_TIER_BATCHES - 1);
+                        else enterPantheon();
+                      } else {
+                        triggerPantheonHint();
+                      }
+                    }}
+                    aria-disabled={!(isPantheonUnlocked && HAS_ELITE_TIER)}
+                    aria-describedby="pantheon-hint"
+                    whileTap={{ scale: 0.985 }}
+                    className={`group w-full text-left rounded-3xl p-4 sm:p-5 relative overflow-hidden border transition ${
+                      isPantheonUnlocked
+                        ? 'bg-gradient-to-br from-amber-50 via-white to-amber-100 border-amber-300 shadow-[0_8px_30px_-12px_rgba(245,158,11,0.6)] hover:border-amber-400'
+                        : 'bg-gradient-to-br from-slate-900 via-slate-900 to-slate-800 border-amber-400/30 shadow-lg cursor-not-allowed'
+                    }`}
+                  >
+                    {!isPantheonUnlocked && (
+                      <div
+                        aria-hidden
+                        className="absolute right-0 top-0 w-32 h-32 rounded-full bg-amber-400/15 blur-2xl pointer-events-none"
+                      />
+                    )}
+                    <div className="relative flex items-center gap-3 sm:gap-4">
+                      <motion.div
+                        key={pantheonHint}
+                        animate={pantheonHint ? { rotate: [0, -16, 16, -10, 10, -4, 0] } : { rotate: 0 }}
+                        transition={{ duration: 0.55 }}
+                        className={`w-12 h-12 sm:w-14 sm:h-14 rounded-2xl flex items-center justify-center shrink-0 ${
+                          isPantheonUnlocked
+                            ? 'bg-gradient-to-br from-amber-300 to-amber-500 text-amber-950 shadow-md'
+                            : 'bg-amber-400/10 border border-amber-300/40 text-amber-300'
+                        }`}
+                      >
+                        {isPantheonUnlocked ? (
+                          <Crown className="w-6 h-6 sm:w-7 sm:h-7 fill-amber-950/20" />
+                        ) : (
+                          <Lock className="w-6 h-6 sm:w-7 sm:h-7" />
+                        )}
+                      </motion.div>
+                      <div className="min-w-0 flex-1">
+                        <div className="flex flex-wrap items-center gap-x-2 gap-y-0.5">
+                          <span
+                            className={`text-[10px] font-black uppercase tracking-widest ${
+                              isPantheonUnlocked ? 'text-amber-700' : 'text-amber-300/90'
+                            }`}
+                          >
+                            Palier 2 · Bonus
+                          </span>
+                          {!HAS_ELITE_TIER && (
+                            <span className="text-[9px] font-black uppercase bg-amber-400 text-amber-950 px-1.5 rounded">Bientôt</span>
+                          )}
+                        </div>
+                        <h3
+                          className={`font-black text-lg sm:text-xl leading-tight tracking-tight ${
+                            isPantheonUnlocked ? 'text-slate-900' : 'text-white'
+                          }`}
+                        >
+                          Panthéon ODS
+                        </h3>
+                        <p className={`text-[11px] sm:text-xs leading-snug ${isPantheonUnlocked ? 'text-slate-600' : 'text-slate-400'}`}>
+                          {HAS_ELITE_TIER
+                            ? `${ELITE_TIER_BATCHES} lots bonus · ${ELITE_TIER_VERBS.toLocaleString('fr-FR')} verbes rares du dictionnaire`
+                            : 'Les verbes rares du dictionnaire, réservés aux Maîtres Club'}
+                        </p>
+                      </div>
+                      {isPantheonUnlocked && HAS_ELITE_TIER && (
+                        <span className="shrink-0 text-xs font-black text-amber-800 bg-amber-200/70 group-hover:bg-amber-300 px-2.5 py-1.5 rounded-xl transition whitespace-nowrap">
+                          {inPantheon ? '← Palier 1' : 'Entrer →'}
+                        </span>
+                      )}
+                    </div>
+
+                    {isPantheonUnlocked ? (
+                      <div className="relative mt-3 flex flex-wrap items-center justify-between gap-x-2 gap-y-1 text-[11px] sm:text-xs">
+                        <span className="font-bold text-amber-800 flex items-center gap-1">
+                          <ShieldCheck className="w-3.5 h-3.5 shrink-0" /> Maître des Verbes Faizers
+                        </span>
+                        {HAS_ELITE_TIER && (
+                          <span className="text-slate-500 font-semibold">
+                            {eliteValidatedCount} / {ELITE_TIER_BATCHES} lots Panthéon
+                          </span>
+                        )}
+                      </div>
+                    ) : (
+                      <div className="relative mt-3.5">
+                        {HAS_ELITE_TIER && ELITE_TEASER_WORDS.length > 0 && (
+                          <div aria-hidden className="flex flex-wrap gap-1.5 mb-3 overflow-hidden max-h-6">
+                            {ELITE_TEASER_WORDS.map((w) => (
+                              <span
+                                key={w}
+                                className="notranslate text-[10px] font-black tracking-wider text-amber-100/80 bg-white/5 border border-white/10 px-2 py-0.5 rounded-md blur-[3px] select-none"
+                                translate="no"
+                              >
+                                {w}
+                              </span>
+                            ))}
+                          </div>
+                        )}
+                        <div className="flex items-center justify-between gap-2 text-[11px] sm:text-xs mb-1.5">
+                          <span className="font-bold text-amber-200">
+                            {masterValidatedCount} / {MASTER_TIER_BATCHES} lots validés
+                          </span>
+                          <span className="text-slate-400 font-semibold">
+                            {Math.max(0, MASTER_TIER_BATCHES - masterValidatedCount)} restant
+                            {MASTER_TIER_BATCHES - masterValidatedCount > 1 ? 's' : ''}
+                          </span>
+                        </div>
+                        <div className="h-2 w-full rounded-full bg-white/10 overflow-hidden">
+                          <motion.div
+                            className="h-full rounded-full bg-gradient-to-r from-emerald-400 via-amber-300 to-amber-500"
+                            initial={{ width: 0 }}
+                            animate={{ width: `${Math.max(2, masterProgressPct)}%` }}
+                            transition={{ duration: 0.9, ease: 'easeOut' }}
+                          />
+                        </div>
+                      </div>
+                    )}
+                  </motion.button>
+
+                  <AnimatePresence>
+                    {pantheonHint > 0 && !isPantheonUnlocked && (
+                      <motion.div
+                        id="pantheon-hint"
+                        role="status"
+                        initial={{ opacity: 0, y: -6, height: 0 }}
+                        animate={{ opacity: 1, y: 0, height: 'auto' }}
+                        exit={{ opacity: 0, y: -6, height: 0 }}
+                        className="overflow-hidden"
+                      >
+                        <div className="mt-2 flex items-start gap-2 rounded-2xl bg-amber-50 border border-amber-200 px-3.5 py-2.5 text-xs text-amber-900 leading-relaxed">
+                          <Lock className="w-4 h-4 text-amber-600 shrink-0 mt-0.5" />
+                          <span>
+                            Le Panthéon s'ouvre quand tu as validé les <strong>{MASTER_TIER_BATCHES} lots</strong> du palier Maître
+                            Club (≥ 27/30 à chaque Certification). Il t'en reste{' '}
+                            <strong>{Math.max(0, MASTER_TIER_BATCHES - masterValidatedCount)}</strong>.
+                          </span>
+                        </div>
+                      </motion.div>
+                    )}
+                  </AnimatePresence>
                 </div>
 
                 {/* Liste des 30 verbes du lot avec définitions */}
@@ -904,8 +1617,10 @@ export const ClubVerbsPage: React.FC = () => {
                       <BookOpen className="w-5 h-5 text-emerald-600" />
                       Composition du Lot n°{selectedBatch + 1} ({currentBatchWords.length} verbes)
                     </h3>
-                    <span className="text-xs text-slate-400">Cliquez pour voir les détails ODS</span>
+                    <span className="hidden sm:inline text-xs text-slate-400">Cliquez pour voir les détails ODS</span>
                   </div>
+
+                  <VerbLegend className="mb-4" />
 
                   <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2 sm:gap-2.5">
                     {currentBatchWords.map((v) => (
@@ -1312,7 +2027,7 @@ export const ClubVerbsPage: React.FC = () => {
                   ) : (
                     <button
                       onClick={() => {
-                        setSelectedBatch((prev) => Math.min(TOTAL_BATCHES - 1, prev + 1));
+                        goToBatch(selectedBatch + 1);
                         setScreenMode('selector');
                       }}
                       className="px-6 py-3 bg-emerald-600 hover:bg-emerald-700 text-white rounded-2xl font-bold text-sm shadow transition"
@@ -1351,18 +2066,23 @@ export const ClubVerbsPage: React.FC = () => {
                 <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-3 sm:gap-4 mb-4">
                   <div>
                     <h2 className="text-2xl sm:text-4xl font-black tracking-tight">
-                      {clubTotalConqueredVerbs} <span className="text-slate-400 text-lg sm:text-xl font-normal">/ {TOTAL_VERBS}</span>
+                      {clubTotalConqueredVerbs} <span className="text-slate-400 text-lg sm:text-xl font-normal">/ {MASTER_TIER_VERBS}</span>
                     </h2>
                     <p className="text-slate-300 text-xs sm:text-sm mt-1">
-                      Verbes uniques conquis par au moins un joueur du club.
+                      Verbes uniques du programme Maître Club conquis par au moins un joueur du club.
                     </p>
+                    {clubEliteConqueredVerbs > 0 && (
+                      <p className="text-amber-300 text-[11px] sm:text-xs mt-1 font-bold flex items-center gap-1">
+                        <Crown className="w-3.5 h-3.5 shrink-0" /> + {clubEliteConqueredVerbs} verbes bonus du Panthéon
+                      </p>
+                    )}
                   </div>
 
                   <div className="text-left sm:text-right">
                     <span className="text-xl sm:text-2xl font-black text-emerald-400">
-                      {((clubTotalConqueredVerbs / TOTAL_VERBS) * 100).toFixed(1)}%
+                      {((clubTotalConqueredVerbs / MASTER_TIER_VERBS) * 100).toFixed(1)}%
                     </span>
-                    <span className="text-[11px] sm:text-xs text-slate-400 block">du dictionnaire ODS conquis</span>
+                    <span className="text-[11px] sm:text-xs text-slate-400 block">du programme Maître Club conquis</span>
                   </div>
                 </div>
 
@@ -1370,7 +2090,7 @@ export const ClubVerbsPage: React.FC = () => {
                 <div className="w-full bg-slate-800 rounded-full h-3.5 sm:h-4 overflow-hidden border border-slate-700 p-0.5">
                   <div
                     className="bg-gradient-to-r from-emerald-500 to-teal-400 h-full rounded-full transition-all duration-500"
-                    style={{ width: `${Math.max(2, (clubTotalConqueredVerbs / TOTAL_VERBS) * 100)}%` }}
+                    style={{ width: `${Math.max(2, Math.min(100, (clubTotalConqueredVerbs / MASTER_TIER_VERBS) * 100))}%` }}
                   />
                 </div>
               </div>
@@ -1451,6 +2171,12 @@ export const ClubVerbsPage: React.FC = () => {
                             </td>
                             <td className="py-2.5 sm:py-3.5 font-bold text-slate-800 notranslate" translate="no">
                               {player.displayName}
+                              {isPantheonMember(player.validatedBatches) && (
+                                <Crown
+                                  className="inline w-3.5 h-3.5 ml-1 -mt-0.5 text-amber-500 fill-amber-400"
+                                  aria-label="Maître des Verbes (Panthéon)"
+                                />
+                              )}
                               {player.slug === profile?.slug && (
                                 <span className="ml-1 text-[9px] bg-emerald-100 text-emerald-800 px-1.5 py-0.2 rounded-full font-bold">
                                   Moi
@@ -1461,7 +2187,7 @@ export const ClubVerbsPage: React.FC = () => {
                               {player.completedBatches || 0}
                             </td>
                             <td className="py-2.5 sm:py-3.5 text-center font-black text-emerald-600">
-                              {(player.completedBatches || 0) * BATCH_SIZE}
+                              {countVerbsInBatches(player.validatedBatches)}
                             </td>
                             <td className="py-2.5 sm:py-3.5 text-right pr-1 sm:pr-2 text-[11px] sm:text-xs font-semibold text-slate-500">
                               Lot {(player.currentBatch || 0) + 1}
@@ -1524,10 +2250,40 @@ export const ClubVerbsPage: React.FC = () => {
         )}
 
         {/* ============================================================ */}
-        {/* ONGLET 3 : CODEX DES 3 742 VERBES ODS                       */}
+        {/* ONGLET 3 : CODEX (palier Maître Club + Panthéon bonus)      */}
         {/* ============================================================ */}
         {activeTab === 'codex' && (
           <div className="space-y-6">
+            {/* Choix du palier */}
+            {HAS_ELITE_TIER && (
+              <div className="grid grid-cols-2 gap-2 p-1 bg-white border border-slate-200 rounded-2xl shadow-sm">
+                <button
+                  onClick={() => setCodexTier('master')}
+                  className={`min-w-0 px-2 sm:px-3 py-2.5 rounded-xl text-xs sm:text-sm font-bold transition flex items-center justify-center gap-1.5 ${
+                    codexTier === 'master' ? 'bg-emerald-600 text-white shadow' : 'text-slate-600 hover:bg-slate-50'
+                  }`}
+                >
+                  <BookOpen className="w-4 h-4 shrink-0" />
+                  <span className="truncate">Maître Club</span>
+                  <span className={`text-[10px] font-semibold ${codexTier === 'master' ? 'text-emerald-100' : 'text-slate-400'}`}>
+                    {MASTER_TIER_VERBS.toLocaleString('fr-FR')}
+                  </span>
+                </button>
+                <button
+                  onClick={() => setCodexTier('elite')}
+                  className={`min-w-0 px-2 sm:px-3 py-2.5 rounded-xl text-xs sm:text-sm font-bold transition flex items-center justify-center gap-1.5 ${
+                    codexTier === 'elite' ? 'bg-slate-900 text-amber-200 shadow' : 'text-slate-600 hover:bg-slate-50'
+                  }`}
+                >
+                  <Crown className={`w-4 h-4 shrink-0 ${codexTier === 'elite' ? 'fill-amber-300 text-amber-300' : 'text-amber-500'}`} />
+                  <span className="truncate">Panthéon</span>
+                  <span className={`text-[10px] font-semibold ${codexTier === 'elite' ? 'text-amber-300/80' : 'text-slate-400'}`}>
+                    +{ELITE_TIER_VERBS.toLocaleString('fr-FR')}
+                  </span>
+                </button>
+              </div>
+            )}
+
             {/* Moteur de Recherche & Filtres */}
             <div className="bg-white rounded-3xl p-6 border border-slate-200 shadow-sm flex flex-col sm:flex-row items-center gap-4">
               <div className="relative flex-1 w-full">
@@ -1551,7 +2307,7 @@ export const ClubVerbsPage: React.FC = () => {
                       : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
                   }`}
                 >
-                  Tous ({TOTAL_VERBS})
+                  Tous ({codexTier === 'master' ? MASTER_TIER_VERBS : ELITE_TIER_VERBS})
                 </button>
                 {[4, 5, 6, 7, 8, 9].map((len) => (
                   <button
@@ -1574,6 +2330,8 @@ export const ClubVerbsPage: React.FC = () => {
               <span>{filteredVerbs.length} verbe{filteredVerbs.length > 1 ? 's' : ''} trouvé{filteredVerbs.length > 1 ? 's' : ''}</span>
               <span>Triés par longueur puis par ordre alphabétique</span>
             </div>
+
+            <VerbLegend />
 
             {/* Grille des Verbes */}
             <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-2.5 sm:gap-3">

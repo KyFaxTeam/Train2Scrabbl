@@ -46,6 +46,8 @@ export interface PlayerVerbProfile {
     bestValidationScore: number;
   };
   activeSession?: ActiveSessionData | null;
+  /** Célébration « Maître des Verbes » (déblocage du Panthéon) déjà montrée à ce joueur. */
+  pantheonCelebrated?: boolean;
 }
 
 export interface ClubActivityEvent {
@@ -125,6 +127,7 @@ class FirebaseVerbsService {
             lastActive: data.lastActive || new Date().toISOString(),
             stats: data.stats || { totalDrawsAttempted: 0, totalDrawsCorrect: 0, bestValidationScore: 0 },
             activeSession: data.activeSession || null,
+            pantheonCelebrated: data.pantheonCelebrated === true,
           };
           localStorage.setItem(localKey, JSON.stringify(profile));
           return profile;
@@ -270,6 +273,28 @@ class FirebaseVerbsService {
         await set(sessionRef, null);
       } catch (err) {
         console.warn('Erreur clear activeSession:', err);
+      }
+    }
+  }
+
+  /** Mémorise que la célébration de déblocage du Panthéon a été montrée (une seule fois par joueur). */
+  public async markPantheonCelebrated(slug: string): Promise<void> {
+    const localKey = `verb_player_${slug}`;
+    try {
+      const rawLocal = localStorage.getItem(localKey);
+      if (rawLocal) {
+        const p = JSON.parse(rawLocal);
+        p.pantheonCelebrated = true;
+        localStorage.setItem(localKey, JSON.stringify(p));
+      }
+    } catch {}
+
+    if (this.isConnected && this.db) {
+      try {
+        const flagRef = ref(this.db, `verb_mastery/players/${slug}/pantheonCelebrated`);
+        await set(flagRef, true);
+      } catch (err) {
+        console.warn('Erreur sauvegarde pantheonCelebrated:', err);
       }
     }
   }
