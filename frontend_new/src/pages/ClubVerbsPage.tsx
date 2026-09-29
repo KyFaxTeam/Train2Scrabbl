@@ -44,6 +44,7 @@ import {
   type ClubActivityEvent,
 } from '../services/firebaseVerbsService';
 import { addXP as addXPToDb, updateStreak } from '../services/learningStore';
+import { WeeklyClubPanel } from '../components/Verbs/WeeklyClubPanel';
 
 type TabMode = 'training' | 'team' | 'codex';
 type ScreenMode = 'selector' | 'preview' | 'quiz' | 'validation' | 'summary';
@@ -159,6 +160,18 @@ const MASTER_WORD_SET = new Set(
   Array.from({ length: MASTER_TIER_BATCHES }).flatMap((_, i) => getBatchWords(i).map((v) => v.word))
 );
 const ELITE_TEASER_WORDS = HAS_ELITE_TIER ? getBatchWords(MASTER_TIER_BATCHES).slice(0, 5).map((v) => v.word) : [];
+
+/** « Aujourd'hui 14:05 », « Hier 22:31 » ou « lun. 28 sept. 09:54 ». */
+function formatActivityTime(timestamp: number): string {
+  const d = new Date(timestamp);
+  const time = d.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' });
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  const dayDiff = Math.round((today.getTime() - new Date(d).setHours(0, 0, 0, 0)) / 86_400_000);
+  if (dayDiff === 0) return `Aujourd'hui ${time}`;
+  if (dayDiff === 1) return `Hier ${time}`;
+  return `${d.toLocaleDateString('fr-FR', { weekday: 'short', day: 'numeric', month: 'short' })} ${time}`;
+}
 
 /** Nombre de verbes distincts couverts par une liste de lots validés (numéros 1-based). */
 function countVerbsInBatches(validated?: number[] | null): number {
@@ -558,9 +571,6 @@ export const ClubVerbsPage: React.FC = () => {
   const [validationScore, setValidationScore] = useState(0);
   const [foundSolutions, setFoundSolutions] = useState<string[]>([]);
 
-  // Réacteur Collectif Hebdomadaire
-  const [weeklyEnergy, setWeeklyEnergy] = useState<number>(0);
-
   // Codex Search & Filters
   const [searchQuery, setSearchQuery] = useState('');
   const [lengthFilter, setLengthFilter] = useState<number | 'all'>('all');
@@ -681,14 +691,10 @@ export const ClubVerbsPage: React.FC = () => {
     const unsubActivity = firebaseVerbsService.subscribeToClubActivity((acts) => {
       setClubActivities(acts);
     });
-    const unsubReactor = firebaseVerbsService.subscribeToReactor((pts) => {
-      setWeeklyEnergy(pts);
-    });
 
     return () => {
       unsubLeaderboard();
       unsubActivity();
-      unsubReactor();
     };
   }, []);
 
@@ -896,7 +902,6 @@ export const ClubVerbsPage: React.FC = () => {
           setValidationScore((prev) => prev + 1);
         }
         addXPToDb(10 * allSolutions.length);
-        firebaseVerbsService.addReactorEnergy(allSolutions.length);
         displaySolutionAndAdvance(true);
       } else {
         // Solution partielle trouvée avec succès !
@@ -984,7 +989,6 @@ export const ClubVerbsPage: React.FC = () => {
         });
         addXPToDb(150);
         updateStreak();
-        firebaseVerbsService.addReactorEnergy(25);
         await firebaseVerbsService.recordBatchValidation(
           profile.slug,
           profile.displayName,
@@ -1006,7 +1010,6 @@ export const ClubVerbsPage: React.FC = () => {
         });
         addXPToDb(100);
         updateStreak();
-        firebaseVerbsService.addReactorEnergy(20);
         await firebaseVerbsService.recordBatchValidation(
           profile.slug,
           profile.displayName,
@@ -2096,32 +2099,17 @@ export const ClubVerbsPage: React.FC = () => {
               </div>
             </div>
 
-            {/* Le Réacteur Hebdomadaire Faizers */}
-            <div className="bg-gradient-to-r from-amber-500 via-orange-500 to-amber-600 rounded-2xl sm:rounded-3xl p-4 sm:p-7 text-white shadow-lg relative overflow-hidden">
-              <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
-                <div>
-                  <div className="flex items-center gap-2 mb-1">
-                    <Zap className="w-4 h-4 sm:w-5 sm:h-5 text-yellow-200 fill-yellow-200 animate-pulse" />
-                    <span className="text-[10px] sm:text-xs uppercase font-black tracking-widest text-amber-100">
-                      Le Réacteur de la Semaine • Énergie Collective
-                    </span>
-                  </div>
-                  <h3 className="text-xl sm:text-3xl font-black">
-                    {weeklyEnergy} <span className="text-base sm:text-lg font-normal text-amber-100">/ 1 500 pts</span>
-                  </h3>
-                  <p className="text-[11px] sm:text-xs text-amber-100 mt-1 max-w-xl leading-relaxed">
-                    Chaque tirage réussi rapporte <strong>1 pt</strong> (+25 pts par lot validé). Tous les membres font monter ensemble cette jauge !
-                  </p>
-                </div>
-
-                <div className="w-full sm:w-56 bg-black/20 rounded-full h-3 sm:h-3.5 overflow-hidden p-0.5 shrink-0 border border-white/20">
-                  <div
-                    className="bg-white h-full rounded-full transition-all duration-500 shadow"
-                    style={{ width: `${Math.min(100, Math.max(4, (weeklyEnergy / 1500) * 100))}%` }}
-                  />
-                </div>
-              </div>
-            </div>
+            {/* Cette semaine au club (calculé depuis le fil d'activité) */}
+            <WeeklyClubPanel
+              events={clubActivities}
+              membersCount={leaderboard.length}
+              myName={profile?.displayName}
+              onStartTraining={() => {
+                setActiveTab('training');
+                setScreenMode('selector');
+                window.scrollTo({ top: 0, behavior: 'smooth' });
+              }}
+            />
 
             {/* Grille : Classement & Fil d'Activité en Direct */}
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
@@ -2216,7 +2204,7 @@ export const ClubVerbsPage: React.FC = () => {
                         Le flux d'activité s'animera dès les premières validations de lots.
                       </div>
                     ) : (
-                      clubActivities.map((act, i) => (
+                      clubActivities.slice(0, 20).map((act, i) => (
                         <div
                           key={act.id || i}
                           className="p-2.5 sm:p-3 bg-slate-50 rounded-xl sm:rounded-2xl border border-slate-100 flex items-start gap-2.5 text-xs"
@@ -2231,7 +2219,7 @@ export const ClubVerbsPage: React.FC = () => {
                               {act.score && ` (${act.score})`} !
                             </p>
                             <span className="text-[10px] text-slate-400 mt-0.5 block">
-                              {new Date(act.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                              {formatActivityTime(act.timestamp)}
                             </span>
                           </div>
                         </div>

@@ -356,54 +356,14 @@ class FirebaseVerbsService {
             (e) => e && e.player && e.player.toUpperCase() !== 'JOUEUR'
           );
           filtered.sort((a, b) => (b.timestamp || 0) - (a.timestamp || 0));
-          callback(filtered.slice(0, 20));
+          // Historique complet : le fil n'en affiche que 20, les stats de la semaine en ont besoin
+          callback(filtered);
         } else {
           callback([]);
         }
       });
     } catch {
       callback([]);
-      return () => {};
-    }
-  }
-
-  public async addReactorEnergy(amount: number = 1): Promise<void> {
-    const localKey = 'faizers_reactor_energy';
-    const localVal = Number(localStorage.getItem(localKey) || 0) + amount;
-    localStorage.setItem(localKey, String(localVal));
-
-    if (this.isConnected && this.db) {
-      try {
-        const reactorRef = ref(this.db, 'verb_mastery/reactor/weekly_energy');
-        const snap = await get(reactorRef);
-        const current = snap.exists() ? Number(snap.val()) : 0;
-        await set(reactorRef, current + amount);
-      } catch (err) {
-        console.warn('Erreur mise à jour réacteur club:', err);
-      }
-    }
-  }
-
-  public subscribeToReactor(callback: (energy: number) => void): Unsubscribe {
-    const localKey = 'faizers_reactor_energy';
-    const fallback = Number(localStorage.getItem(localKey) || 0);
-
-    if (!this.isConnected || !this.db) {
-      callback(fallback);
-      return () => {};
-    }
-
-    try {
-      const reactorRef = ref(this.db, 'verb_mastery/reactor/weekly_energy');
-      return onValue(reactorRef, (snapshot) => {
-        if (snapshot.exists()) {
-          callback(Number(snapshot.val()) || 0);
-        } else {
-          callback(fallback);
-        }
-      });
-    } catch {
-      callback(fallback);
       return () => {};
     }
   }
