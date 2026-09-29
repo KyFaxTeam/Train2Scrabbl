@@ -45,6 +45,7 @@ import {
 } from '../services/firebaseVerbsService';
 import { addXP as addXPToDb, updateStreak } from '../services/learningStore';
 import { WeeklyClubPanel } from '../components/Verbs/WeeklyClubPanel';
+import { VerbInfo, VerbLegend } from '../components/Verbs/VerbInfo';
 
 type TabMode = 'training' | 'team' | 'codex';
 type ScreenMode = 'selector' | 'preview' | 'quiz' | 'validation' | 'summary';
@@ -452,80 +453,6 @@ const PantheonCelebration: React.FC<{
       )}
     </AnimatePresence>,
     document.body
-  );
-};
-
-const BADGE_COLORS: Record<string, string> = {
-  'déf.': 'bg-amber-100 text-amber-900 border-amber-300 font-bold',
-  'imp.': 'bg-sky-100 text-sky-900 border-sky-300 font-bold',
-  vt: 'bg-indigo-100 text-indigo-900 border-indigo-300 font-semibold',
-  vi: 'bg-teal-100 text-teal-900 border-teal-300 font-semibold',
-  vti: 'bg-emerald-100 text-emerald-900 border-emerald-300 font-semibold',
-  pr: 'bg-fuchsia-100 text-fuchsia-900 border-fuchsia-300 font-semibold',
-};
-
-const VERB_LEGEND: { badge: string; label: string; text: string }[] = [
-  { badge: 'déf.', label: 'Verbe défectif', text: 'conjugaison incomplète, certaines rallonges interdites (ESTER, CLORE, BRAIRE, RAVOIR, CHALOIR).' },
-  { badge: 'imp.', label: 'Verbe impersonnel', text: 'se conjugue uniquement à la 3ᵉ personne (NEIGER, PLEUVOIR, FALLOIR).' },
-  { badge: 'vt', label: 'Transitif direct', text: 'admet un COD, accord du participe passé en -ÉE, -ÉS, -ÉES.' },
-  { badge: 'vi', label: 'Intransitif', text: 'sans COD, participe passé non accordé au féminin au Scrabble.' },
-  { badge: 'vti', label: 'Transitif et intransitif', text: 'les deux emplois sont admis.' },
-  { badge: 'pr', label: 'Essentiellement pronominal', text: 'se conjugue avec « se ».' },
-];
-
-const VerbLegend: React.FC<{ className?: string }> = ({ className = '' }) => (
-  <details className={`group rounded-xl border border-slate-200 bg-slate-50/70 text-xs ${className}`}>
-    <summary className="cursor-pointer select-none list-none flex items-center justify-between gap-2 px-3 py-2 font-bold text-slate-600 hover:text-slate-900">
-      <span className="flex items-center gap-1.5">
-        <BookOpen className="w-3.5 h-3.5 text-emerald-600 shrink-0" />
-        Légende des indications
-      </span>
-      <span className="text-slate-400 transition-transform group-open:rotate-180">▾</span>
-    </summary>
-    <ul className="px-3 pb-3 pt-1 grid grid-cols-1 sm:grid-cols-2 gap-x-4 gap-y-1.5 text-slate-600">
-      {VERB_LEGEND.map(({ badge, label, text }) => (
-        <li key={badge} className="flex items-baseline gap-2">
-          <span className={`inline-block border text-[10px] px-1.5 py-0.5 rounded leading-none shrink-0 min-w-[2.25rem] text-center ${BADGE_COLORS[badge]}`}>
-            {badge}
-          </span>
-          <span><strong className="text-slate-800">{label}</strong> : {text}</span>
-        </li>
-      ))}
-      <li className="flex items-baseline gap-2 sm:col-span-2">
-        <span className="inline-block border text-[10px] px-1.5 py-0.5 rounded leading-none shrink-0 min-w-[2.25rem] text-center bg-slate-100 text-slate-700 border-slate-300">(+s)</span>
-        <span><strong className="text-slate-800">Rallonge</strong> : lettre ajoutable en fin de mot au Scrabble (ex. BIPER → BIPERS).</span>
-      </li>
-    </ul>
-  </details>
-);
-
-const VerbDetailsDisplay: React.FC<{ details: string; className?: string }> = ({ details, className = '' }) => {
-  if (!details) return null;
-
-  const match = details.match(/^\[([^\]]+)\]\s*(.*)$/);
-  if (!match) {
-    return <span className={className}>{details}</span>;
-  }
-
-  const rawBadges = match[1].split(',').map((b) => b.trim());
-  const text = match[2];
-
-  return (
-    <span className={`inline ${className}`}>
-      {rawBadges.map((badge, idx) => {
-        const badgeColor = BADGE_COLORS[badge] ?? 'bg-slate-100 text-slate-700 border-slate-300';
-
-        return (
-          <span
-            key={idx}
-            className={`inline-block mr-1.5 align-baseline border text-[10px] px-1.5 py-0.5 rounded leading-none shrink-0 ${badgeColor}`}
-          >
-            {badge}
-          </span>
-        );
-      })}
-      {text && <span className="align-baseline">{text}</span>}
-    </span>
   );
 };
 
@@ -1642,9 +1569,7 @@ export const ClubVerbsPage: React.FC = () => {
                             {v.length}L
                           </span>
                         </div>
-                        <div className="text-[11px] sm:text-xs text-slate-500 line-clamp-2 leading-snug">
-                          <VerbDetailsDisplay details={v.details || 'Verbe officiel Scrabble (ODS)'} />
-                        </div>
+                        <VerbInfo word={v.word} details={v.details} />
                       </div>
                     ))}
                   </div>
@@ -1859,11 +1784,9 @@ export const ClubVerbsPage: React.FC = () => {
                                   {wasFound ? 'Trouvé' : 'Non trouvé'}
                                 </span>
                               </div>
-                              {info.details && (
-                                <div className="text-xs text-slate-600 mt-1">
-                                  <VerbDetailsDisplay details={info.details} />
-                                </div>
-                              )}
+                              <div className="mt-1.5">
+                                <VerbInfo word={sol} details={info.details} clampDefinition={false} />
+                              </div>
                             </div>
                           );
                         })}
@@ -2339,8 +2262,8 @@ export const ClubVerbsPage: React.FC = () => {
                       {v.length}L
                     </span>
                   </div>
-                  <div className="text-[11px] sm:text-xs text-slate-500 mt-1.5 line-clamp-2">
-                    <VerbDetailsDisplay details={v.details || 'Verbe du dictionnaire officiel du Scrabble (ODS).'} />
+                  <div className="mt-1.5">
+                    <VerbInfo word={v.word} details={v.details} />
                   </div>
                 </div>
               ))}
