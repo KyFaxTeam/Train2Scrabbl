@@ -23,6 +23,7 @@ import {
   Lock,
   LockOpen,
   Crown,
+  GraduationCap,
 } from 'lucide-react';
 import {
   MASTER_VERBS_DB,
@@ -46,8 +47,9 @@ import {
 import { addXP as addXPToDb, updateStreak } from '../services/learningStore';
 import { WeeklyClubPanel } from '../components/Verbs/WeeklyClubPanel';
 import { VerbInfo, VerbLegend } from '../components/Verbs/VerbInfo';
+import { VerbGuidePanel } from '../components/Verbs/VerbGuidePanel';
 
-type TabMode = 'training' | 'team' | 'codex';
+type TabMode = 'training' | 'team' | 'codex' | 'guide';
 type ScreenMode = 'selector' | 'preview' | 'quiz' | 'validation' | 'summary';
 
 // Synthétiseur audio Web Audio API pour les chimes de réussite (zéro fichier externe)
@@ -549,6 +551,21 @@ export const ClubVerbsPage: React.FC = () => {
     setScreenMode('selector');
     setSelectedBatch(target);
     window.scrollTo({ top: 0, behavior: 'smooth' });
+  };
+
+  const openGuide = () => {
+    setActiveTab('guide');
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  };
+
+  /** Depuis le guide : ouvre le Codex filtré sur ce verbe, dans le bon palier. */
+  const openVerbInCodex = (word: string) => {
+    const index = MASTER_VERBS_DB.findIndex((v) => v.word === word);
+    setCodexTier(index >= MASTER_TIER_VERBS ? 'elite' : 'master');
+    setLengthFilter('all');
+    setSearchQuery(word);
+    setActiveTab('codex');
+    window.scrollTo({ top: 0 });
   };
 
   // Garde-fou global : aucun lot du palier 2 sans avoir validé les 125 lots du palier 1
@@ -1056,22 +1073,22 @@ export const ClubVerbsPage: React.FC = () => {
         </div>
 
         {/* Barre d'onglets de navigation */}
-        <div className="max-w-6xl mx-auto px-2 sm:px-4 flex gap-1.5 sm:gap-2 border-t border-slate-100 pt-1.5 sm:pt-2 overflow-x-auto no-scrollbar scrollbar-none">
+        <div className="max-w-6xl mx-auto px-2 sm:px-4 grid grid-cols-4 sm:flex gap-1 sm:gap-2 border-t border-slate-100 pt-1.5 sm:pt-2">
           <button
             onClick={() => {
               setActiveTab('training');
               setScreenMode('selector');
             }}
-            className={`flex items-center gap-1.5 sm:gap-2 px-3 sm:px-4 py-2 sm:py-2.5 rounded-xl text-xs sm:text-sm font-bold transition-all relative shrink-0 ${
+            className={`flex flex-col sm:flex-row items-center justify-center gap-0.5 sm:gap-2 px-1 sm:px-4 py-1.5 sm:py-2.5 rounded-xl text-[11px] sm:text-sm font-bold transition-all relative min-w-0 sm:shrink-0 ${
               activeTab === 'training'
                 ? 'text-emerald-700 bg-emerald-50'
                 : 'text-slate-500 hover:text-slate-800 hover:bg-slate-50'
             }`}
           >
-            <Compass className="w-3.5 h-3.5 sm:w-4 sm:h-4 shrink-0" />
+            <Compass className="w-4 h-4 shrink-0" />
             <span className="hidden sm:inline">Entraînement & Lots</span>
             <span className="sm:hidden">Entraînement</span>
-            <span className="text-[10px] sm:text-xs text-slate-400 font-normal">#{selectedBatch + 1}</span>
+            <span className="hidden sm:inline text-xs text-slate-400 font-normal">#{selectedBatch + 1}</span>
             {activeTab === 'training' && (
               <motion.div
                 layoutId="activeTabUnderline"
@@ -1082,16 +1099,19 @@ export const ClubVerbsPage: React.FC = () => {
 
           <button
             onClick={() => setActiveTab('team')}
-            className={`flex items-center gap-1.5 sm:gap-2 px-3 sm:px-4 py-2 sm:py-2.5 rounded-xl text-xs sm:text-sm font-bold transition-all relative shrink-0 ${
+            className={`flex flex-col sm:flex-row items-center justify-center gap-0.5 sm:gap-2 px-1 sm:px-4 py-1.5 sm:py-2.5 rounded-xl text-[11px] sm:text-sm font-bold transition-all relative min-w-0 sm:shrink-0 ${
               activeTab === 'team'
                 ? 'text-emerald-700 bg-emerald-50'
                 : 'text-slate-500 hover:text-slate-800 hover:bg-slate-50'
             }`}
           >
-            <Users className="w-3.5 h-3.5 sm:w-4 sm:h-4 shrink-0" />
+            <span className="relative">
+              <Users className="w-4 h-4 shrink-0" />
+              <span className="sm:hidden absolute -top-0.5 -right-1 w-2 h-2 rounded-full bg-emerald-500 ring-2 ring-white" aria-label="En direct" />
+            </span>
             <span className="hidden sm:inline">Évolution des membres</span>
             <span className="sm:hidden">Membres</span>
-            <span className="bg-emerald-500 text-white text-[9px] px-1.5 py-0.2 rounded-full font-bold">
+            <span className="hidden sm:inline bg-emerald-500 text-white text-[9px] px-1.5 py-0.2 rounded-full font-bold">
               Live
             </span>
             {activeTab === 'team' && (
@@ -1104,16 +1124,35 @@ export const ClubVerbsPage: React.FC = () => {
 
           <button
             onClick={() => setActiveTab('codex')}
-            className={`flex items-center gap-1.5 sm:gap-2 px-3 sm:px-4 py-2 sm:py-2.5 rounded-xl text-xs sm:text-sm font-bold transition-all relative shrink-0 ${
+            className={`flex flex-col sm:flex-row items-center justify-center gap-0.5 sm:gap-2 px-1 sm:px-4 py-1.5 sm:py-2.5 rounded-xl text-[11px] sm:text-sm font-bold transition-all relative min-w-0 sm:shrink-0 ${
               activeTab === 'codex'
                 ? 'text-emerald-700 bg-emerald-50'
                 : 'text-slate-500 hover:text-slate-800 hover:bg-slate-50'
             }`}
           >
-            <BookOpen className="w-3.5 h-3.5 sm:w-4 sm:h-4 shrink-0" />
+            <BookOpen className="w-4 h-4 shrink-0" />
             <span>Codex</span>
-            <span className="text-[10px] sm:text-xs text-slate-400 font-normal">({MASTER_TIER_VERBS})</span>
+            <span className="hidden sm:inline text-xs text-slate-400 font-normal">({MASTER_TIER_VERBS})</span>
             {activeTab === 'codex' && (
+              <motion.div
+                layoutId="activeTabUnderline"
+                className="absolute bottom-0 left-0 right-0 h-0.5 bg-emerald-600 rounded-full"
+              />
+            )}
+          </button>
+
+          <button
+            onClick={() => setActiveTab('guide')}
+            className={`flex flex-col sm:flex-row items-center justify-center gap-0.5 sm:gap-2 px-1 sm:px-4 py-1.5 sm:py-2.5 rounded-xl text-[11px] sm:text-sm font-bold transition-all relative min-w-0 sm:shrink-0 ${
+              activeTab === 'guide'
+                ? 'text-emerald-700 bg-emerald-50'
+                : 'text-slate-500 hover:text-slate-800 hover:bg-slate-50'
+            }`}
+          >
+            <GraduationCap className="w-4 h-4 shrink-0" />
+            <span className="hidden sm:inline">Guide des marques</span>
+            <span className="sm:hidden">Guide</span>
+            {activeTab === 'guide' && (
               <motion.div
                 layoutId="activeTabUnderline"
                 className="absolute bottom-0 left-0 right-0 h-0.5 bg-emerald-600 rounded-full"
@@ -1550,7 +1589,7 @@ export const ClubVerbsPage: React.FC = () => {
                     <span className="hidden sm:inline text-xs text-slate-400">Cliquez pour voir les détails ODS</span>
                   </div>
 
-                  <VerbLegend className="mb-4" />
+                  <VerbLegend className="mb-4" onOpenGuide={openGuide} />
 
                   <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2 sm:gap-2.5">
                     {currentBatchWords.map((v) => (
@@ -2161,6 +2200,11 @@ export const ClubVerbsPage: React.FC = () => {
         )}
 
         {/* ============================================================ */}
+        {/* ONGLET 4 : GUIDE DES MARQUES                                 */}
+        {/* ============================================================ */}
+        {activeTab === 'guide' && <VerbGuidePanel onOpenVerb={openVerbInCodex} />}
+
+        {/* ============================================================ */}
         {/* ONGLET 3 : CODEX (palier Maître Club + Panthéon bonus)      */}
         {/* ============================================================ */}
         {activeTab === 'codex' && (
@@ -2242,14 +2286,14 @@ export const ClubVerbsPage: React.FC = () => {
               <span>Triés par longueur puis par ordre alphabétique</span>
             </div>
 
-            <VerbLegend />
+            <VerbLegend onOpenGuide={openGuide} />
 
             {/* Grille des Verbes */}
             <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-2.5 sm:gap-3">
               {filteredVerbs.slice(0, 120).map((v) => (
                 <div
                   key={v.word}
-                  className="bg-white p-3 sm:p-4 rounded-xl sm:rounded-2xl border border-slate-200/90 shadow-sm hover:shadow-md transition flex flex-col justify-between"
+                  className="bg-white p-3 sm:p-4 rounded-xl sm:rounded-2xl border border-slate-200/90 shadow-sm hover:shadow-md transition flex flex-col"
                 >
                   <div className="flex items-center justify-between">
                     <span
