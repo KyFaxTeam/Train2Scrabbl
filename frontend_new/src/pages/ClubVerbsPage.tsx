@@ -158,6 +158,12 @@ function playCeremony(ctx: AudioContext, type: 'unlock' | 'fanfare') {
 // ============================================================
 // Paliers : « Maître Club » (lots 1-125) puis « Panthéon ODS »
 // ============================================================
+/** Seuil de Certification d'un lot : 28/30 (93 %). Passé de 27 à 28 le 30/09/2026 ; les lots déjà validés restent acquis. */
+const CERT_PASS_SCORE = 28;
+const CERT_PASS_PCT = Math.floor((CERT_PASS_SCORE / 30) * 100);
+/** Scores juste sous le seuil qui ouvrent le Tie-Break de sauvetage. */
+const TIE_BREAK_MIN_SCORE = CERT_PASS_SCORE - 2;
+
 const HAS_ELITE_TIER = ELITE_TIER_BATCHES > 0 && ELITE_TIER_VERBS > 0;
 const MASTER_WORD_SET = new Set(
   Array.from({ length: MASTER_TIER_BATCHES }).flatMap((_, i) => getBatchWords(i).map((v) => v.word))
@@ -420,7 +426,7 @@ const PantheonCelebration: React.FC<{
                 {[
                   { v: String(MASTER_TIER_BATCHES), l: 'lots' },
                   { v: MASTER_TIER_VERBS.toLocaleString('fr-FR'), l: 'verbes' },
-                  { v: '≥ 27/30', l: 'par lot' },
+                  { v: `≥ ${CERT_PASS_SCORE}/30`, l: 'par lot' },
                 ].map((s) => (
                   <div key={s.l} className="rounded-xl bg-white/5 border border-amber-300/20 py-2">
                     <div className="text-base sm:text-lg font-black text-amber-200 leading-none">{s.v}</div>
@@ -923,7 +929,7 @@ export const ClubVerbsPage: React.FC = () => {
     setScreenMode('summary');
     if (isValidationSession) {
       const finalScore = validationScore;
-      const isSuccess = finalScore >= 27; // 90% de 30
+      const isSuccess = finalScore >= CERT_PASS_SCORE;
       if (isSuccess && profile) {
         playChime('victory');
         confetti({
@@ -958,7 +964,7 @@ export const ClubVerbsPage: React.FC = () => {
           profile.slug,
           profile.displayName,
           selectedBatch + 1,
-          27
+          CERT_PASS_SCORE
         );
         const updated = await firebaseVerbsService.loadPlayerProfile(profile.slug, profile.displayName);
         setProfile(updated);
@@ -1570,7 +1576,7 @@ export const ClubVerbsPage: React.FC = () => {
                           <Lock className="w-4 h-4 text-amber-600 shrink-0 mt-0.5" />
                           <span>
                             Le Panthéon s'ouvre quand tu as validé les <strong>{MASTER_TIER_BATCHES} lots</strong> du palier Maître
-                            Club (≥ 27/30 à chaque Certification). Il t'en reste{' '}
+                            Club (≥ {CERT_PASS_SCORE}/30 à chaque Certification). Il t'en reste{' '}
                             <strong>{Math.max(0, MASTER_TIER_BATCHES - masterValidatedCount)}</strong>.
                           </span>
                         </div>
@@ -1625,7 +1631,7 @@ export const ClubVerbsPage: React.FC = () => {
                     </h4>
                     <p className="text-amber-900/80 text-sm mt-1 leading-relaxed">
                       Comme le théorisait le professeur <strong>K. Anders Ericsson</strong> et l'illustre champion de Scrabble <strong>Nigel Richards</strong>, une liste de mots n'est assimilée que si elle est rappelée sous pression temporelle.
-                      La <strong>Certification du Lot</strong> exige <strong>au moins 90% de bonnes réponses</strong> (27 sur 30). Une fois franchie, le lot est gravé pour toujours dans la base de données du club, et votre contribution augmente la jauge collective de l'équipe !
+                      La <strong>Certification du Lot</strong> exige <strong>au moins {CERT_PASS_SCORE} bonnes réponses sur 30</strong> ({CERT_PASS_PCT} %). Une fois franchie, le lot est gravé pour toujours dans la base de données du club, et votre contribution augmente la jauge collective de l'équipe !
                     </p>
                   </div>
                 </div>
@@ -1870,7 +1876,7 @@ export const ClubVerbsPage: React.FC = () => {
             {screenMode === 'summary' && (
               <div className="max-w-xl mx-auto bg-white rounded-3xl p-8 border border-slate-200 shadow-xl text-center space-y-6">
                 {isValidationSession ? (
-                  validationScore >= 27 ? (
+                  validationScore >= CERT_PASS_SCORE ? (
                     <div>
                       <div className="w-20 h-20 bg-emerald-100 text-emerald-600 rounded-full flex items-center justify-center mx-auto mb-4">
                         <Trophy className="w-10 h-10 animate-bounce" />
@@ -1882,7 +1888,7 @@ export const ClubVerbsPage: React.FC = () => {
                         Lot n°{selectedBatch + 1} Officiellement Validé !
                       </p>
                       <p className="text-slate-500 text-sm mt-2">
-                        Score parfait : <strong className="text-slate-800">{validationScore} / 30</strong> (≥ 90%).
+                        Score parfait : <strong className="text-slate-800">{validationScore} / 30</strong> (≥ {CERT_PASS_SCORE}/30).
                         Votre exploit est enregistré sur Firebase et partagé avec tous les membres du club !
                       </p>
                     </div>
@@ -1892,14 +1898,14 @@ export const ClubVerbsPage: React.FC = () => {
                         <AlertCircle className="w-10 h-10" />
                       </div>
                       <h2 className="text-2xl font-black text-slate-800">
-                        {validationScore >= 25 ? 'Tout près du but !' : 'Presque là !'} Score : {validationScore} / 30
+                        {validationScore >= TIE_BREAK_MIN_SCORE ? 'Tout près du but !' : 'Presque là !'} Score : {validationScore} / 30
                       </h2>
                       <p className="text-slate-600 text-sm mt-2">
-                        La Certification du Lot requiert au moins <strong>27 / 30</strong>.
+                        La Certification du Lot requiert au moins <strong>{CERT_PASS_SCORE} / 30</strong>.
                       </p>
 
                       {/* Carte Spéciale Tie-Break de Sauvetage */}
-                      {(validationScore === 25 || validationScore === 26) && (
+                      {validationScore >= TIE_BREAK_MIN_SCORE && validationScore < CERT_PASS_SCORE && (
                         <div className="bg-amber-100 border-2 border-amber-300 rounded-2xl p-4 text-center my-4">
                           <div className="flex items-center justify-center gap-1.5 text-amber-900 font-black text-sm uppercase">
                             <Zap className="w-4 h-4 text-amber-600 fill-amber-500 animate-bounce" />
@@ -1981,7 +1987,7 @@ export const ClubVerbsPage: React.FC = () => {
                 )}
 
                 <div className="flex flex-col sm:flex-row gap-3 justify-center pt-4">
-                  {(isValidationSession && validationScore < 27) || (isTieBreakSession && validationScore < Math.min(3, sessionWords.length)) ? (
+                  {(isValidationSession && validationScore < CERT_PASS_SCORE) || (isTieBreakSession && validationScore < Math.min(3, sessionWords.length)) ? (
                     <button
                       onClick={handleStartValidation}
                       className="px-6 py-3 bg-amber-500 hover:bg-amber-600 text-white rounded-2xl font-bold text-sm shadow transition"
