@@ -48,6 +48,7 @@ import { addXP as addXPToDb, updateStreak } from '../services/learningStore';
 import { WeeklyClubPanel } from '../components/Verbs/WeeklyClubPanel';
 import { VerbInfo, VerbLegend } from '../components/Verbs/VerbInfo';
 import { VerbGuidePanel } from '../components/Verbs/VerbGuidePanel';
+import { VERB_DEFINITIONS } from '../data/verbDefinitions';
 
 type TabMode = 'training' | 'team' | 'codex' | 'guide';
 type ScreenMode = 'selector' | 'preview' | 'quiz' | 'validation' | 'summary';
@@ -979,7 +980,8 @@ export const ClubVerbsPage: React.FC = () => {
       const matchesSearch =
         !searchQuery ||
         v.word.includes(normalizeStr(searchQuery)) ||
-        v.details.toLowerCase().includes(searchQuery.toLowerCase());
+        v.details.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        (VERB_DEFINITIONS[v.word] || '').toLowerCase().includes(searchQuery.toLowerCase());
       const matchesLength = lengthFilter === 'all' || v.length === lengthFilter;
       return matchesSearch && matchesLength;
     });

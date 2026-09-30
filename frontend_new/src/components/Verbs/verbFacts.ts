@@ -1,4 +1,5 @@
 import { VERB_FORMS_RAW } from '../../data/verbForms';
+import { VERB_DEFINITIONS } from '../../data/verbDefinitions';
 
 /** Ce que l'ODS 8 dit d'un verbe (voir scripts/build_verb_forms.py). */
 export interface VerbFacts {
@@ -93,6 +94,6 @@ export function getVerbFacts(word: string, details = ''): VerbFacts {
     flaggedDefective: !missing && !flags.includes('3') && /^\s*\(d\)/i.test(details),
     frontHooks: front,
     backHooks: back,
-    definition: cleanDefinition(details),
+    definition: cleanDefinition(details) || VERB_DEFINITIONS[word] || '',
   };
 }
