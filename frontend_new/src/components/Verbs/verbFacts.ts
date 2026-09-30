@@ -10,6 +10,8 @@ export interface VerbFacts {
   infinitiveOnly: boolean;
   thirdPersonOnly: boolean;
   pronominal: boolean;
+  /** Nature grammaticale : 'vt' transitif, 'vi' intransitif, 'vt, vi' les deux ; vide si inconnue. */
+  nature: '' | 'vt' | 'vi' | 'vt, vi';
   /** Défectif signalé par la source (3e groupe, non calculable). */
   flaggedDefective: boolean;
   frontHooks: string;
@@ -27,6 +29,8 @@ export const TONE = {
   defective: 'bg-amber-50 text-amber-900 border-amber-300',
   impersonal: 'bg-sky-50 text-sky-800 border-sky-200',
   pronominal: 'bg-fuchsia-50 text-fuchsia-800 border-fuchsia-200',
+  vt: 'bg-indigo-600 text-white border-indigo-600',
+  vi: 'bg-teal-600 text-white border-teal-600',
   hook: 'bg-white text-slate-600 border-slate-300 font-mono tracking-tight',
 } as const;
 
@@ -57,6 +61,22 @@ function cleanDefinition(details: string): string {
     .trim();
 }
 
+/**
+ * Nature du verbe : la notation de la source quand elle existe ([vt], [vi], [-] = transitif),
+ * sinon déduite de l'ODS (forme en -EE valide = transitif, participe invariable = intransitif).
+ * L'ODS a le dernier mot : un participe invariable ne peut pas être celui d'un transitif direct.
+ */
+function getNature(details: string, pp: string): VerbFacts['nature'] {
+  const tags = (details.match(/^\s*((\[[^\]]*\]|\([^)]*\))\s*[,|]?\s*)+/)?.[0] || '').toLowerCase();
+  if (pp === 'i' || tags.includes('vi*')) return 'vi';
+  const vt = /\[(vt\b|-\])/.test(tags);
+  const vi = /\bvi\b/.test(tags);
+  if (vt && vi) return 'vt, vi';
+  if (vi) return 'vi';
+  if (vt || pp === 'v') return 'vt';
+  return '';
+}
+
 export function getVerbFacts(word: string, details = ''): VerbFacts {
   const [pp = '', missing = '', flags = '', back = '', front = ''] = (VERB_FORMS_RAW[word] || '').split('|');
   const sourceInfinitiveOnly = /^\s*\(i\)/i.test(details);
@@ -69,6 +89,7 @@ export function getVerbFacts(word: string, details = ''): VerbFacts {
     infinitiveOnly,
     thirdPersonOnly: flags.includes('3'),
     pronominal: /\((pr|pronominal)\)|\[vpr\]/i.test(details),
+    nature: infinitiveOnly ? '' : getNature(details, pp),
     flaggedDefective: !missing && !flags.includes('3') && /^\s*\(d\)/i.test(details),
     frontHooks: front,
     backHooks: back,

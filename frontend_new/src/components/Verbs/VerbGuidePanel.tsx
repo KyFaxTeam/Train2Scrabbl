@@ -254,7 +254,12 @@ const GLOSSARY: { term: string; name: string; meaning: string; app: React.ReactN
     term: 'vt',
     name: 'Transitif direct',
     meaning: 'Le verbe a un complément d\'objet (fêler un vase). Le participe s\'accorde : FELEE, FELEES.',
-    app: <span className={`${CHIP} ${TONE.ok}`}>✓ FELEE</span>,
+    app: (
+      <>
+        <span className={`${CHIP} ${TONE.vt}`}>vt</span>
+        <span className={`${CHIP} ${TONE.ok}`}>✓ FELEE</span>
+      </>
+    ),
   },
   {
     term: 'vi',
@@ -262,16 +267,24 @@ const GLOSSARY: { term: string; name: string; meaning: string; app: React.ReactN
     meaning:
       'Pas de complément d\'objet (fluer). Le participe reste en général invariable : FLUE mais pas FLUEE. Attention, certains vi ont aussi un emploi transitif (PUER : PUEE est valide).',
     app: (
-      <span className={`${CHIP} ${TONE.trap}`}>
-        ✗ <span className="line-through">FLUEE</span>
-      </span>
+      <>
+        <span className={`${CHIP} ${TONE.vi}`}>vi</span>
+        <span className={`${CHIP} ${TONE.trap}`}>
+          ✗ <span className="line-through">FLUEE</span>
+        </span>
+      </>
     ),
   },
   {
     term: 'vt/vi',
     name: 'Transitif et intransitif',
     meaning: 'Les deux emplois existent, donc le participe féminin est jouable.',
-    app: <span className={`${CHIP} ${TONE.ok}`}>✓ PUEE</span>,
+    app: (
+      <>
+        <span className={`${CHIP} ${TONE.vt}`}>vt, vi</span>
+        <span className={`${CHIP} ${TONE.ok}`}>✓ PUEE</span>
+      </>
+    ),
   },
   {
     term: 'vpr',
@@ -364,24 +377,31 @@ export const VerbGuidePanel: React.FC<{ onOpenVerb: (word: string) => void }> = 
           <li className="flex items-start gap-2.5">
             <span className="w-5 h-5 rounded-full bg-slate-900 text-white text-[11px] font-black flex items-center justify-center shrink-0 mt-0.5">1</span>
             <span>
-              <span className={`${CHIP} ${TONE.ok} mr-1`}>✓ ENTEE</span> la forme en -EE est jouable (ENTEE, ENTEES).
+              <span className={`${CHIP} ${TONE.vt} mr-1`}>vt</span> la nature : <strong>vt</strong> transitif,{' '}
+              <strong>vi</strong> intransitif, <strong>vt, vi</strong> les deux (détail en bas de page).
             </span>
           </li>
           <li className="flex items-start gap-2.5">
             <span className="w-5 h-5 rounded-full bg-slate-900 text-white text-[11px] font-black flex items-center justify-center shrink-0 mt-0.5">2</span>
+            <span>
+              <span className={`${CHIP} ${TONE.ok} mr-1`}>✓ ENTEE</span> la forme en -EE est jouable (ENTEE, ENTEES).
+            </span>
+          </li>
+          <li className="flex items-start gap-2.5">
+            <span className="w-5 h-5 rounded-full bg-slate-900 text-white text-[11px] font-black flex items-center justify-center shrink-0 mt-0.5">3</span>
             <span>
               <span className={`${CHIP} ${TONE.hook} mr-1`}>D·R·T·V +</span> lettres à placer <strong>devant</strong> : DENTER,
               RENTER, TENTER, VENTER.
             </span>
           </li>
           <li className="flex items-start gap-2.5">
-            <span className="w-5 h-5 rounded-full bg-slate-900 text-white text-[11px] font-black flex items-center justify-center shrink-0 mt-0.5">3</span>
+            <span className="w-5 h-5 rounded-full bg-slate-900 text-white text-[11px] font-black flex items-center justify-center shrink-0 mt-0.5">4</span>
             <span>
               <span className={`${CHIP} ${TONE.hook} mr-1`}>+ A</span> lettre à placer <strong>derrière</strong> : ENTERA.
             </span>
           </li>
           <li className="flex items-start gap-2.5">
-            <span className="w-5 h-5 rounded-full bg-slate-900 text-white text-[11px] font-black flex items-center justify-center shrink-0 mt-0.5">4</span>
+            <span className="w-5 h-5 rounded-full bg-slate-900 text-white text-[11px] font-black flex items-center justify-center shrink-0 mt-0.5">5</span>
             <span>La définition, quand elle est connue.</span>
           </li>
         </ol>

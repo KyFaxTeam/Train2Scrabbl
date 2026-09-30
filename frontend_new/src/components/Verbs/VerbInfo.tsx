@@ -13,6 +13,9 @@ export const VerbInfo: React.FC<{ word: string; details?: string; clampDefinitio
   return (
     <div className="min-w-0">
       <div className="flex flex-wrap gap-1 notranslate" translate="no">
+        {f.nature && (
+          <span className={`${CHIP} ${f.nature === 'vi' ? TONE.vi : TONE.vt}`}>{f.nature}</span>
+        )}
         {f.participle &&
           (f.participle.valid ? (
             <span className={`${CHIP} ${TONE.ok}`}>✓ {f.participle.form}</span>
@@ -48,6 +51,12 @@ export const VerbLegend: React.FC<{ className?: string; onOpenGuide?: () => void
   <div
     className={`flex flex-wrap items-center gap-x-3 gap-y-1.5 rounded-xl border border-slate-200 bg-slate-50/70 px-3 py-2.5 text-[11px] text-slate-600 ${className}`}
   >
+    <span className="flex items-center gap-1.5 notranslate" translate="no">
+      <span className={`${CHIP} ${TONE.vt}`}>vt</span> transitif
+    </span>
+    <span className="flex items-center gap-1.5 notranslate" translate="no">
+      <span className={`${CHIP} ${TONE.vi}`}>vi</span> intransitif
+    </span>
     <span className="flex items-center gap-1.5 notranslate" translate="no">
       <span className={`${CHIP} ${TONE.ok}`}>✓ FELEE</span> jouable
     </span>
