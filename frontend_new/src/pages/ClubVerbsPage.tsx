@@ -24,6 +24,8 @@ import {
   LockOpen,
   Crown,
   GraduationCap,
+  Target,
+  Trash2,
 } from 'lucide-react';
 import {
   MASTER_VERBS_DB,
@@ -50,7 +52,7 @@ import { VerbInfo, VerbLegend } from '../components/Verbs/VerbInfo';
 import { VerbGuidePanel } from '../components/Verbs/VerbGuidePanel';
 import { VERB_DEFINITIONS } from '../data/verbDefinitions';
 
-type TabMode = 'training' | 'team' | 'codex' | 'guide';
+type TabMode = 'training' | 'team' | 'blacklisted' | 'codex' | 'guide';
 type ScreenMode = 'selector' | 'preview' | 'quiz' | 'validation' | 'summary';
 
 // Synthétiseur audio Web Audio API pour les chimes de réussite (zéro fichier externe)
@@ -159,11 +161,11 @@ function playCeremony(ctx: AudioContext, type: 'unlock' | 'fanfare') {
 // ============================================================
 // Paliers : « Maître Club » (lots 1-125) puis « Panthéon ODS »
 // ============================================================
-/** Seuil de Certification d'un lot : 28/30 (93 %). Passé de 27 à 28 le 30/09/2026 ; les lots déjà validés restent acquis. */
-const CERT_PASS_SCORE = 28;
-const CERT_PASS_PCT = Math.floor((CERT_PASS_SCORE / 30) * 100);
-/** Scores juste sous le seuil qui ouvrent le Tie-Break de sauvetage. */
-const TIE_BREAK_MIN_SCORE = CERT_PASS_SCORE - 2;
+/** Seuil de Certification d'un lot : 30/30 (100 %). Scores 28 et 29/30 ouvrent le Tie-Break de sauvetage. */
+const CERT_PASS_SCORE = 30;
+const CERT_PASS_PCT = 100;
+/** Plancher qui ouvre le Tie-Break de sauvetage : 28/30 minimum (scores 28 et 29). */
+const TIE_BREAK_MIN_SCORE = 28;
 
 const HAS_ELITE_TIER = ELITE_TIER_BATCHES > 0 && ELITE_TIER_VERBS > 0;
 const MASTER_WORD_SET = new Set(
@@ -496,6 +498,22 @@ export const ClubVerbsPage: React.FC = () => {
   // Session de jeu (Entraînement ou Validation)
   const [isValidationSession, setIsValidationSession] = useState(false);
   const [isTieBreakSession, setIsTieBreakSession] = useState(false);
+  const [isBlacklistSession, setIsBlacklistSession] = useState(false);
+  /** Validation en cours d'écriture : le bouton « Lot suivant » attend que le lot soit bien enregistré. */
+  const [isRecordingValidation, setIsRecordingValidation] = useState(false);
+  const [autoValidate, setAutoValidate] = useState<boolean>(() => localStorage.getItem('faizers_auto_validate') !== 'false');
+  const [badgeToast, setBadgeToast] = useState<{ title: string; icon: string; desc: string } | null>(null);
+  const [blacklistSearchQuery, setBlacklistSearchQuery] = useState('');
+  const wordStartTimeRef = useRef<number>(Date.now());
+  const totalTimeSpentRef = useRef<number>(0);
+
+  const toggleAutoValidate = () => {
+    setAutoValidate((prev) => {
+      const next = !prev;
+      localStorage.setItem('faizers_auto_validate', String(next));
+      return next;
+    });
+  };
   const [sessionWords, setSessionWords] = useState<string[]>([]);
   const [currentIndex, setCurrentIndex] = useState(0);
   const [userInput, setUserInput] = useState('');
@@ -506,6 +524,7 @@ export const ClubVerbsPage: React.FC = () => {
   const [sessionErrors, setSessionErrors] = useState<string[]>([]);
   const [validationScore, setValidationScore] = useState(0);
   const [foundSolutions, setFoundSolutions] = useState<string[]>([]);
+  const [inputFeedback, setInputFeedback] = useState<string | null>(null);
 
   // Codex Search & Filters
   const [searchQuery, setSearchQuery] = useState('');
@@ -534,13 +553,22 @@ export const ClubVerbsPage: React.FC = () => {
     pantheonHintTimer.current = setTimeout(() => setPantheonHint(0), 4500);
   };
 
-  /** Seul point d'entrée pour changer de lot : applique le verrou du Panthéon. */
+  /** Lot accessible : déjà validé, ou lot précédent validé, ou pas au-delà du lot courant (index 0-based). */
+  const isBatchUnlocked = (target: number) => {
+    if (!profile || target <= 0) return true;
+    const validated = profile.validatedBatches || [];
+    return target <= (profile.currentBatch || 0) || validated.includes(target) || validated.includes(target + 1);
+  };
+
+  /** Seul point d'entrée pour changer de lot : applique le verrou de progression séquentielle et du Panthéon. */
   const goToBatch = (target: number) => {
     if (isEliteBatch(target) && !isPantheonUnlocked) {
       triggerPantheonHint();
       setSelectedBatch(clampBatchIndex(target, false));
       return;
     }
+    // Empêcher d'accéder à un lot supérieur à son palier débloqué sans l'avoir validé
+    if (!isBatchUnlocked(target)) return;
     setSelectedBatch(clampBatchIndex(target, isPantheonUnlocked));
   };
 
@@ -607,6 +635,13 @@ export const ClubVerbsPage: React.FC = () => {
     if (pantheonHintTimer.current) clearTimeout(pantheonHintTimer.current);
   }, []);
 
+  useEffect(() => {
+    if (badgeToast) {
+      const t = setTimeout(() => setBadgeToast(null), 6000);
+      return () => clearTimeout(t);
+    }
+  }, [badgeToast]);
+
   // Charger le profil lors du changement de joueur
   useEffect(() => {
     if (!playerName || ['JOUEUR', 'ANTIGRAVITY', 'MEMBRE'].includes(playerName.toUpperCase())) {
@@ -638,6 +673,19 @@ export const ClubVerbsPage: React.FC = () => {
   useEffect(() => {
     const unsubLeaderboard = firebaseVerbsService.subscribeToLeaderboard((rows) => {
       setLeaderboard(rows);
+      if (playerName) {
+        const slug = firebaseVerbsService.slugify(playerName);
+        const myRow = rows.find((r) => r.slug === slug);
+        if (myRow) {
+          setProfile((prev) => {
+            if (!prev) return myRow;
+            if ((myRow.completedBatches || 0) >= (prev.completedBatches || 0)) {
+              return { ...prev, ...myRow };
+            }
+            return prev;
+          });
+        }
+      }
     });
     const unsubActivity = firebaseVerbsService.subscribeToClubActivity((acts) => {
       setClubActivities(acts);
@@ -647,7 +695,7 @@ export const ClubVerbsPage: React.FC = () => {
       unsubLeaderboard();
       unsubActivity();
     };
-  }, []);
+  }, [playerName]);
 
   // Décompte chronomètre en session
   useEffect(() => {
@@ -758,10 +806,13 @@ export const ClubVerbsPage: React.FC = () => {
     setFoundSolutions([]);
     setIsValidationSession(true);
     setIsTieBreakSession(false);
+    setIsBlacklistSession(false);
     setShowSolution(false);
     setTimeLeft(20);
     setIsPaused(false);
     setUserInput('');
+    wordStartTimeRef.current = Date.now();
+    totalTimeSpentRef.current = 0;
     setScreenMode('quiz');
 
     // Sauvegarde initiale de la session
@@ -794,10 +845,13 @@ export const ClubVerbsPage: React.FC = () => {
     setFoundSolutions([]);
     setIsValidationSession(true);
     setIsTieBreakSession(false);
+    setIsBlacklistSession(false);
     setShowSolution(false);
     setTimeLeft(20);
     setIsPaused(false);
     setUserInput('');
+    wordStartTimeRef.current = Date.now();
+    totalTimeSpentRef.current = 0;
     setScreenMode('quiz');
   };
 
@@ -818,38 +872,82 @@ export const ClubVerbsPage: React.FC = () => {
     setFoundSolutions([]);
     setIsValidationSession(false);
     setIsTieBreakSession(true);
+    setIsBlacklistSession(false);
     setShowSolution(false);
-    setTimeLeft(12); // 12s par mot en tie-break mort subite
+    setTimeLeft(9); // 9s par mot en tie-break mort subite
     setIsPaused(false);
     setUserInput('');
+    wordStartTimeRef.current = Date.now();
+    totalTimeSpentRef.current = 0;
     setScreenMode('quiz');
   };
 
-  const handleSubmitAnswer = (e?: React.FormEvent) => {
-    if (e) e.preventDefault();
+  const handleStartBlacklistSession = () => {
+    const list = profile?.blacklistedVerbs || [];
+    if (list.length === 0) return;
+    const shuffled = [...list].sort(() => Math.random() - 0.5).slice(0, 20);
+    setSessionWords(shuffled);
+    setCurrentIndex(0);
+    setSessionErrors([]);
+    setValidationScore(0);
+    setFoundSolutions([]);
+    setIsValidationSession(false);
+    setIsTieBreakSession(false);
+    setIsBlacklistSession(true);
+    setShowSolution(false);
+    setTimeLeft(20);
+    setIsPaused(false);
+    setUserInput('');
+    wordStartTimeRef.current = Date.now();
+    totalTimeSpentRef.current = 0;
+    setScreenMode('quiz');
+  };
+
+  const handleRemoveFromBlacklist = async (verb: string) => {
+    if (!profile) return;
+    await firebaseVerbsService.removeBlacklistedVerb(profile.slug, verb);
+    setProfile((prev) =>
+      prev ? { ...prev, blacklistedVerbs: (prev.blacklistedVerbs || []).filter((w) => w !== verb) } : null
+    );
+  };
+
+  const processWordSubmission = (inputWord: string) => {
     if (!targetWord || showSolution) return;
 
-    const normalizedInput = normalizeStr(userInput.trim());
+    const normalizedInput = normalizeStr(inputWord.trim());
     if (!normalizedInput) return;
 
     const isMatch = allSolutions.includes(normalizedInput);
 
     if (isMatch) {
       if (foundSolutions.includes(normalizedInput)) {
-        // Déjà entré
+        setInputFeedback(`« ${normalizedInput} » déjà trouvé ! Cherchez l'autre verbe.`);
+        setTimeout(() => setInputFeedback(null), 3000);
         setUserInput('');
         return;
       }
 
+      setInputFeedback(null);
       const updatedFound = [...foundSolutions, normalizedInput];
       setFoundSolutions(updatedFound);
       setUserInput('');
 
+      // Si on est en session "Bêtes Noires", retirer le verbe maîtrisé
+      if (isBlacklistSession && profile) {
+        firebaseVerbsService.removeBlacklistedVerb(profile.slug, normalizedInput);
+        setProfile((prev) =>
+          prev ? { ...prev, blacklistedVerbs: (prev.blacklistedVerbs || []).filter((w) => w !== normalizedInput) } : null
+        );
+      }
+
       // Est-ce que toutes les solutions du tirage ont été trouvées ?
       if (updatedFound.length >= allSolutions.length) {
+        const elapsedSeconds = Math.max(0.5, (Date.now() - wordStartTimeRef.current) / 1000);
+        totalTimeSpentRef.current += elapsedSeconds;
+
         playChime('correct');
         setLastAnswerCorrect(true);
-        if (isValidationSession || isTieBreakSession) {
+        if (isValidationSession || isTieBreakSession || isBlacklistSession) {
           setValidationScore((prev) => prev + 1);
         }
         addXPToDb(10 * allSolutions.length);
@@ -857,44 +955,87 @@ export const ClubVerbsPage: React.FC = () => {
       } else {
         // Solution partielle trouvée avec succès !
         playChime('correct');
-        // Bonus de temps pour chercher les autres solutions
-        setTimeLeft((prev) => Math.min(25, prev + 5));
+        setTimeLeft((prev) => (isTieBreakSession ? Math.min(9, prev + 2) : Math.min(25, prev + 5)));
+        setTimeout(() => inputRef.current?.focus(), 10);
       }
     } else {
       playChime('wrong');
+      setInputFeedback(`« ${normalizedInput} » n'est pas un verbe valide.`);
+      setTimeout(() => setInputFeedback(null), 2500);
       setUserInput('');
+      setTimeout(() => inputRef.current?.focus(), 10);
     }
+  };
+
+  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const raw = e.target.value.toUpperCase();
+    setUserInput(raw);
+    if (inputFeedback) setInputFeedback(null);
+
+    if (autoValidate && !showSolution && targetWord) {
+      const candidate = normalizeStr(raw.trim());
+      if (
+        allSolutions.some((s) => s.length === candidate.length) &&
+        allSolutions.includes(candidate) &&
+        !foundSolutions.includes(candidate)
+      ) {
+        processWordSubmission(candidate);
+      }
+    }
+  };
+
+  const handleSubmitAnswer = (e?: React.FormEvent) => {
+    if (e) e.preventDefault();
+    processWordSubmission(userInput);
   };
 
   const handleTimeExpired = () => {
     if (showSolution) return;
+    const elapsedSeconds = Math.max(0.5, (Date.now() - wordStartTimeRef.current) / 1000);
+    totalTimeSpentRef.current += elapsedSeconds;
+
     playChime('wrong');
     setLastAnswerCorrect(false);
     if (!sessionErrors.includes(targetWord)) {
       setSessionErrors((prev) => [...prev, targetWord]);
     }
+
+    // En certification ou tie-break, compiler automatiquement dans le Carnet des Bêtes Noires
+    if ((isValidationSession || isTieBreakSession) && profile && targetWord) {
+      firebaseVerbsService.addBlacklistedVerb(profile.slug, targetWord);
+      setProfile((prev) => {
+        if (!prev) return null;
+        const currentList = prev.blacklistedVerbs || [];
+        return currentList.includes(targetWord) ? prev : { ...prev, blacklistedVerbs: [targetWord, ...currentList] };
+      });
+    }
+
     displaySolutionAndAdvance(false);
   };
 
   const displaySolutionAndAdvance = (wasCorrect: boolean) => {
     setShowSolution(true);
+    setIsPaused(false);
     if (timerRef.current) clearInterval(timerRef.current);
 
     autoAdvanceRef.current = setTimeout(() => {
       handleNextTurn(wasCorrect);
-    }, wasCorrect ? 1800 : 2800);
+    }, wasCorrect ? 4000 : 5000); // 4s si mot trouvé (+1s de plus), 5s si raté
   };
 
   const handleNextTurn = (lastWasCorrect?: boolean) => {
     if (autoAdvanceRef.current) clearTimeout(autoAdvanceRef.current);
     setShowSolution(false);
+    setIsPaused(false);
     setUserInput('');
     setFoundSolutions([]);
+    setInputFeedback(null);
+    wordStartTimeRef.current = Date.now();
 
     if (currentIndex + 1 < sessionWords.length) {
       const nextIdx = currentIndex + 1;
       setCurrentIndex(nextIdx);
-      setTimeLeft(isValidationSession ? 20 : isTieBreakSession ? 12 : 20);
+      setTimeLeft(isValidationSession ? 20 : isTieBreakSession ? 9 : 20);
 
       // Persistance en direct de la session
       if (profile && isValidationSession) {
@@ -940,17 +1081,71 @@ export const ClubVerbsPage: React.FC = () => {
         });
         addXPToDb(150);
         updateStreak();
-        await firebaseVerbsService.recordBatchValidation(
+
+        // Badges de Prestige
+        const currentBadges = { ...(profile.badges || {}) };
+        let newBadgeUnlocked: { title: string; icon: string; desc: string } | null = null;
+
+        // 1. Badge Éclair : Vitesse moyenne < 4s sur les 30 mots
+        const avgTime = sessionWords.length > 0 ? totalTimeSpentRef.current / sessionWords.length : 999;
+        if (avgTime < 4 && !currentBadges.lightning) {
+          currentBadges.lightning = true;
+          newBadgeUnlocked = {
+            title: 'Badge Éclair Débloqué !',
+            icon: '⚡',
+            desc: `Vitesse moyenne exceptionnelle de ${avgTime.toFixed(1)}s par verbe sur un lot complet !`,
+          };
+        }
+
+        // 2. Badge Sniper : 3 lots validés consécutivement du 1er coup en 30/30 (sans tie-break)
+        let nextStreak30 = (profile.streak30Count || 0);
+        if (finalScore === 30) {
+          nextStreak30 += 1;
+          if (nextStreak30 >= 3 && !currentBadges.sniper) {
+            currentBadges.sniper = true;
+            newBadgeUnlocked = {
+              title: 'Badge Sniper Débloqué !',
+              icon: '🎯',
+              desc: '3 lots validés consécutivement du 1er coup en 30/30 !',
+            };
+          }
+        } else {
+          nextStreak30 = 0;
+        }
+
+        // Enregistrement atomique (mise à jour directe du profil et de l'activité sans écrasement)
+        setIsRecordingValidation(true);
+        const updated = await firebaseVerbsService
+          .recordBatchValidation(
           profile.slug,
           profile.displayName,
           selectedBatch + 1,
-          finalScore
-        );
-        const updated = await firebaseVerbsService.loadPlayerProfile(profile.slug, profile.displayName);
+          finalScore,
+          {
+            badges: currentBadges,
+            streak30Count: nextStreak30,
+          }
+        )
+          .finally(() => setIsRecordingValidation(false));
+
         setProfile(updated);
+        setLeaderboard((prev) => {
+          const next = prev.map((p) => (p.slug === updated.slug ? updated : p));
+          if (!next.some((p) => p.slug === updated.slug)) next.push(updated);
+          next.sort((a, b) => (b.completedBatches || 0) - (a.completedBatches || 0));
+          return next;
+        });
+
+        if (newBadgeUnlocked) {
+          setBadgeToast(newBadgeUnlocked);
+        }
+      } else if (profile) {
+        // En cas d'échec sur le lot, remise à zéro de la série Sniper (sans réécrire le profil complet)
+        await firebaseVerbsService.resetStreak30(profile.slug);
+        setProfile((prev) => (prev ? { ...prev, streak30Count: 0 } : prev));
       }
     } else if (isTieBreakSession) {
-      const needed = Math.min(3, sessionWords.length);
+      const needed = sessionWords.length; // Aucune erreur tolérée en tie-break : 100% requis
       const isSuccess = validationScore >= needed;
       if (isSuccess && profile) {
         playChime('victory');
@@ -961,17 +1156,55 @@ export const ClubVerbsPage: React.FC = () => {
         });
         addXPToDb(100);
         updateStreak();
-        await firebaseVerbsService.recordBatchValidation(
+
+        // Sauvetage réussi au Tie-Break !
+        setIsRecordingValidation(true);
+        const updated = await firebaseVerbsService
+          .recordBatchValidation(
           profile.slug,
           profile.displayName,
           selectedBatch + 1,
-          CERT_PASS_SCORE
-        );
-        const updated = await firebaseVerbsService.loadPlayerProfile(profile.slug, profile.displayName);
+          CERT_PASS_SCORE,
+          {
+            streak30Count: 0, // Sauvé au tie-break donc pas 30/30 du 1er coup
+          }
+        )
+          .finally(() => setIsRecordingValidation(false));
+
         setProfile(updated);
+        setLeaderboard((prev) => {
+          const next = prev.map((p) => (p.slug === updated.slug ? updated : p));
+          if (!next.some((p) => p.slug === updated.slug)) next.push(updated);
+          next.sort((a, b) => (b.completedBatches || 0) - (a.completedBatches || 0));
+          return next;
+        });
+      }
+    } else if (isBlacklistSession) {
+      if (validationScore > 0) {
+        playChime('victory');
+        confetti({
+          particleCount: 90,
+          spread: 70,
+          origin: { y: 0.6 },
+        });
+        addXPToDb(validationScore * 10);
       }
     }
   };
+
+  const filteredBlacklist = useMemo(() => {
+    const list = profile?.blacklistedVerbs || [];
+    if (!blacklistSearchQuery.trim()) return list;
+    const q = blacklistSearchQuery.trim().toLowerCase();
+    const qNorm = normalizeStr(q);
+    return list.filter((w) => {
+      return (
+        w.toLowerCase().includes(q) ||
+        normalizeStr(w).includes(qNorm) ||
+        (VERB_DEFINITIONS[w] || '').toLowerCase().includes(q)
+      );
+    });
+  }, [profile?.blacklistedVerbs, blacklistSearchQuery]);
 
   // Filtrage du Codex
   const filteredVerbs = useMemo(() => {
@@ -989,6 +1222,31 @@ export const ClubVerbsPage: React.FC = () => {
 
   return (
     <div className="min-h-screen bg-slate-50 text-lexis-slate pb-20">
+      {/* Toast Flottant de Déblocage de Badge */}
+      <AnimatePresence>
+        {badgeToast && (
+          <motion.div
+            initial={{ opacity: 0, y: -40, scale: 0.9 }}
+            animate={{ opacity: 1, y: 0, scale: 1 }}
+            exit={{ opacity: 0, y: -20, scale: 0.9 }}
+            className="fixed top-4 left-1/2 -translate-x-1/2 z-[150] bg-gradient-to-r from-amber-400 via-yellow-400 to-amber-500 text-slate-950 px-5 py-3 rounded-2xl shadow-2xl border-2 border-yellow-200 flex items-center gap-3.5 max-w-md w-[92%]"
+          >
+            <span className="text-3xl animate-bounce shrink-0">{badgeToast.icon}</span>
+            <div className="flex-1 min-w-0">
+              <h4 className="font-black text-xs sm:text-sm uppercase tracking-wide text-slate-950">{badgeToast.title}</h4>
+              <p className="text-[11px] sm:text-xs font-semibold text-slate-900/90 leading-tight mt-0.5">{badgeToast.desc}</p>
+            </div>
+            <button
+              onClick={() => setBadgeToast(null)}
+              className="text-slate-950/60 hover:text-slate-950 font-black p-1 text-sm shrink-0"
+              title="Fermer"
+            >
+              ✕
+            </button>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
       {/* Header FAIZERS Club */}
       <div className="bg-white/95 border-b border-slate-200 sticky top-0 z-20 shadow-sm backdrop-blur-md">
         <div className="max-w-6xl mx-auto px-3 sm:px-4 py-2 sm:py-3.5 flex items-center justify-between gap-2">
@@ -1041,6 +1299,12 @@ export const ClubVerbsPage: React.FC = () => {
               <div className="notranslate" translate="no">
                 <div className="text-[11px] sm:text-xs font-extrabold text-slate-800 flex items-center gap-1 leading-tight">
                   <span className="max-w-[65px] sm:max-w-[120px] truncate">{playerName || 'Pseudo'}</span>
+                  {profile?.badges && (
+                    <span className="inline-flex items-center gap-0.5 ml-0.5">
+                      {profile.badges.sniper && <span title="Sniper (3 lots 30/30 d'affilée)" className="cursor-help text-[11px]">🎯</span>}
+                      {profile.badges.lightning && <span title="Éclair (< 4s/verbe)" className="cursor-help text-[11px]">⚡</span>}
+                    </span>
+                  )}
                   {isPantheonBadge && profile && (
                     <span
                       className="text-[9px] bg-gradient-to-r from-amber-300 to-amber-500 text-amber-950 font-black px-1 sm:px-1.5 py-0.2 rounded hidden sm:inline-flex items-center gap-0.5 shrink-0"
@@ -1081,13 +1345,13 @@ export const ClubVerbsPage: React.FC = () => {
         </div>
 
         {/* Barre d'onglets de navigation */}
-        <div className="max-w-6xl mx-auto px-2 sm:px-4 grid grid-cols-4 sm:flex gap-1 sm:gap-2 border-t border-slate-100 pt-1.5 sm:pt-2">
+        <div className="max-w-6xl mx-auto px-2 sm:px-4 grid grid-cols-5 sm:flex gap-1 sm:gap-2 border-t border-slate-100 pt-1.5 sm:pt-2">
           <button
             onClick={() => {
               setActiveTab('training');
               setScreenMode('selector');
             }}
-            className={`flex flex-col sm:flex-row items-center justify-center gap-0.5 sm:gap-2 px-1 sm:px-4 py-1.5 sm:py-2.5 rounded-xl text-[11px] sm:text-sm font-bold transition-all relative min-w-0 sm:shrink-0 ${
+            className={`flex flex-col sm:flex-row items-center justify-center gap-0.5 sm:gap-2 px-1 sm:px-3.5 py-1.5 sm:py-2.5 rounded-xl text-[10px] sm:text-sm font-bold transition-all relative min-w-0 sm:shrink-0 ${
               activeTab === 'training'
                 ? 'text-emerald-700 bg-emerald-50'
                 : 'text-slate-500 hover:text-slate-800 hover:bg-slate-50'
@@ -1095,7 +1359,7 @@ export const ClubVerbsPage: React.FC = () => {
           >
             <Compass className="w-4 h-4 shrink-0" />
             <span className="hidden sm:inline">Entraînement & Lots</span>
-            <span className="sm:hidden">Entraînement</span>
+            <span className="sm:hidden">Lots</span>
             <span className="hidden sm:inline text-xs text-slate-400 font-normal">#{selectedBatch + 1}</span>
             {activeTab === 'training' && (
               <motion.div
@@ -1107,7 +1371,7 @@ export const ClubVerbsPage: React.FC = () => {
 
           <button
             onClick={() => setActiveTab('team')}
-            className={`flex flex-col sm:flex-row items-center justify-center gap-0.5 sm:gap-2 px-1 sm:px-4 py-1.5 sm:py-2.5 rounded-xl text-[11px] sm:text-sm font-bold transition-all relative min-w-0 sm:shrink-0 ${
+            className={`flex flex-col sm:flex-row items-center justify-center gap-0.5 sm:gap-2 px-1 sm:px-3.5 py-1.5 sm:py-2.5 rounded-xl text-[10px] sm:text-sm font-bold transition-all relative min-w-0 sm:shrink-0 ${
               activeTab === 'team'
                 ? 'text-emerald-700 bg-emerald-50'
                 : 'text-slate-500 hover:text-slate-800 hover:bg-slate-50'
@@ -1131,8 +1395,39 @@ export const ClubVerbsPage: React.FC = () => {
           </button>
 
           <button
+            onClick={() => setActiveTab('blacklisted')}
+            className={`flex flex-col sm:flex-row items-center justify-center gap-0.5 sm:gap-2 px-1 sm:px-3 py-1.5 sm:py-2.5 rounded-xl text-[10px] sm:text-sm font-bold transition-all relative min-w-0 sm:shrink-0 ${
+              activeTab === 'blacklisted'
+                ? 'text-rose-700 bg-rose-50'
+                : 'text-slate-500 hover:text-slate-800 hover:bg-slate-50'
+            }`}
+          >
+            <span className="relative">
+              <Target className="w-4 h-4 shrink-0 text-rose-500" />
+              {(profile?.blacklistedVerbs?.length || 0) > 0 && (
+                <span className="absolute -top-1 -right-2 sm:hidden px-1 min-w-[14px] h-3.5 bg-rose-600 text-[9px] text-white font-black rounded-full flex items-center justify-center">
+                  {profile?.blacklistedVerbs?.length}
+                </span>
+              )}
+            </span>
+            <span className="hidden sm:inline">Bêtes Noires</span>
+            <span className="sm:hidden">Bêtes</span>
+            {(profile?.blacklistedVerbs?.length || 0) > 0 && (
+              <span className="hidden sm:inline bg-rose-600 text-white text-[10px] px-1.5 py-0.2 rounded-full font-black">
+                {profile?.blacklistedVerbs?.length}
+              </span>
+            )}
+            {activeTab === 'blacklisted' && (
+              <motion.div
+                layoutId="activeTabUnderline"
+                className="absolute bottom-0 left-0 right-0 h-0.5 bg-rose-600 rounded-full"
+              />
+            )}
+          </button>
+
+          <button
             onClick={() => setActiveTab('codex')}
-            className={`flex flex-col sm:flex-row items-center justify-center gap-0.5 sm:gap-2 px-1 sm:px-4 py-1.5 sm:py-2.5 rounded-xl text-[11px] sm:text-sm font-bold transition-all relative min-w-0 sm:shrink-0 ${
+            className={`flex flex-col sm:flex-row items-center justify-center gap-0.5 sm:gap-2 px-1 sm:px-3.5 py-1.5 sm:py-2.5 rounded-xl text-[10px] sm:text-sm font-bold transition-all relative min-w-0 sm:shrink-0 ${
               activeTab === 'codex'
                 ? 'text-emerald-700 bg-emerald-50'
                 : 'text-slate-500 hover:text-slate-800 hover:bg-slate-50'
@@ -1151,7 +1446,7 @@ export const ClubVerbsPage: React.FC = () => {
 
           <button
             onClick={() => setActiveTab('guide')}
-            className={`flex flex-col sm:flex-row items-center justify-center gap-0.5 sm:gap-2 px-1 sm:px-4 py-1.5 sm:py-2.5 rounded-xl text-[11px] sm:text-sm font-bold transition-all relative min-w-0 sm:shrink-0 ${
+            className={`flex flex-col sm:flex-row items-center justify-center gap-0.5 sm:gap-2 px-1 sm:px-3.5 py-1.5 sm:py-2.5 rounded-xl text-[10px] sm:text-sm font-bold transition-all relative min-w-0 sm:shrink-0 ${
               activeTab === 'guide'
                 ? 'text-emerald-700 bg-emerald-50'
                 : 'text-slate-500 hover:text-slate-800 hover:bg-slate-50'
@@ -1310,6 +1605,48 @@ export const ClubVerbsPage: React.FC = () => {
             {/* Mode Sélecteur de lot & Aperçu */}
             {screenMode === 'selector' && (
               <div className="space-y-6">
+                {/* Bannière d'accès direct au Carnet des Bêtes Noires */}
+                {(profile?.blacklistedVerbs?.length || 0) > 0 && (
+                  <div className="bg-gradient-to-r from-rose-950 via-slate-900 to-rose-950 text-white rounded-3xl p-5 sm:p-6 border border-rose-800/40 shadow-xl flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+                    <div className="flex items-center gap-3.5">
+                      <div className="w-12 h-12 rounded-2xl bg-rose-500/20 border border-rose-400/30 flex items-center justify-center text-rose-300 shrink-0">
+                        <Target className="w-6 h-6" />
+                      </div>
+                      <div>
+                        <div className="flex items-center gap-2">
+                          <span className="text-[10px] uppercase font-black tracking-widest text-rose-300 bg-rose-400/20 px-2.5 py-0.5 rounded-full border border-rose-400/30">
+                            Carnet des Bêtes Noires
+                          </span>
+                          <span className="text-xs font-bold text-rose-200">
+                            {profile?.blacklistedVerbs?.length} verbe{(profile?.blacklistedVerbs?.length || 0) > 1 ? 's' : ''} à dompter
+                          </span>
+                        </div>
+                        <h3 className="font-extrabold text-base sm:text-lg text-white mt-1">
+                          Réviser vos verbes ratés en certification
+                        </h3>
+                        <p className="text-xs text-rose-200/80 mt-0.5 max-w-lg">
+                          Chaque verbe réussi lors de la session express est immédiatement purgé de votre carnet !
+                        </p>
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-2 w-full sm:w-auto">
+                      <button
+                        onClick={handleStartBlacklistSession}
+                        className="flex-1 sm:flex-none px-5 py-3 bg-gradient-to-r from-rose-500 to-red-600 hover:from-rose-600 hover:to-red-700 text-white font-black text-xs sm:text-sm rounded-xl shadow-lg transition whitespace-nowrap flex items-center justify-center gap-2 transform hover:-translate-y-0.5"
+                      >
+                        <Play className="w-4 h-4 fill-white" />
+                        <span>Session Express ({Math.min(20, profile?.blacklistedVerbs?.length || 0)} verbes)</span>
+                      </button>
+                      <button
+                        onClick={() => setActiveTab('blacklisted')}
+                        className="px-4 py-3 bg-white/10 hover:bg-white/20 text-rose-100 font-bold text-xs rounded-xl transition whitespace-nowrap"
+                      >
+                        Consulter
+                      </button>
+                    </div>
+                  </div>
+                )}
+
                 {/* Carte de Statut du Lot Actuel */}
                 <div
                   className={`rounded-3xl p-6 sm:p-8 text-white shadow-xl relative overflow-hidden ${
@@ -1397,11 +1734,15 @@ export const ClubVerbsPage: React.FC = () => {
                         className="flex-1 sm:flex-none min-w-0 bg-white/10 text-white border border-white/20 rounded-lg text-xs font-bold px-2 py-1.5 focus:outline-none"
                       >
                         <optgroup label={`Palier 1 · Maître Club (${MASTER_TIER_BATCHES} lots)`} className="text-slate-900">
-                          {Array.from({ length: Math.min(TOTAL_BATCHES, MASTER_TIER_BATCHES) }).map((_, i) => (
-                            <option key={i} value={i} className="text-slate-900 font-medium">
-                              Lot n°{i + 1} {profile?.validatedBatches.includes(i + 1) ? '✓ (Validé)' : ''}
-                            </option>
-                          ))}
+                          {Array.from({ length: Math.min(TOTAL_BATCHES, MASTER_TIER_BATCHES) }).map((_, i) => {
+                            const isUnlocked = isBatchUnlocked(i);
+                            return (
+                              <option key={i} value={i} disabled={!isUnlocked} className="text-slate-900 font-medium">
+                                {!isUnlocked ? '🔒 ' : ''}Lot n°{i + 1}{' '}
+                                {profile?.validatedBatches.includes(i + 1) ? '✓ (Validé)' : ''}
+                              </option>
+                            );
+                          })}
                         </optgroup>
                         {HAS_ELITE_TIER && (
                           <optgroup
@@ -1421,12 +1762,14 @@ export const ClubVerbsPage: React.FC = () => {
                         )}
                       </select>
                       {(() => {
-                        const nextLocked = HAS_ELITE_TIER && isEliteBatch(selectedBatch + 1) && !isPantheonUnlocked;
+                        const isBeyondMax = !isBatchUnlocked(selectedBatch + 1);
+                        const isPantheonLocked = HAS_ELITE_TIER && isEliteBatch(selectedBatch + 1) && !isPantheonUnlocked;
+                        const nextLocked = isPantheonLocked || isBeyondMax;
                         return (
                           <button
-                            disabled={selectedBatch >= TOTAL_BATCHES - 1}
+                            disabled={selectedBatch >= TOTAL_BATCHES - 1 || nextLocked}
                             onClick={() => goToBatch(selectedBatch + 1)}
-                            aria-label={nextLocked ? 'Lot suivant verrouillé (Panthéon)' : 'Lot suivant'}
+                            aria-label={nextLocked ? 'Lot suivant verrouillé' : 'Lot suivant'}
                             className={`shrink-0 px-3 py-1.5 rounded-lg text-xs font-bold transition whitespace-nowrap disabled:opacity-30 ${
                               nextLocked ? 'bg-amber-400/20 text-amber-200 hover:bg-amber-400/30' : 'bg-white/10 hover:bg-white/20'
                             }`}
@@ -1647,9 +1990,23 @@ export const ClubVerbsPage: React.FC = () => {
                 <div className="bg-white rounded-3xl p-6 border border-slate-200 shadow-sm">
                   <div className="flex items-center justify-between mb-3">
                     <div className="flex items-center gap-2">
-                      <span className="text-xs font-black uppercase px-2.5 py-1 rounded-lg bg-amber-100 text-amber-800 flex items-center gap-1.5">
-                        <Award className="w-3.5 h-3.5" /> Certification Officielle du Lot
-                      </span>
+                      {isValidationSession ? (
+                        <span className="text-xs font-black uppercase px-2.5 py-1 rounded-lg bg-amber-100 text-amber-800 flex items-center gap-1.5">
+                          <Award className="w-3.5 h-3.5" /> Certification Officielle du Lot
+                        </span>
+                      ) : isTieBreakSession ? (
+                        <span className="text-xs font-black uppercase px-2.5 py-1 rounded-lg bg-orange-100 text-orange-800 flex items-center gap-1.5">
+                          <Zap className="w-3.5 h-3.5 text-orange-600 fill-orange-500 animate-pulse" /> Tie-Break de Sauvetage (9s/mot)
+                        </span>
+                      ) : isBlacklistSession ? (
+                        <span className="text-xs font-black uppercase px-2.5 py-1 rounded-lg bg-rose-100 text-rose-800 flex items-center gap-1.5">
+                          <Target className="w-3.5 h-3.5 text-rose-600" /> Révision des Bêtes Noires
+                        </span>
+                      ) : (
+                        <span className="text-xs font-black uppercase px-2.5 py-1 rounded-lg bg-emerald-100 text-emerald-800 flex items-center gap-1.5">
+                          <BookOpen className="w-3.5 h-3.5" /> Entraînement
+                        </span>
+                      )}
                       <span className="text-xs text-slate-400 font-semibold">
                         Verbe de {targetInfo.length} lettres
                       </span>
@@ -1741,16 +2098,38 @@ export const ClubVerbsPage: React.FC = () => {
 
                   {/* Formulaire de Saisie */}
                   {!showSolution ? (
-                    <form onSubmit={handleSubmitAnswer} className="max-w-md mx-auto space-y-3 sm:space-y-4">
-                      <div className="flex gap-1.5 sm:gap-2">
+                    <form onSubmit={handleSubmitAnswer} className="max-w-md mx-auto space-y-3 sm:space-y-4 w-full">
+                      {/* Contrôle Auto-Validation & Indications */}
+                      <div className="flex items-center justify-between text-xs text-slate-500 px-1">
+                        <span className="text-[11px] font-semibold text-slate-400">
+                          {allSolutions.length > 1
+                            ? `${allSolutions.length} verbes attendus`
+                            : '1 verbe attendu'}
+                        </span>
+                        <button
+                          type="button"
+                          onClick={toggleAutoValidate}
+                          className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg font-bold text-[11px] transition ${
+                            autoValidate
+                              ? 'bg-amber-100 text-amber-900 border border-amber-300 shadow-xs'
+                              : 'bg-slate-100 text-slate-500 border border-slate-200 hover:bg-slate-200'
+                          }`}
+                          title="Valide instantanément dès que le mot tapé est correct"
+                        >
+                          <Zap className={`w-3.5 h-3.5 ${autoValidate ? 'text-amber-600 fill-amber-500' : 'text-slate-400'}`} />
+                          <span>Auto-validation : <strong>{autoValidate ? 'ON' : 'OFF'}</strong></span>
+                        </button>
+                      </div>
+
+                      <div className="flex items-center gap-1.5 sm:gap-2 w-full">
                         <input
                           ref={inputRef}
                           type="text"
                           value={userInput}
-                          onChange={(e) => setUserInput(e.target.value.toUpperCase())}
+                          onChange={handleInputChange}
                           placeholder={allSolutions.length > 1 ? `Tapez les ${allSolutions.length} verbes...` : "Tapez l'infinitif..."}
                           translate="no"
-                          className="notranslate flex-1 px-3 sm:px-4 py-2.5 sm:py-3.5 text-center text-lg sm:text-xl font-black uppercase tracking-wider bg-slate-50 border-2 border-slate-300 rounded-xl sm:rounded-2xl focus:outline-none focus:border-emerald-500 focus:bg-white transition"
+                          className="notranslate flex-1 min-w-0 px-2.5 sm:px-4 py-2.5 sm:py-3.5 text-center text-base sm:text-xl font-black uppercase tracking-wider bg-slate-50 border-2 border-slate-300 rounded-xl sm:rounded-2xl focus:outline-none focus:border-emerald-500 focus:bg-white transition"
                           autoComplete="off"
                           autoCapitalize="characters"
                           autoCorrect="off"
@@ -1758,16 +2137,29 @@ export const ClubVerbsPage: React.FC = () => {
                         />
                         <button
                           type="submit"
-                          className="px-4 sm:px-6 py-2.5 sm:py-3.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl sm:rounded-2xl font-bold text-xs sm:text-sm shadow-md transition shrink-0"
+                          onPointerDown={(e) => {
+                            // Empêche le blur de l'input et la fermeture du clavier virtuel sur mobile
+                            e.preventDefault();
+                          }}
+                          className="px-3.5 sm:px-6 py-2.5 sm:py-3.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl sm:rounded-2xl font-bold text-xs sm:text-sm shadow-md transition shrink-0 whitespace-nowrap"
                         >
                           Valider
                         </button>
                       </div>
-                      <p className="text-[10px] sm:text-[11px] text-slate-400">
-                        {allSolutions.length > 1 
-                          ? 'Entrez chaque solution puis validez avec la touche Entrée (+5s bonus par verbe trouvé)' 
-                          : 'Appuyez sur Entrée pour valider directement'}
-                      </p>
+                      {inputFeedback ? (
+                        <p className="text-xs font-bold text-amber-700 bg-amber-50 py-1.5 px-3 rounded-xl border border-amber-300 animate-pulse flex items-center justify-center gap-1.5 shadow-xs">
+                          <AlertCircle className="w-3.5 h-3.5 shrink-0 text-amber-600" />
+                          <span>{inputFeedback}</span>
+                        </p>
+                      ) : (
+                        <p className="text-[10px] sm:text-[11px] text-slate-400">
+                          {autoValidate 
+                            ? '⚡ Validation instantanée active dès que le mot est complet et correct !'
+                            : allSolutions.length > 1 
+                              ? 'Entrez chaque solution puis validez avec la touche Entrée (+5s bonus par verbe trouvé)' 
+                              : 'Appuyez sur Entrée pour valider directement'}
+                        </p>
+                      )}
                     </form>
                   ) : (
                     /* Révélation de la Solution */
@@ -1842,8 +2234,18 @@ export const ClubVerbsPage: React.FC = () => {
                       <div className="flex items-center justify-center gap-3">
                         <button
                           onClick={() => {
-                            if (autoAdvanceRef.current) clearTimeout(autoAdvanceRef.current);
-                            setIsPaused(!isPaused);
+                            if (!isPaused) {
+                              if (autoAdvanceRef.current) {
+                                clearTimeout(autoAdvanceRef.current);
+                                autoAdvanceRef.current = null;
+                              }
+                              setIsPaused(true);
+                            } else {
+                              setIsPaused(false);
+                              autoAdvanceRef.current = setTimeout(() => {
+                                handleNextTurn();
+                              }, 2500);
+                            }
                           }}
                           className="px-4 py-2 bg-slate-200 hover:bg-slate-300 text-slate-700 rounded-xl text-xs font-bold transition flex items-center gap-1.5"
                         >
@@ -1852,7 +2254,10 @@ export const ClubVerbsPage: React.FC = () => {
                         </button>
 
                         <button
-                          onClick={() => handleNextTurn()}
+                          onClick={() => {
+                            setIsPaused(false);
+                            handleNextTurn();
+                          }}
                           className="px-5 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-bold transition flex items-center gap-1.5 shadow"
                         >
                           Suivant →
@@ -1903,7 +2308,7 @@ export const ClubVerbsPage: React.FC = () => {
                         {validationScore >= TIE_BREAK_MIN_SCORE ? 'Tout près du but !' : 'Presque là !'} Score : {validationScore} / 30
                       </h2>
                       <p className="text-slate-600 text-sm mt-2">
-                        La Certification du Lot requiert au moins <strong>{CERT_PASS_SCORE} / 30</strong>.
+                        La Certification du Lot requiert un sans-faute de <strong>{CERT_PASS_SCORE} / 30</strong>.
                       </p>
 
                       {/* Carte Spéciale Tie-Break de Sauvetage */}
@@ -1914,7 +2319,7 @@ export const ClubVerbsPage: React.FC = () => {
                             Tie-Break de Sauvetage Disponible !
                           </div>
                           <p className="text-xs text-amber-800 mt-1 max-w-md mx-auto">
-                            Tu es à un cheveu de certifier ton lot ! Affronte tes <strong>{sessionErrors.length} verbes manqués</strong> en mort subite (12s/mot). Réussis-en au moins 3 pour valider ton lot immédiatement !
+                            Tu es à un cheveu de certifier ton lot ! Affronte tes <strong>{sessionErrors.length} verbe{sessionErrors.length > 1 ? 's' : ''} manqué{sessionErrors.length > 1 ? 's' : ''}</strong> en mort subite (9s/mot). Réussis la totalité sans faute ({sessionErrors.length}/{sessionErrors.length}) pour valider ton lot immédiatement !
                           </p>
                           <button
                             onClick={handleStartTieBreak}
@@ -1927,7 +2332,7 @@ export const ClubVerbsPage: React.FC = () => {
                     </div>
                   )
                 ) : isTieBreakSession ? (
-                  validationScore >= Math.min(3, sessionWords.length) ? (
+                  validationScore >= sessionWords.length ? (
                     <div>
                       <div className="w-20 h-20 bg-emerald-100 text-emerald-600 rounded-full flex items-center justify-center mx-auto mb-4">
                         <Trophy className="w-10 h-10 animate-bounce" />
@@ -1939,7 +2344,7 @@ export const ClubVerbsPage: React.FC = () => {
                         Lot n°{selectedBatch + 1} Officiellement Sauvé & Validé !
                       </p>
                       <p className="text-slate-500 text-sm mt-2">
-                        Tu as relevé le défi sous haute pression ({validationScore}/{sessionWords.length} réussis). Le lot est certifié et ton exploit est enregistré !
+                        Tu as relevé le défi sous haute pression ({validationScore}/{sessionWords.length} sans faute). Le lot est certifié et ton exploit est enregistré !
                       </p>
                     </div>
                   ) : (
@@ -1955,6 +2360,21 @@ export const ClubVerbsPage: React.FC = () => {
                       </p>
                     </div>
                   )
+                ) : isBlacklistSession ? (
+                  <div>
+                    <div className="w-20 h-20 bg-rose-100 text-rose-600 rounded-full flex items-center justify-center mx-auto mb-4">
+                      <Target className="w-10 h-10 animate-bounce" />
+                    </div>
+                    <h2 className="text-2xl sm:text-3xl font-black text-slate-800">
+                      🎉 SESSION BÊTES NOIRES TERMINÉE !
+                    </h2>
+                    <p className="text-rose-600 font-extrabold text-base sm:text-lg mt-1">
+                      {validationScore} verbe{validationScore > 1 ? 's' : ''} maîtrisé{validationScore > 1 ? 's' : ''} et retiré{validationScore > 1 ? 's' : ''} de votre carnet !
+                    </p>
+                    <p className="text-slate-500 text-sm mt-2">
+                      Il vous reste actuellement <strong className="text-slate-800">{profile?.blacklistedVerbs?.length || 0} verbe{profile?.blacklistedVerbs?.length !== 1 ? 's' : ''}</strong> dans votre carnet de bêtes noires.
+                    </p>
+                  </div>
                 ) : (
                   <div>
                     <div className="w-16 h-16 bg-blue-100 text-blue-600 rounded-full flex items-center justify-center mx-auto mb-4">
@@ -1989,7 +2409,27 @@ export const ClubVerbsPage: React.FC = () => {
                 )}
 
                 <div className="flex flex-col sm:flex-row gap-3 justify-center pt-4">
-                  {(isValidationSession && validationScore < CERT_PASS_SCORE) || (isTieBreakSession && validationScore < Math.min(3, sessionWords.length)) ? (
+                  {isBlacklistSession ? (
+                    (profile?.blacklistedVerbs?.length || 0) > 0 ? (
+                      <button
+                        onClick={handleStartBlacklistSession}
+                        className="px-6 py-3 bg-gradient-to-r from-rose-600 to-red-600 hover:from-rose-700 hover:to-red-700 text-white rounded-2xl font-bold text-sm shadow transition flex items-center justify-center gap-2"
+                      >
+                        <RotateCcw className="w-4 h-4" />
+                        Purger la suite ({profile?.blacklistedVerbs?.length} restants)
+                      </button>
+                    ) : (
+                      <button
+                        onClick={() => {
+                          setActiveTab('training');
+                          setScreenMode('selector');
+                        }}
+                        className="px-6 py-3 bg-emerald-600 hover:bg-emerald-700 text-white rounded-2xl font-bold text-sm shadow transition"
+                      >
+                        Toutes les bêtes noires sont vaincues ! ➔
+                      </button>
+                    )
+                  ) : (isValidationSession && validationScore < CERT_PASS_SCORE) || (isTieBreakSession && validationScore < sessionWords.length) ? (
                     <button
                       onClick={handleStartValidation}
                       className="px-6 py-3 bg-amber-500 hover:bg-amber-600 text-white rounded-2xl font-bold text-sm shadow transition"
@@ -1999,21 +2439,25 @@ export const ClubVerbsPage: React.FC = () => {
                     </button>
                   ) : (
                     <button
+                      disabled={isRecordingValidation}
                       onClick={() => {
                         goToBatch(selectedBatch + 1);
                         setScreenMode('selector');
                       }}
-                      className="px-6 py-3 bg-emerald-600 hover:bg-emerald-700 text-white rounded-2xl font-bold text-sm shadow transition"
+                      className="px-6 py-3 bg-emerald-600 hover:bg-emerald-700 disabled:opacity-60 disabled:cursor-wait text-white rounded-2xl font-bold text-sm shadow transition"
                     >
-                      Passer au Lot suivant →
+                      {isRecordingValidation ? 'Enregistrement du lot…' : 'Passer au Lot suivant →'}
                     </button>
                   )}
 
                   <button
-                    onClick={() => setScreenMode('selector')}
+                    onClick={() => {
+                      if (isBlacklistSession) setActiveTab('blacklisted');
+                      setScreenMode('selector');
+                    }}
                     className="px-6 py-3 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-2xl font-bold text-sm transition"
                   >
-                    Retour aux lots
+                    {isBlacklistSession ? 'Retour au Carnet' : 'Retour aux lots'}
                   </button>
                 </div>
               </div>
@@ -2104,7 +2548,7 @@ export const ClubVerbsPage: React.FC = () => {
                       <tr className="border-b border-slate-100 text-slate-400 text-[10px] sm:text-xs font-bold uppercase">
                         <th className="pb-2.5 sm:pb-3 pl-1 sm:pl-2">Rang</th>
                         <th className="pb-2.5 sm:pb-3">Joueur</th>
-                        <th className="pb-2.5 sm:pb-3 text-center">Lots</th>
+                        <th className="pb-2.5 sm:pb-3 text-center" title="Nombre de lots officiellement validés (≥ 30/30 ou tie-break)">Lots Validés</th>
                         <th className="pb-2.5 sm:pb-3 text-center">Verbes</th>
                         <th className="pb-2.5 sm:pb-3 text-right pr-1 sm:pr-2">En cours</th>
                       </tr>
@@ -2135,6 +2579,16 @@ export const ClubVerbsPage: React.FC = () => {
                                   aria-label="Maître des Verbes (Panthéon)"
                                 />
                               )}
+                              {player.badges && (
+                                <span className="inline-flex items-center gap-0.5 ml-1.5 align-middle">
+                                  {player.badges.sniper && (
+                                    <span title="Sniper : 3 lots consécutifs 30/30 du 1er coup" className="cursor-help text-xs">🎯</span>
+                                  )}
+                                  {player.badges.lightning && (
+                                    <span title="Éclair : Temps moyen < 4s par verbe" className="cursor-help text-xs">⚡</span>
+                                  )}
+                                </span>
+                              )}
                               {player.slug === profile?.slug && (
                                 <span className="ml-1 text-[9px] bg-emerald-100 text-emerald-800 px-1.5 py-0.2 rounded-full font-bold">
                                   Moi
@@ -2155,6 +2609,17 @@ export const ClubVerbsPage: React.FC = () => {
                       )}
                     </tbody>
                   </table>
+                </div>
+
+                {/* Légende des Badges de Prestige */}
+                <div className="mt-4 pt-3.5 border-t border-slate-100 flex flex-wrap items-center gap-x-4 gap-y-2 text-[11px] text-slate-500">
+                  <span className="font-extrabold uppercase text-slate-700 tracking-wide">Badges de Prestige :</span>
+                  <span className="inline-flex items-center gap-1">
+                    <span className="text-sm">🎯</span> <strong>Sniper</strong> (3 lots 30/30 d'affilée)
+                  </span>
+                  <span className="inline-flex items-center gap-1">
+                    <span className="text-sm">⚡</span> <strong>Éclair</strong> (&lt; 4s/mot en moyenne)
+                  </span>
                 </div>
               </div>
 
@@ -2204,6 +2669,118 @@ export const ClubVerbsPage: React.FC = () => {
                 </div>
               </div>
             </div>
+          </div>
+        )}
+
+        {/* ============================================================ */}
+        {/* ONGLET : LE CARNET DES BÊTES NOIRES (VERBES MAUDITS)         */}
+        {/* ============================================================ */}
+        {activeTab === 'blacklisted' && (
+          <div className="space-y-6">
+            {/* Bannière Header Bêtes Noires */}
+            <div className="bg-gradient-to-br from-slate-900 via-rose-950 to-slate-900 text-white rounded-3xl p-6 sm:p-8 shadow-xl border border-rose-800/40 relative overflow-hidden">
+              <div className="absolute right-0 top-0 translate-x-12 -translate-y-8 w-64 h-64 bg-rose-500/10 rounded-full blur-3xl pointer-events-none" />
+
+              <div className="relative z-10 flex flex-col sm:flex-row sm:items-center justify-between gap-5">
+                <div>
+                  <div className="flex flex-wrap items-center gap-2 mb-2">
+                    <span className="text-[10px] font-black uppercase tracking-widest bg-rose-500/20 text-rose-300 border border-rose-500/30 px-2.5 py-0.5 rounded-full flex items-center gap-1.5">
+                      <Target className="w-3.5 h-3.5" /> Entraînement Ciblé
+                    </span>
+                    <span className="text-xs font-bold text-rose-200">
+                      {profile?.blacklistedVerbs?.length || 0} bête{(profile?.blacklistedVerbs?.length || 0) > 1 ? 's' : ''} noire{(profile?.blacklistedVerbs?.length || 0) > 1 ? 's' : ''}
+                    </span>
+                  </div>
+                  <h2 className="text-2xl sm:text-3xl font-black text-white tracking-tight">
+                    Le Carnet des Bêtes Noires
+                  </h2>
+                  <p className="text-rose-100/80 text-xs sm:text-sm mt-1 max-w-xl leading-relaxed">
+                    Les verbes ratés lors de vos certifications et tie-breaks sont compilés ici. Lancez des sessions express de révision : chaque mot trouvé est immédiatement purgé de votre carnet !
+                  </p>
+                </div>
+
+                {(profile?.blacklistedVerbs?.length || 0) > 0 && (
+                  <button
+                    onClick={handleStartBlacklistSession}
+                    className="w-full sm:w-auto px-6 py-3.5 bg-gradient-to-r from-rose-500 to-red-600 hover:from-rose-600 hover:to-red-700 text-white font-black text-xs sm:text-sm rounded-2xl shadow-xl transition flex items-center justify-center gap-2 transform hover:-translate-y-0.5 shrink-0"
+                  >
+                    <Play className="w-4 h-4 fill-white shrink-0" />
+                    <span>Lancer la Session Express ({Math.min(20, profile?.blacklistedVerbs?.length || 0)} verbes)</span>
+                  </button>
+                )}
+              </div>
+            </div>
+
+            {/* Barre de Recherche dans les Bêtes Noires */}
+            <div className="bg-white rounded-2xl p-4 border border-slate-200 shadow-sm flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3">
+              <div className="relative flex-1">
+                <Search className="w-4 h-4 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2" />
+                <input
+                  type="text"
+                  value={blacklistSearchQuery}
+                  onChange={(e) => setBlacklistSearchQuery(e.target.value)}
+                  placeholder="Rechercher parmi vos bêtes noires (verbe, définition...)"
+                  className="w-full pl-9 pr-4 py-2 text-xs sm:text-sm bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:border-rose-500 focus:bg-white transition"
+                />
+              </div>
+              <div className="text-xs text-slate-500 font-semibold text-right shrink-0">
+                {filteredBlacklist.length} affiché{filteredBlacklist.length > 1 ? 's' : ''} sur {profile?.blacklistedVerbs?.length || 0}
+              </div>
+            </div>
+
+            {/* Liste des verbes maudits */}
+            {filteredBlacklist.length === 0 ? (
+              <div className="bg-white rounded-3xl p-10 sm:p-14 text-center border border-slate-200 shadow-sm">
+                <div className="w-16 h-16 bg-emerald-100 text-emerald-600 rounded-full flex items-center justify-center mx-auto mb-3.5">
+                  <CheckCircle2 className="w-8 h-8" />
+                </div>
+                <h3 className="font-black text-slate-800 text-lg sm:text-xl">
+                  {(profile?.blacklistedVerbs?.length || 0) === 0 ? 'Aucune bête noire au carnet !' : 'Aucun résultat trouvé'}
+                </h3>
+                <p className="text-slate-500 text-xs sm:text-sm mt-1 max-w-md mx-auto">
+                  {(profile?.blacklistedVerbs?.length || 0) === 0
+                    ? 'Impressionnant ! Tous les verbes affrontés ont été validés. Si vous manquez un mot lors d\'un prochain lot, il sera consigné ici automatiquement.'
+                    : 'Aucune bête noire ne correspond à votre recherche.'}
+                </p>
+              </div>
+            ) : (
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-3 sm:gap-3.5">
+                {filteredBlacklist.map((verb) => {
+                  const info = WORD_MAP[verb] || { details: '' };
+                  const rack = getAnagramRack(verb);
+                  return (
+                    <div
+                      key={verb}
+                      className="bg-white rounded-2xl p-4 border border-slate-200 shadow-sm hover:border-rose-300 transition flex items-start justify-between gap-3 group"
+                    >
+                      <div className="min-w-0 flex-1">
+                        <div className="flex items-center gap-2 mb-1.5 flex-wrap">
+                          <span translate="no" className="notranslate font-black text-base sm:text-lg text-slate-900 tracking-wide">
+                            {verb}
+                          </span>
+                          <span className="text-[10px] font-bold bg-slate-100 text-slate-600 px-1.5 py-0.5 rounded">
+                            {verb.length}L
+                          </span>
+                          <span translate="no" className="notranslate text-[10px] font-mono font-bold bg-amber-50 text-amber-800 border border-amber-200 px-1.5 py-0.5 rounded">
+                            {rack}
+                          </span>
+                        </div>
+                        <div className="text-xs text-slate-600">
+                          <VerbInfo word={verb} details={info.details} clampDefinition={true} />
+                        </div>
+                      </div>
+                      <button
+                        onClick={() => handleRemoveFromBlacklist(verb)}
+                        title="Retirer ce verbe du carnet"
+                        className="p-2 text-slate-300 hover:text-rose-600 hover:bg-rose-50 rounded-xl transition shrink-0 group-hover:text-slate-400"
+                      >
+                        <Trash2 className="w-4 h-4" />
+                      </button>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
           </div>
         )}
 

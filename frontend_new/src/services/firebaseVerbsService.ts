@@ -6,6 +6,7 @@ import {
   set,
   onValue,
   push,
+  runTransaction,
   Database,
   type Unsubscribe,
 } from 'firebase/database';
@@ -29,6 +30,11 @@ export interface ActiveSessionData {
   lastSaved: number;
 }
 
+export interface PlayerVerbBadges {
+  sniper?: boolean; // 3 lots consécutifs 30/30 du 1er coup
+  lightning?: boolean; // Temps moyen < 4s sur un lot complet
+}
+
 export interface PlayerVerbProfile {
   displayName: string;
   slug: string;
@@ -48,6 +54,12 @@ export interface PlayerVerbProfile {
   activeSession?: ActiveSessionData | null;
   /** Célébration « Maître des Verbes » (déblocage du Panthéon) déjà montrée à ce joueur. */
   pantheonCelebrated?: boolean;
+  /** Badges de prestige débloqués */
+  badges?: PlayerVerbBadges;
+  /** Nombre de lots 30/30 d'affilée (pour le badge Sniper) */
+  streak30Count?: number;
+  /** Carnet des Bêtes Noires (verbes ratés à réviser) */
+  blacklistedVerbs?: string[];
 }
 
 export interface ClubActivityEvent {
@@ -99,6 +111,49 @@ class FirebaseVerbsService {
     return s.slice(0, 60);
   }
 
+  private normalizeProfile(raw: any, slug: string, defaultName: string): PlayerVerbProfile {
+    const data = (raw || {}) as PlayerVerbProfile;
+    return {
+      displayName: data.displayName || defaultName,
+      slug: slug,
+      currentBatch: typeof data.currentBatch === 'number' ? data.currentBatch : 0,
+      completedBatches: typeof data.completedBatches === 'number' ? data.completedBatches : 0,
+      validatedBatches: Array.isArray(data.validatedBatches) ? data.validatedBatches : [],
+      drawIndex: typeof data.drawIndex === 'number' ? data.drawIndex : 0,
+      drawWords: Array.isArray(data.drawWords) ? data.drawWords : [],
+      masteredWordsCount: typeof data.masteredWordsCount === 'number' ? data.masteredWordsCount : 0,
+      streakDays: typeof data.streakDays === 'number' ? data.streakDays : 1,
+      lastActive: data.lastActive || new Date().toISOString(),
+      stats: data.stats || { totalDrawsAttempted: 0, totalDrawsCorrect: 0, bestValidationScore: 0 },
+      activeSession: data.activeSession || null,
+      pantheonCelebrated: data.pantheonCelebrated === true,
+      badges: data.badges || {},
+      streak30Count: typeof data.streak30Count === 'number' ? data.streak30Count : 0,
+      blacklistedVerbs: Array.isArray(data.blacklistedVerbs) ? data.blacklistedVerbs : [],
+    };
+  }
+
+  /** Remet à zéro la série Sniper sans réécrire le reste du profil. */
+  public async resetStreak30(slug: string): Promise<void> {
+    const localKey = `verb_player_${slug}`;
+    try {
+      const rawLocal = localStorage.getItem(localKey);
+      if (rawLocal) {
+        const p = JSON.parse(rawLocal);
+        p.streak30Count = 0;
+        localStorage.setItem(localKey, JSON.stringify(p));
+      }
+    } catch {}
+
+    if (this.isConnected && this.db) {
+      try {
+        await set(ref(this.db, `verb_mastery/players/${slug}/streak30Count`), 0);
+      } catch (err) {
+        console.warn('Erreur reset streak30Count:', err);
+      }
+    }
+  }
+
   public async loadPlayerProfile(slug: string, defaultName: string): Promise<PlayerVerbProfile | null> {
     if (!slug || ['ANTIGRAVITY', 'JOUEUR', 'MEMBRE'].includes(slug.toUpperCase())) {
       localStorage.removeItem(`verb_player_${slug}`);
@@ -113,22 +168,7 @@ class FirebaseVerbsService {
         const playerRef = ref(this.db, `verb_mastery/players/${slug}`);
         const snap = await get(playerRef);
         if (snap.exists()) {
-          const data = snap.val() as PlayerVerbProfile;
-          const profile: PlayerVerbProfile = {
-            displayName: data.displayName || defaultName,
-            slug: slug,
-            currentBatch: typeof data.currentBatch === 'number' ? data.currentBatch : 0,
-            completedBatches: typeof data.completedBatches === 'number' ? data.completedBatches : 0,
-            validatedBatches: Array.isArray(data.validatedBatches) ? data.validatedBatches : [],
-            drawIndex: typeof data.drawIndex === 'number' ? data.drawIndex : 0,
-            drawWords: Array.isArray(data.drawWords) ? data.drawWords : [],
-            masteredWordsCount: typeof data.masteredWordsCount === 'number' ? data.masteredWordsCount : 0,
-            streakDays: typeof data.streakDays === 'number' ? data.streakDays : 1,
-            lastActive: data.lastActive || new Date().toISOString(),
-            stats: data.stats || { totalDrawsAttempted: 0, totalDrawsCorrect: 0, bestValidationScore: 0 },
-            activeSession: data.activeSession || null,
-            pantheonCelebrated: data.pantheonCelebrated === true,
-          };
+          const profile = this.normalizeProfile(snap.val(), slug, defaultName);
           localStorage.setItem(localKey, JSON.stringify(profile));
           return profile;
         } else {
@@ -163,6 +203,9 @@ class FirebaseVerbsService {
         totalDrawsCorrect: 0,
         bestValidationScore: 0,
       },
+      badges: {},
+      streak30Count: 0,
+      blacklistedVerbs: [],
     };
     await this.savePlayerProfile(newProfile);
     return newProfile;
@@ -187,34 +230,57 @@ class FirebaseVerbsService {
     slug: string,
     playerName: string,
     batchNumber: number,
-    score: number
-  ): Promise<void> {
-    let profile = await this.loadPlayerProfile(slug, playerName);
-    if (!profile) {
-      profile = await this.createPlayerProfile(playerName);
+    score: number,
+    extraUpdates?: {
+      badges?: PlayerVerbBadges;
+      streak30Count?: number;
     }
-    if (!profile.validatedBatches.includes(batchNumber)) {
-      profile.validatedBatches.push(batchNumber);
-      profile.validatedBatches.sort((a, b) => a - b);
-    }
-    profile.completedBatches = profile.validatedBatches.length;
-    profile.masteredWordsCount = profile.completedBatches * 30;
-    profile.currentBatch = Math.max(profile.currentBatch, batchNumber); // unlock next batch (batchNumber is 1-indexed)
-    profile.drawIndex = 0;
-    profile.drawWords = [];
-    profile.activeSession = null;
+  ): Promise<PlayerVerbProfile> {
+    // Transaction sur le nœud du joueur : on part TOUJOURS de l'état serveur et on n'ajoute que ce lot.
+    // Un set() du profil complet pouvait réécrire une liste périmée et effacer des lots déjà validés.
+    const applyValidation = (data: any): PlayerVerbProfile => {
+      const base: any = data && typeof data === 'object' ? { ...data } : {};
+      const list: number[] = Array.isArray(base.validatedBatches) ? [...base.validatedBatches] : [];
+      if (!list.includes(batchNumber)) list.push(batchNumber);
+      list.sort((a, b) => a - b);
+      base.displayName = base.displayName || playerName.trim().toUpperCase();
+      base.slug = slug;
+      base.validatedBatches = list;
+      base.completedBatches = list.length;
+      base.masteredWordsCount = list.length * 30;
+      base.currentBatch = Math.max(typeof base.currentBatch === 'number' ? base.currentBatch : 0, batchNumber); // batchNumber 1-indexé = index du lot suivant
+      base.drawIndex = 0;
+      base.drawWords = [];
+      base.activeSession = null;
+      base.lastActive = new Date().toISOString();
+      if (!base.stats) base.stats = { totalDrawsAttempted: 0, totalDrawsCorrect: 0, bestValidationScore: 0 };
+      if (typeof base.streakDays !== 'number') base.streakDays = 1;
+      if (extraUpdates?.badges) base.badges = { ...(base.badges || {}), ...extraUpdates.badges };
+      if (typeof extraUpdates?.streak30Count === 'number') base.streak30Count = extraUpdates.streak30Count;
+      return base;
+    };
 
-    await this.savePlayerProfile(profile);
-
-    // Nettoyage de la session active sur Firebase
+    let profile: PlayerVerbProfile | null = null;
     if (this.isConnected && this.db) {
       try {
-        const sessionRef = ref(this.db, `verb_mastery/players/${slug}/activeSession`);
-        await set(sessionRef, null);
+        const playerRef = ref(this.db, `verb_mastery/players/${slug}`);
+        const result = await runTransaction(playerRef, (current) => applyValidation(current));
+        if (result.committed && result.snapshot.exists()) {
+          profile = this.normalizeProfile(result.snapshot.val(), slug, playerName);
+        }
       } catch (err) {
-        console.warn('Erreur reset activeSession:', err);
+        console.warn('Erreur transaction validation de lot:', err);
       }
     }
+    if (!profile) {
+      // Hors-ligne : mise à jour du cache local uniquement
+      let local: any = null;
+      try {
+        local = JSON.parse(localStorage.getItem(`verb_player_${slug}`) || 'null');
+      } catch {}
+      profile = this.normalizeProfile(applyValidation(local), slug, playerName);
+    }
+    localStorage.setItem(`verb_player_${slug}`, JSON.stringify(profile));
 
     // Publication de l'activité du club
     if (this.isConnected && this.db) {
@@ -231,6 +297,8 @@ class FirebaseVerbsService {
         console.warn('Erreur ajout événement activité club:', err);
       }
     }
+
+    return profile;
   }
 
   public async saveActiveSession(slug: string, session: ActiveSessionData): Promise<void> {
@@ -295,6 +363,61 @@ class FirebaseVerbsService {
         await set(flagRef, true);
       } catch (err) {
         console.warn('Erreur sauvegarde pantheonCelebrated:', err);
+      }
+    }
+  }
+
+  /** Ajoute un verbe raté au carnet des bêtes noires du joueur */
+  public async addBlacklistedVerb(slug: string, verb: string): Promise<void> {
+    const localKey = `verb_player_${slug}`;
+    try {
+      const rawLocal = localStorage.getItem(localKey);
+      if (rawLocal) {
+        const p = JSON.parse(rawLocal);
+        const list = Array.isArray(p.blacklistedVerbs) ? p.blacklistedVerbs : [];
+        if (!list.includes(verb)) {
+          p.blacklistedVerbs = [verb, ...list];
+          localStorage.setItem(localKey, JSON.stringify(p));
+        }
+      }
+    } catch {}
+
+    if (this.isConnected && this.db) {
+      try {
+        const listRef = ref(this.db, `verb_mastery/players/${slug}/blacklistedVerbs`);
+        const snap = await get(listRef);
+        const current: string[] = snap.exists() && Array.isArray(snap.val()) ? snap.val() : [];
+        if (!current.includes(verb)) {
+          await set(listRef, [verb, ...current]);
+        }
+      } catch (err) {
+        console.warn('Erreur ajout bête noire:', err);
+      }
+    }
+  }
+
+  /** Retire un verbe maîtrisé du carnet des bêtes noires du joueur */
+  public async removeBlacklistedVerb(slug: string, verb: string): Promise<void> {
+    const localKey = `verb_player_${slug}`;
+    try {
+      const rawLocal = localStorage.getItem(localKey);
+      if (rawLocal) {
+        const p = JSON.parse(rawLocal);
+        p.blacklistedVerbs = (p.blacklistedVerbs || []).filter((w: string) => w !== verb);
+        localStorage.setItem(localKey, JSON.stringify(p));
+      }
+    } catch {}
+
+    if (this.isConnected && this.db) {
+      try {
+        const listRef = ref(this.db, `verb_mastery/players/${slug}/blacklistedVerbs`);
+        const snap = await get(listRef);
+        if (snap.exists() && Array.isArray(snap.val())) {
+          const updated = snap.val().filter((w: string) => w !== verb);
+          await set(listRef, updated);
+        }
+      } catch (err) {
+        console.warn('Erreur suppression bête noire:', err);
       }
     }
   }
