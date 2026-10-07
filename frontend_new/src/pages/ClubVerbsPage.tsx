@@ -511,7 +511,6 @@ export const ClubVerbsPage: React.FC = () => {
   const [timeLeft, setTimeLeft] = useState(20);
   const [isPaused, setIsPaused] = useState(false);
   const [showSolution, setShowSolution] = useState(false);
-  const [lastAnswerCorrect, setLastAnswerCorrect] = useState<boolean | null>(null);
   const [sessionErrors, setSessionErrors] = useState<string[]>([]);
   const [validationScore, setValidationScore] = useState(0);
   const [foundSolutions, setFoundSolutions] = useState<string[]>([]);
@@ -938,7 +937,6 @@ export const ClubVerbsPage: React.FC = () => {
         totalTimeSpentRef.current += elapsedSeconds;
 
         playChime('correct');
-        setLastAnswerCorrect(true);
         if (isValidationSession || isTieBreakSession || isBlacklistSession) {
           setValidationScore((prev) => prev + 1);
         }
@@ -987,7 +985,6 @@ export const ClubVerbsPage: React.FC = () => {
     totalTimeSpentRef.current += elapsedSeconds;
 
     playChime('wrong');
-    setLastAnswerCorrect(false);
     if (!sessionErrors.includes(targetWord)) {
       setSessionErrors((prev) => [...prev, targetWord]);
     }
