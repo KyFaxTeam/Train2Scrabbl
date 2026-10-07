@@ -501,19 +501,11 @@ export const ClubVerbsPage: React.FC = () => {
   const [isBlacklistSession, setIsBlacklistSession] = useState(false);
   /** Validation en cours d'écriture : le bouton « Lot suivant » attend que le lot soit bien enregistré. */
   const [isRecordingValidation, setIsRecordingValidation] = useState(false);
-  const [autoValidate, setAutoValidate] = useState<boolean>(() => localStorage.getItem('faizers_auto_validate') !== 'false');
   const [badgeToast, setBadgeToast] = useState<{ title: string; icon: string; desc: string } | null>(null);
   const [blacklistSearchQuery, setBlacklistSearchQuery] = useState('');
   const wordStartTimeRef = useRef<number>(Date.now());
   const totalTimeSpentRef = useRef<number>(0);
 
-  const toggleAutoValidate = () => {
-    setAutoValidate((prev) => {
-      const next = !prev;
-      localStorage.setItem('faizers_auto_validate', String(next));
-      return next;
-    });
-  };
   const [sessionWords, setSessionWords] = useState<string[]>([]);
   const [currentIndex, setCurrentIndex] = useState(0);
   const [userInput, setUserInput] = useState('');
@@ -972,7 +964,7 @@ export const ClubVerbsPage: React.FC = () => {
     setUserInput(raw);
     if (inputFeedback) setInputFeedback(null);
 
-    if (autoValidate && !showSolution && targetWord) {
+    if (!showSolution && targetWord) {
       const candidate = normalizeStr(raw.trim());
       if (
         allSolutions.some((s) => s.length === candidate.length) &&
@@ -1066,6 +1058,19 @@ export const ClubVerbsPage: React.FC = () => {
       finishSession();
     }
   };
+
+  // Sur ordi : Entrée passe au tirage suivant sans attendre l'auto-avance (même effet que « Suivant → »)
+  useEffect(() => {
+    if (!showSolution) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key !== 'Enter' || e.repeat) return;
+      e.preventDefault();
+      setIsPaused(false);
+      handleNextTurn();
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  });
 
   const finishSession = async () => {
     setScreenMode('summary');
@@ -2099,27 +2104,10 @@ export const ClubVerbsPage: React.FC = () => {
                   {/* Formulaire de Saisie */}
                   {!showSolution ? (
                     <form onSubmit={handleSubmitAnswer} className="max-w-md mx-auto space-y-3 sm:space-y-4 w-full">
-                      {/* Contrôle Auto-Validation & Indications */}
-                      <div className="flex items-center justify-between text-xs text-slate-500 px-1">
-                        <span className="text-[11px] font-semibold text-slate-400">
-                          {allSolutions.length > 1
-                            ? `${allSolutions.length} verbes attendus`
-                            : '1 verbe attendu'}
-                        </span>
-                        <button
-                          type="button"
-                          onClick={toggleAutoValidate}
-                          className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg font-bold text-[11px] transition ${
-                            autoValidate
-                              ? 'bg-amber-100 text-amber-900 border border-amber-300 shadow-xs'
-                              : 'bg-slate-100 text-slate-500 border border-slate-200 hover:bg-slate-200'
-                          }`}
-                          title="Valide instantanément dès que le mot tapé est correct"
-                        >
-                          <Zap className={`w-3.5 h-3.5 ${autoValidate ? 'text-amber-600 fill-amber-500' : 'text-slate-400'}`} />
-                          <span>Auto-validation : <strong>{autoValidate ? 'ON' : 'OFF'}</strong></span>
-                        </button>
-                      </div>
+                      {/* Indication (le badge « N verbes à trouver » couvre déjà le cas multiple) */}
+                      {allSolutions.length === 1 && (
+                        <p className="text-[11px] font-semibold text-slate-400">1 verbe attendu</p>
+                      )}
 
                       <div className="flex items-center gap-1.5 sm:gap-2 w-full">
                         <input
@@ -2146,18 +2134,10 @@ export const ClubVerbsPage: React.FC = () => {
                           Valider
                         </button>
                       </div>
-                      {inputFeedback ? (
+                      {inputFeedback && (
                         <p className="text-xs font-bold text-amber-700 bg-amber-50 py-1.5 px-3 rounded-xl border border-amber-300 animate-pulse flex items-center justify-center gap-1.5 shadow-xs">
                           <AlertCircle className="w-3.5 h-3.5 shrink-0 text-amber-600" />
                           <span>{inputFeedback}</span>
-                        </p>
-                      ) : (
-                        <p className="text-[10px] sm:text-[11px] text-slate-400">
-                          {autoValidate 
-                            ? '⚡ Validation instantanée active dès que le mot est complet et correct !'
-                            : allSolutions.length > 1 
-                              ? 'Entrez chaque solution puis validez avec la touche Entrée (+5s bonus par verbe trouvé)' 
-                              : 'Appuyez sur Entrée pour valider directement'}
                         </p>
                       )}
                     </form>
@@ -2261,6 +2241,7 @@ export const ClubVerbsPage: React.FC = () => {
                           className="px-5 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-bold transition flex items-center gap-1.5 shadow"
                         >
                           Suivant →
+                          <kbd className="hidden sm:inline ml-1 px-1 rounded bg-emerald-700/60 text-[10px] font-semibold">Entrée</kbd>
                         </button>
                       </div>
                     </motion.div>
