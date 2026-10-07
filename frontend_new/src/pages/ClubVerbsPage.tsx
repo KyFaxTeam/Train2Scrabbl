@@ -6,7 +6,6 @@ import {
   Trophy,
   Flame,
   CheckCircle2,
-  XCircle,
   Clock,
   Sparkles,
   BookOpen,
@@ -2077,8 +2076,8 @@ export const ClubVerbsPage: React.FC = () => {
                     ))}
                   </div>
 
-                  {/* Indicateur Multi-Solutions */}
-                  {allSolutions.length > 1 && (
+                  {/* Indicateur Multi-Solutions (masqué au résultat : les cartes de solution le remplacent) */}
+                  {allSolutions.length > 1 && !showSolution && (
                     <div className="mb-5 max-w-md mx-auto">
                       <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-indigo-50 border border-indigo-200 text-indigo-700 text-xs font-black uppercase tracking-wider mb-2.5">
                         <Sparkles className="w-3.5 h-3.5 text-indigo-600" />
@@ -2163,32 +2162,10 @@ export const ClubVerbsPage: React.FC = () => {
                       ref={solutionPanelRef}
                       initial={{ scale: 0.95, opacity: 0 }}
                       animate={{ scale: 1, opacity: 1 }}
-                      className={`scroll-mb-24 scroll-mt-4 p-4 sm:p-6 rounded-2xl border-2 max-w-md mx-auto ${
-                        lastAnswerCorrect
-                          ? 'bg-emerald-50 border-emerald-300'
-                          : 'bg-red-50 border-red-300'
-                      }`}
+                      className="scroll-mb-24 scroll-mt-4 max-w-md mx-auto"
                     >
-                      <div className="flex items-center justify-center gap-2 mb-2">
-                        {lastAnswerCorrect ? (
-                          <>
-                            <CheckCircle2 className="w-5 h-5 sm:w-6 sm:h-6 text-emerald-600" />
-                            <span className="font-black text-emerald-800 text-base sm:text-lg">
-                              {allSolutions.length > 1 ? 'Toutes les solutions trouvées !' : 'Excellent réflexe !'}
-                            </span>
-                          </>
-                        ) : (
-                          <>
-                            <XCircle className="w-5 h-5 sm:w-6 sm:h-6 text-red-600" />
-                            <span className="font-black text-red-800 text-base sm:text-lg">
-                              Temps écoulé ou incomplet
-                            </span>
-                          </>
-                        )}
-                      </div>
-
-                      {/* Liste de toutes les solutions avec leurs définitions */}
-                      <div className="space-y-2 my-3">
+                      {/* Solutions : le badge Trouvé / Non trouvé suffit, pas de titre ni de cadre autour */}
+                      <div className="space-y-2 mb-3">
                         {allSolutions.map((sol) => {
                           const info = WORD_MAP[sol] || { details: '' };
                           const wasFound = foundSolutions.includes(sol);
@@ -2198,7 +2175,7 @@ export const ClubVerbsPage: React.FC = () => {
                               className={`p-2.5 sm:p-3 rounded-xl border text-left transition ${
                                 wasFound
                                   ? 'bg-emerald-100/70 border-emerald-300'
-                                  : 'bg-white border-slate-200'
+                                  : 'bg-red-50/60 border-red-200'
                               }`}
                             >
                               <div className="flex items-center justify-between">
