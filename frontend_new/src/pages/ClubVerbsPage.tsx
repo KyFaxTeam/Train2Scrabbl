@@ -1271,15 +1271,11 @@ export const ClubVerbsPage: React.FC = () => {
                 <h1 className="font-extrabold text-sm sm:text-xl tracking-tight text-lexis-slate truncate">
                   FAIZERS <span className="text-emerald-600 font-semibold text-xs sm:text-sm">VERBES</span>
                 </h1>
-                <span className="bg-emerald-100 text-emerald-800 text-[9px] sm:text-[10px] font-bold px-1.5 sm:px-2 py-0.2 rounded-full flex items-center gap-1 shrink-0">
-                  <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></span>
-                  <span className="hidden sm:inline">Firebase Club</span>
-                  <span className="sm:hidden">ODS</span>
-                </span>
               </div>
               <p className="text-[11px] text-slate-500 hidden sm:block">
-                {MASTER_TIER_VERBS.toLocaleString('fr-FR')} verbes ODS • {MASTER_TIER_BATCHES} lots Maître Club
-                {HAS_ELITE_TIER ? ' • + Panthéon bonus' : ''} • Certification collective
+                {/* Panthéon débloqué : on affiche le total, palier bonus compris */}
+                {(isPantheonUnlocked ? MASTER_TIER_VERBS + ELITE_TIER_VERBS : MASTER_TIER_VERBS).toLocaleString('fr-FR')} verbes •{' '}
+                {isPantheonUnlocked ? TOTAL_BATCHES : MASTER_TIER_BATCHES} lots
               </p>
             </div>
           </div>
