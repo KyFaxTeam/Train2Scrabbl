@@ -525,6 +525,7 @@ export const ClubVerbsPage: React.FC = () => {
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const autoAdvanceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const inputRef = useRef<HTMLInputElement | null>(null);
+  const solutionPanelRef = useRef<HTMLDivElement | null>(null);
 
   // Paliers : Maître Club (1-125) → Panthéon ODS (126+)
   const [codexTier, setCodexTier] = useState<'master' | 'elite'>('master');
@@ -1058,6 +1059,15 @@ export const ClubVerbsPage: React.FC = () => {
       finishSession();
     }
   };
+
+  // Sur mobile, le panneau de résultat tombait sous le pli (le clavier qui se ferme décale la page) : on le ramène à l'écran
+  useEffect(() => {
+    if (!showSolution) return;
+    const t = setTimeout(() => {
+      solutionPanelRef.current?.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+    }, 250);
+    return () => clearTimeout(t);
+  }, [showSolution]);
 
   // Sur ordi : Entrée passe au tirage suivant sans attendre l'auto-avance (même effet que « Suivant → »)
   useEffect(() => {
@@ -2103,7 +2113,7 @@ export const ClubVerbsPage: React.FC = () => {
 
                   {/* Formulaire de Saisie */}
                   {!showSolution ? (
-                    <form onSubmit={handleSubmitAnswer} className="max-w-md mx-auto space-y-3 sm:space-y-4 w-full">
+                    <form onSubmit={handleSubmitAnswer} autoComplete="off" className="max-w-md mx-auto space-y-3 sm:space-y-4 w-full">
                       {/* Indication (le badge « N verbes à trouver » couvre déjà le cas multiple) */}
                       {allSolutions.length === 1 && (
                         <p className="text-[11px] font-semibold text-slate-400">1 verbe attendu</p>
@@ -2112,12 +2122,18 @@ export const ClubVerbsPage: React.FC = () => {
                       <div className="flex items-center gap-1.5 sm:gap-2 w-full">
                         <input
                           ref={inputRef}
-                          type="text"
+                          // type="search" + name neutre : Chrome Android n'affiche plus sa barre
+                          // d'autoremplissage (mots de passe, cartes, adresses) au-dessus du clavier
+                          type="search"
+                          name="anagramme-verbe"
+                          enterKeyHint="go"
+                          data-lpignore="true"
+                          data-form-type="other"
                           value={userInput}
                           onChange={handleInputChange}
                           placeholder={allSolutions.length > 1 ? `Tapez les ${allSolutions.length} verbes...` : "Tapez l'infinitif..."}
                           translate="no"
-                          className="notranslate flex-1 min-w-0 px-2.5 sm:px-4 py-2.5 sm:py-3.5 text-center text-base sm:text-xl font-black uppercase tracking-wider bg-slate-50 border-2 border-slate-300 rounded-xl sm:rounded-2xl focus:outline-none focus:border-emerald-500 focus:bg-white transition"
+                          className="notranslate [&::-webkit-search-cancel-button]:appearance-none flex-1 min-w-0 px-2.5 sm:px-4 py-2.5 sm:py-3.5 text-center text-base sm:text-xl font-black uppercase tracking-wider bg-slate-50 border-2 border-slate-300 rounded-xl sm:rounded-2xl focus:outline-none focus:border-emerald-500 focus:bg-white transition"
                           autoComplete="off"
                           autoCapitalize="characters"
                           autoCorrect="off"
@@ -2144,9 +2160,10 @@ export const ClubVerbsPage: React.FC = () => {
                   ) : (
                     /* Révélation de la Solution */
                     <motion.div
+                      ref={solutionPanelRef}
                       initial={{ scale: 0.95, opacity: 0 }}
                       animate={{ scale: 1, opacity: 1 }}
-                      className={`p-4 sm:p-6 rounded-2xl border-2 max-w-md mx-auto ${
+                      className={`scroll-mb-24 scroll-mt-4 p-4 sm:p-6 rounded-2xl border-2 max-w-md mx-auto ${
                         lastAnswerCorrect
                           ? 'bg-emerald-50 border-emerald-300'
                           : 'bg-red-50 border-red-300'
