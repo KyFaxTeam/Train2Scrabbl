@@ -547,8 +547,8 @@ const TrainingPage: React.FC = () => {
                         {aucunVerbe.connecte ? 'Aucun verbe joué pour l’instant' : 'Connecte-toi dans Verbes Club'}
                     </h2>
                     <p className="text-sm text-slate-500 leading-relaxed">
-                        L’entraînement « Verbes du club » ne reprend que les verbes que <strong>toi</strong> as déjà joués,
-                        conjugués et cachés dans des scrabbles.{' '}
+                        L’entraînement « Verbes du club » reprend les verbes de <strong>tes</strong> lots, jusqu’à celui où
+                        tu en es, conjugués et cachés dans des scrabbles.{' '}
                         {aucunVerbe.connecte ? 'Joue un premier lot, puis reviens ici.' : 'Choisis ton pseudo, puis reviens ici.'}
                     </p>
                 </div>
