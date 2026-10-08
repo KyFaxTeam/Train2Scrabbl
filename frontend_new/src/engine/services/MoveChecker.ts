@@ -75,7 +75,7 @@ export class MoveChecker {
         const refuse = (reason: string): MoveVerdict => ({ legal: false, reason, tilesUsed: placed.length });
 
         if (placed.length === 0) {
-            return refuse('Aucune lettre posee : place tes jetons sur le plateau.');
+            return refuse('Aucune lettre posée : place tes jetons sur le plateau.');
         }
 
         for (const tile of placed) {
@@ -83,14 +83,14 @@ export class MoveChecker {
                 return refuse('Une lettre est hors du plateau.');
             }
             if (this.board.getLetter(tile.row, tile.col) !== null) {
-                return refuse('Une lettre est posee sur une case deja occupee.');
+                return refuse('Une lettre est posée sur une case déjà occupée.');
             }
         }
 
         const rows = new Set(placed.map(t => t.row));
         const cols = new Set(placed.map(t => t.col));
         if (rows.size > 1 && cols.size > 1) {
-            return refuse('Toutes les lettres posees doivent etre sur une meme ligne ou une meme colonne.');
+            return refuse('Toutes les lettres posées doivent être sur une même ligne ou une même colonne.');
         }
 
         // Une seule lettre posee : la direction est ambigue. On essaie les deux
@@ -98,7 +98,7 @@ export class MoveChecker {
         const directions: ('H' | 'V')[] =
             placed.length === 1 ? ['H', 'V'] : [rows.size === 1 ? 'H' : 'V'];
 
-        let lastRefusal = 'Ce coup ne peut pas etre joue.';
+        let lastRefusal = 'Ce coup ne peut pas être joué.';
         let best: MoveVerdict | null = null;
 
         for (const direction of directions) {
@@ -130,14 +130,14 @@ export class MoveChecker {
         for (let i = varying[0]; i <= varying[varying.length - 1]; i++) {
             const cell = vertical ? grid[i][fixed] : grid[fixed][i];
             if (cell === null) {
-                return refuse('Les lettres posees doivent se suivre, sans case vide entre elles.');
+                return refuse('Les lettres posées doivent se suivre, sans case vide entre elles.');
             }
         }
 
         // Raccordement : au moins un jeton pose touche une lettre du plateau.
         const connected = placed.some(tile => this.board.isAdjacentToLetter(tile.row, tile.col));
         if (!connected && !this.board.isEmpty()) {
-            return refuse('Le coup doit toucher une lettre deja posee sur le plateau.');
+            return refuse('Le coup doit toucher une lettre déjà posée sur le plateau.');
         }
 
         // Mot principal, prolonge des deux cotes par les lettres contigues.
@@ -152,7 +152,7 @@ export class MoveChecker {
         }
 
         if (word.length < 2) {
-            return refuse('Un coup doit former un mot d au moins deux lettres.');
+            return refuse('Un coup doit former un mot d’au moins deux lettres.');
         }
 
         const row = vertical ? start : fixed;

@@ -16,6 +16,7 @@ interface BoardTileProps {
     size?: 'sm' | 'md';
     draggable?: boolean;
     onDragStart?: (e: React.DragEvent) => void;
+    onTouchStart?: (e: React.TouchEvent) => void;
 }
 
 export const BoardTile: React.FC<BoardTileProps> = ({
@@ -26,6 +27,7 @@ export const BoardTile: React.FC<BoardTileProps> = ({
     size = 'md',
     draggable = false,
     onDragStart,
+    onTouchStart,
 }) => {
     const points = LETTER_POINTS[letter.toUpperCase()] || 0;
 
@@ -40,6 +42,7 @@ export const BoardTile: React.FC<BoardTileProps> = ({
         <div
             draggable={draggable}
             onDragStart={onDragStart}
+            onTouchStart={onTouchStart}
             className={clsx(
                 sizeClasses,
                 "relative flex items-center justify-center font-bold font-mono select-none",
@@ -50,6 +53,8 @@ export const BoardTile: React.FC<BoardTileProps> = ({
                 !isSolution && !isAnchor && !isPlaced && "bg-[var(--color-tile-anchor)] text-[var(--color-tile-anchor-text)]"
             )}
             style={{
+                // Un jeton qu'on peut deplacer ne doit pas faire defiler le plateau zoome
+                touchAction: draggable ? 'none' : undefined,
                 boxShadow: isPlaced
                     ? 'var(--color-tile-placed-shadow), inset 0 1px 0 rgba(255,255,255,0.3)'
                     : isAnchor

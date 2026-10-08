@@ -69,7 +69,7 @@ export class WordValidator {
             const existing = grid[r][c];
             if (existing !== null) {
                 if (existing !== word[i]) {
-                    return invalid(`La case (${r},${c}) porte deja un ${existing}`);
+                    return invalid(`La case (${r},${c}) porte déjà un ${existing}`);
                 }
                 touchesExisting = true;
             } else {
@@ -79,7 +79,7 @@ export class WordValidator {
         }
 
         if (placedCells === 0) {
-            return invalid('Aucune lettre posee');
+            return invalid('Aucune lettre posée');
         }
 
         if (checkConnection && !this.board.isEmpty()) {
@@ -104,7 +104,7 @@ export class WordValidator {
             const crossWord = this.readWord(grid, r, c, !vertical, 1);
             if (crossWord.length <= 1) continue;
             if (!this.isValidWord(crossWord)) {
-                return { isValid: false, message: `Mot croise inexistant : ${crossWord}`, mainWord, wordsFormed };
+                return { isValid: false, message: `Mot croisé inexistant : ${crossWord}`, mainWord, wordsFormed };
             }
             wordsFormed.push(crossWord);
         }

@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
+import React, { useState, useEffect, useLayoutEffect, useCallback, useMemo, useRef } from 'react';
 import { generateBatch } from '../services/trainingService';
 import type { Puzzle, TrainingMode } from '../services/trainingService';
 import { pseudoCourant } from '../services/verbTargetsService';
@@ -11,9 +11,10 @@ import { useTouchDragDrop } from '../hooks/useTouchDragDrop';
 import type { XPReward, WordMastery } from '../types';
 import { clsx } from 'clsx';
 import confetti from 'canvas-confetti';
-import { RefreshCw, Check, Eye, Flame, Star, Loader2, AlertTriangle, Undo2 } from 'lucide-react';
+import { RefreshCw, Check, Eye, Flame, Star, Loader2, AlertTriangle, Undo2, Shuffle, ArrowRight, ZoomIn, ZoomOut, X } from 'lucide-react';
 
 const MODE_KEY = 'faizers_training_mode';
+const ZOOM_KEY = 'faizers_training_zoom';
 
 function modeInitial(): TrainingMode {
     try {
@@ -61,28 +62,57 @@ const TrainingPage: React.FC = () => {
     const [mode, setMode] = useState<TrainingMode>(modeInitial);
     const pseudo = useMemo(() => pseudoCourant(), []);
 
-    // Le plateau prend le plus grand carre qui tient dans l'espace libre : avant,
-    // seule la largeur comptait, et sur un ecran peu haut le bas du plateau
-    // passait sous le chevalet.
+    // Le plateau prend le plus grand carre qui tient dans l'espace libre. Sur un
+    // ecran tout en hauteur (telephone) ce carre laisse du vide au-dessus et en
+    // dessous : la loupe agrandit alors le plateau a toute la hauteur, et on le
+    // fait defiler de cote. Les cases passent de ~24 a ~40 px a 375 px de large.
     const boardAreaRef = useRef<HTMLDivElement>(null);
-    const [boardSize, setBoardSize] = useState<number | null>(null);
+    const boardScrollRef = useRef<HTMLDivElement>(null);
+    const [area, setArea] = useState<{ w: number; h: number } | null>(null);
+    // null : pas de choix du joueur - on zoome d'office sur telephone
+    const [zoom, setZoom] = useState<boolean | null>(() => {
+        try {
+            const v = localStorage.getItem(ZOOM_KEY);
+            return v === null ? null : v === '1';
+        } catch { return null; }
+    });
+    const basculerZoom = () => {
+        const z = !zoomActif;
+        try { localStorage.setItem(ZOOM_KEY, z ? '1' : '0'); } catch { /* preference non conservee */ }
+        setZoom(z);
+    };
     useEffect(() => {
         const el = boardAreaRef.current;
         if (!el) return;
         const ro = new ResizeObserver(([entry]) => {
             const { width, height } = entry.contentRect;
-            setBoardSize(Math.max(200, Math.floor(Math.min(width, height))));
+            setArea({ w: Math.floor(width), h: Math.floor(height) });
         });
         ro.observe(el);
         return () => ro.disconnect();
     });
+    const MARGE = 8;
+    const tailleAjustee = area ? Math.max(200, Math.min(area.w, area.h) - MARGE) : null;
+    const tailleZoom = area ? Math.min(Math.max(area.w, area.h) - MARGE, 760) : null;
+    // La loupe n'a de sens que si elle agrandit nettement le plateau
+    const zoomUtile = !!(tailleAjustee && tailleZoom && tailleZoom > tailleAjustee * 1.2);
+    // Telephone (zone etroite et plus haute que large) : loupe d'office
+    const telephone = !!area && area.w < 520 && area.h > area.w * 1.1;
+    const zoomActif = zoomUtile && (zoom ?? telephone);
+    const boardSize = zoomActif ? tailleZoom : tailleAjustee;
 
     const currentPuzzle = puzzles[currentPuzzleIndex];
+
+    /** Le joueur reprend la main apres un refus : le message et le bouton rouge s'effacent. */
+    const effacerRefus = () => {
+        setRefusal(null);
+        setFeedback(f => (f === 'refused' ? 'idle' : f));
+    };
 
     // D&D: drop handler used by both desktop and touch
     const handleDropTile = useCallback((rackId: number, row: number, col: number) => {
         const puzzle = puzzles[currentPuzzleIndex];
-        if (!puzzle) return;
+        if (!puzzle || revealSolution) return;
         const isInitial = puzzle.boardConfig.initialTiles.some(t => t.row === row && t.col === col);
         if (isInitial) return;
 
@@ -101,10 +131,40 @@ const TrainingPage: React.FC = () => {
         });
         setRackTiles(prev => prev.map(t => t.id === rackId ? { ...t, used: true } : t));
         setSelectedRackTile(null);
-        setRefusal(null);
-    }, [puzzles, currentPuzzleIndex, placedTiles, rackTiles]);
+        effacerRefus();
+    }, [puzzles, currentPuzzleIndex, placedTiles, rackTiles, revealSolution]);
 
-    const { dragState, handleTouchStart, handleTouchMove, handleTouchEnd } = useTouchDragDrop(handleDropTile);
+    /**
+     * Range un jeton a la place `slot` du chevalet. Venant du chevalet, il change
+     * de place (on reordonne ses lettres) ; venant du plateau, il y est repris.
+     */
+    const handleRackDrop = useCallback((rackId: number, slot: number) => {
+        if (revealSolution) return;
+        setPlacedTiles(prev => prev.filter(t => t.rackId !== rackId));
+        setRackTiles(prev => {
+            const from = prev.findIndex(t => t.id === rackId);
+            if (from === -1) return prev;
+            const reste = prev.filter((_, i) => i !== from);
+            reste.splice(Math.max(0, Math.min(slot, reste.length)), 0, { ...prev[from], used: false });
+            return reste;
+        });
+        setSelectedRackTile(null);
+        effacerRefus();
+    }, [revealSolution]);
+
+    const melangerChevalet = () => {
+        setRackTiles(prev => {
+            const a = [...prev];
+            for (let i = a.length - 1; i > 0; i--) {
+                const j = Math.floor(Math.random() * (i + 1));
+                [a[i], a[j]] = [a[j], a[i]];
+            }
+            return a;
+        });
+        setSelectedRackTile(null);
+    };
+
+    const { dragState, handleTouchStart, handleTouchMove, handleTouchEnd } = useTouchDragDrop(handleDropTile, handleRackDrop);
 
     useEffect(() => {
         startSession();
@@ -116,7 +176,7 @@ const TrainingPage: React.FC = () => {
     const setupPuzzle = (puzzle: Puzzle) => {
         setPlacedTiles([]);
         setFeedback('idle');
-        setRefusal(null);
+        effacerRefus();
         setRevealSolution(false);
         setSelectedRackTile(null);
         setRackTiles(puzzle.rack.map((char, i) => ({ char, id: i, used: false })));
@@ -161,7 +221,7 @@ const TrainingPage: React.FC = () => {
         } catch (e) {
             console.error('Echec du lot d entrainement', e);
             if (batchToken.current === token) {
-                setError(e instanceof Error ? e.message : "Impossible de charger l entrainement.");
+                setError(e instanceof Error ? e.message : "Impossible de charger l’entraînement.");
             }
         } finally {
             EngineWorkerClient.getInstance().setProgressListener(null);
@@ -196,7 +256,7 @@ const TrainingPage: React.FC = () => {
         if (rackIndex === -1) return;
         setPlacedTiles(prev => [...prev, { row, col, char, rackId: rackTiles[rackIndex].id }]);
         setRackTiles(prev => prev.map((t, i) => i === rackIndex ? { ...t, used: true } : t));
-        setRefusal(null);
+        effacerRefus();
     };
 
     const handleTileRemove = (row: number, col: number) => {
@@ -204,14 +264,14 @@ const TrainingPage: React.FC = () => {
         if (!tileToRemove) return;
         setPlacedTiles(prev => prev.filter(t => t !== tileToRemove));
         setRackTiles(prev => prev.map(t => t.id === tileToRemove.rackId ? { ...t, used: false } : t));
-        setRefusal(null);
+        effacerRefus();
     };
 
     const resetPlacement = () => {
         setPlacedTiles([]);
         setRackTiles(prev => prev.map(t => ({ ...t, used: false })));
         setSelectedRackTile(null);
-        setRefusal(null);
+        effacerRefus();
         setFeedback('idle');
     };
 
@@ -254,7 +314,7 @@ const TrainingPage: React.FC = () => {
         if (!puzzle || feedback === 'checking' || revealSolution) return;
 
         setFeedback('checking');
-        setRefusal(null);
+        effacerRefus();
 
         let review: MoveReview;
         try {
@@ -266,7 +326,7 @@ const TrainingPage: React.FC = () => {
             );
         } catch (e) {
             setFeedback('refused');
-            setRefusal(e instanceof Error ? e.message : "Le moteur n a pas pu verifier ce coup.");
+            setRefusal(e instanceof Error ? e.message : "Le moteur n’a pas pu vérifier ce coup.");
             return;
         }
 
@@ -277,7 +337,7 @@ const TrainingPage: React.FC = () => {
         // repetition espacee enregistre un echec de memoire qui n'en est pas un.
         if (!verdict.legal) {
             setFeedback('refused');
-            setRefusal(verdict.reason ?? "Ce coup n est pas jouable.");
+            setRefusal(verdict.reason ?? "Ce coup n’est pas jouable.");
             return;
         }
 
@@ -361,6 +421,44 @@ const TrainingPage: React.FC = () => {
         })).filter(t => !occupees.has(`${t.row},${t.col}`));
     }, [revealSolution, currentPuzzle]);
 
+    // Loupe : on recentre la vue sur les jetons du plateau, la ou se joue le coup
+    useLayoutEffect(() => {
+        const el = boardScrollRef.current;
+        if (!el || !area || !boardSize || !currentPuzzle) return;
+        const tuiles = currentPuzzle.boardConfig.initialTiles;
+        if (!zoomActif || tuiles.length === 0) {
+            el.scrollTo({ left: 0, top: 0 });
+            return;
+        }
+        const cols = tuiles.map(t => t.col);
+        const rows = tuiles.map(t => t.row);
+        const centre = (v: number[]) => (Math.min(...v) + Math.max(...v) + 1) / 2 / 15;
+        el.scrollTo({
+            left: centre(cols) * boardSize + MARGE / 2 - el.clientWidth / 2,
+            top: centre(rows) * boardSize + MARGE / 2 - el.clientHeight / 2,
+        });
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [zoomActif, currentPuzzle?.id, boardSize]);
+
+    // Entree : valider le coup, ou passer a l'exercice suivant apres la correction
+    useEffect(() => {
+        const onKey = (e: KeyboardEvent) => {
+            if (e.key !== 'Enter' || e.repeat || showXPFeedback) return;
+            const cible = e.target as HTMLElement | null;
+            if (cible && (cible.tagName === 'INPUT' || cible.tagName === 'TEXTAREA' || cible.tagName === 'BUTTON')) return;
+            if (revealSolution) {
+                e.preventDefault();
+                setLastResult(null);
+                nextPuzzle();
+            } else if (placedTiles.length > 0 && feedback !== 'checking') {
+                e.preventDefault();
+                checkAnswer();
+            }
+        };
+        window.addEventListener('keydown', onKey);
+        return () => window.removeEventListener('keydown', onKey);
+    });
+
     if (error) {
         return (
             <div className="h-full flex flex-col items-center justify-center gap-4 text-slate-500">
@@ -403,18 +501,17 @@ const TrainingPage: React.FC = () => {
                         : 'Construction du plateau...'}
                 </p>
                 <p className="text-xs text-slate-400 text-center">
-                    Le lexique (236 Ko) n est telecharge qu une fois, puis conserve sur l appareil.
+                    Le lexique (236 Ko) n’est téléchargé qu’une fois, puis conservé sur l’appareil.
                 </p>
             </div>
         );
     }
 
-    const rackRestant = rackTiles.filter(t => !t.used).length;
     const origine = currentPuzzle.origine;
     const termine = revealSolution || feedback === 'success';
 
     const boutonsMode = (
-        <div role="tablist" aria-label="Mode d'entraînement" className="flex bg-slate-100 rounded-full p-0.5 text-xs font-bold">
+        <div role="tablist" aria-label="Mode d'entraînement" className="flex bg-slate-100 rounded-full p-0.5 text-xs font-bold shrink-0">
             {([['verbes', 'Verbes du club'], ['libre', 'Libres']] as const).map(([m, label]) => (
                 <button
                     key={m}
@@ -432,59 +529,19 @@ const TrainingPage: React.FC = () => {
         </div>
     );
 
-    const boutonValider = (
-        <button
-            onClick={revealSolution ? () => { setLastResult(null); nextPuzzle(); } : checkAnswer}
-            disabled={feedback === 'checking' || (!revealSolution && placedTiles.length === 0)}
-            className={clsx(
-                'h-11 sm:h-12 px-5 rounded-xl font-black text-sm tracking-wide flex items-center justify-center gap-2 transition-all',
-                'disabled:opacity-40 disabled:shadow-none',
-                revealSolution
-                    ? 'bg-slate-800 text-white hover:bg-slate-700'
-                    : feedback === 'refused'
-                        ? 'animate-shake bg-red-500 text-white'
-                        : feedback === 'success'
-                            ? 'bg-emerald-500 text-white'
-                            : 'bg-gradient-to-b from-amber-400 to-amber-500 text-amber-950 shadow-[0_3px_0_#b45309] active:translate-y-[2px] active:shadow-[0_1px_0_#b45309]'
-            )}
-        >
-            {feedback === 'checking' ? <Loader2 className="w-5 h-5 animate-spin" />
-                : revealSolution ? 'Suivant →'
-                    : feedback === 'success' ? <Check className="w-5 h-5" />
-                        : <><Check className="w-4 h-4" strokeWidth={3} />VALIDER</>}
-        </button>
-    );
-
-    const boutonsSecondaires = !revealSolution && (
-        <div className="flex items-center gap-1">
-            <button
-                onClick={abandonner}
-                aria-label="Voir la solution"
-                title="Voir la solution"
-                className="h-11 sm:h-12 px-2.5 rounded-xl text-slate-500 hover:text-slate-800 hover:bg-slate-200/70 transition flex items-center gap-1 text-xs font-semibold"
-            >
-                <Eye className="w-4 h-4" />
-                <span>Solution</span>
-            </button>
-            {placedTiles.length > 0 && (
-                <button
-                    onClick={resetPlacement}
-                    aria-label="Reprendre les jetons"
-                    title="Reprendre les jetons"
-                    className="h-11 sm:h-12 px-2.5 rounded-xl text-slate-500 hover:text-slate-800 hover:bg-slate-200/70 transition flex items-center"
-                >
-                    <Undo2 className="w-4 h-4" />
-                </button>
-            )}
-        </div>
-    );
+    const iconeHeader = 'p-2 rounded-full text-slate-400 hover:text-slate-700 hover:bg-slate-100 transition-colors';
+    const boutonRond = 'w-11 h-11 sm:w-12 sm:h-12 shrink-0 rounded-full flex items-center justify-center transition-all';
 
     return (
-        <div className="h-full flex flex-col bg-slate-50 overflow-hidden">
+        <div
+            className="h-full flex flex-col bg-slate-50 overflow-hidden"
+            onTouchMove={handleTouchMove}
+            onTouchEnd={handleTouchEnd}
+        >
             {/* En-tete */}
-            <div className="bg-white/80 backdrop-blur-sm border-b border-slate-200/60 px-3 sm:px-4 py-2 flex justify-between items-center gap-2 z-30">
+            <div className="bg-white/80 backdrop-blur-sm border-b border-slate-200/60 pl-3 pr-1.5 sm:px-4 h-11 flex justify-between items-center gap-2 z-30 shrink-0">
                 <div className="flex items-center gap-2 min-w-0">
-                    <h1 className="hidden lg:block text-lg font-bold text-slate-800">Entraînement</h1>
+                    <h1 className="hidden lg:block text-lg font-bold text-slate-800 mr-1">Entraînement</h1>
                     {boutonsMode}
                     <span className="text-xs text-slate-400 font-medium tabular-nums">
                         {currentPuzzleIndex + 1}/{puzzles.length}
@@ -500,32 +557,44 @@ const TrainingPage: React.FC = () => {
                         {DIFFICULTY_LABEL[currentPuzzle.metadata.difficulty]}
                     </span>
                 </div>
-                <div className="flex items-center gap-2 sm:gap-3 shrink-0">
+                <div className="flex items-center shrink-0">
                     {sessionCorrectStreak > 0 && (
-                        <div className="flex items-center gap-1 text-amber-500" title="Combo">
+                        <div className="flex items-center gap-1 text-amber-500 px-1.5" title="Combo">
                             <Flame className="w-4 h-4" />
                             <span className="font-bold text-sm">{sessionCorrectStreak}</span>
                         </div>
                     )}
                     {userProgress && (
-                        <div className="hidden sm:flex items-center gap-1 text-emerald-600" title="XP">
+                        <div className="hidden sm:flex items-center gap-1 text-emerald-600 px-1.5" title="XP">
                             <Star className="w-4 h-4" />
                             <span className="font-bold text-sm">{userProgress.totalXP}</span>
                         </div>
                     )}
-                    <button
-                        onClick={() => startNewBatch()}
-                        title="Nouveau lot d exercices"
-                        className="p-1.5 hover:bg-slate-100 rounded-full text-slate-400 transition-colors"
-                    >
-                        <RefreshCw className="w-4 h-4" />
+                    {zoomUtile && (
+                        <button
+                            onClick={basculerZoom}
+                            aria-label={zoomActif ? 'Voir tout le plateau' : 'Agrandir le plateau'}
+                            title={zoomActif ? 'Voir tout le plateau' : 'Agrandir le plateau'}
+                            aria-pressed={zoomActif}
+                            className={clsx(iconeHeader, zoomActif && 'text-emerald-600 bg-emerald-50')}
+                        >
+                            {zoomActif ? <ZoomOut className="w-[18px] h-[18px]" /> : <ZoomIn className="w-[18px] h-[18px]" />}
+                        </button>
+                    )}
+                    {!revealSolution && (
+                        <button onClick={abandonner} title="Voir la solution" aria-label="Voir la solution" className={iconeHeader}>
+                            <Eye className="w-[18px] h-[18px]" />
+                        </button>
+                    )}
+                    <button onClick={() => startNewBatch()} title="Nouveau lot d'exercices" aria-label="Nouveau lot d'exercices" className={iconeHeader}>
+                        <RefreshCw className="w-[18px] h-[18px]" />
                     </button>
                 </div>
             </div>
 
-            {/* Consigne : en mode verbes, on dit ce qu'on cherche sans dire lequel */}
+            {/* Consigne, sur une ligne : en mode verbes, ce qu'on cherche sans dire lequel */}
             {mode === 'verbes' && origine && (
-                <div className="px-3 pt-2 text-center text-[11px] sm:text-xs text-slate-500 leading-snug">
+                <p className="shrink-0 px-3 pt-1.5 text-center text-[11px] sm:text-xs text-slate-500 leading-4 truncate">
                     {termine ? (
                         <>
                             <strong className="text-slate-800">{currentPuzzle.solution.word}</strong>
@@ -535,69 +604,105 @@ const TrainingPage: React.FC = () => {
                         <>
                             Une <strong className="text-slate-700">conjugaison</strong> d'un verbe{' '}
                             {origine.source === 'perso' ? 'qui t’a résisté' : origine.source === 'club' ? 'qui résiste au club' : 'de tes lots'}{' '}
-                            se cache dans ce tirage
+                            se cache ici
                         </>
                     )}
-                    {!pseudo && !termine && (
-                        <span className="block text-slate-400">Connecte-toi dans Verbes Club pour travailler tes propres ratés.</span>
-                    )}
-                </div>
+                </p>
             )}
 
-            {/* Plateau : le plus grand carre qui tient dans l'espace libre */}
-            <div ref={boardAreaRef} className="flex-1 min-h-0 flex justify-center items-center p-2 sm:p-3">
-                <div style={boardSize ? { width: boardSize } : { width: '100%', maxWidth: 520 }}>
-                    <ArenaBoard
-                        fluid
-                        initialTiles={currentPuzzle.boardConfig.initialTiles}
-                        placedTiles={placedTiles}
-                        solutionTiles={solutionTiles}
-                        onCellClick={handleBoardClick}
-                        onTilePlace={handleTilePlace}
-                        onTileRemove={handleTileRemove}
-                        onDropTile={handleDropTile}
-                    />
+            {/* Plateau */}
+            <div ref={boardAreaRef} className="flex-1 min-h-0 relative">
+                <div ref={boardScrollRef} className="absolute inset-0 overflow-auto overscroll-contain" style={{ scrollbarWidth: 'thin' }}>
+                    <div
+                        className="flex items-center justify-center"
+                        style={area && boardSize ? { width: Math.max(area.w, boardSize + MARGE), height: Math.max(area.h, boardSize + MARGE) } : undefined}
+                    >
+                        <div style={{ width: boardSize ?? '100%' }}>
+                            <ArenaBoard
+                                fluid
+                                initialTiles={currentPuzzle.boardConfig.initialTiles}
+                                placedTiles={placedTiles}
+                                solutionTiles={solutionTiles}
+                                onCellClick={handleBoardClick}
+                                onTilePlace={handleTilePlace}
+                                onTileRemove={handleTileRemove}
+                                onDropTile={handleDropTile}
+                                onPlacedTouchStart={handleTouchStart}
+                            />
+                        </div>
+                    </div>
                 </div>
-            </div>
 
-            {/* Chevalet + commandes */}
-            <div className="shrink-0 w-full px-3 pb-3 sm:pb-4 pt-1 flex flex-col items-center gap-1.5">
+                {/* Refus de l'arbitre : par-dessus le bas du plateau, sans pousser la mise en page */}
                 {refusal && (
-                    <div className="w-full max-w-xl flex items-start gap-2 text-amber-900 bg-amber-50 border border-amber-200
-                                    rounded-lg px-3 py-2 text-xs leading-snug">
+                    <div role="alert" className="absolute left-2 right-2 bottom-2 z-20 mx-auto max-w-xl flex items-start gap-2 text-amber-950
+                                    bg-amber-50/95 backdrop-blur border border-amber-300 shadow-lg rounded-xl px-3 py-2 text-xs leading-snug">
                         <AlertTriangle className="w-4 h-4 shrink-0 mt-px text-amber-600" />
-                        <span>{refusal}</span>
+                        <span className="flex-1">{refusal}</span>
+                        <button onClick={() => setRefusal(null)} aria-label="Fermer" className="-m-1 p-1 text-amber-700/70 hover:text-amber-900">
+                            <X className="w-3.5 h-3.5" />
+                        </button>
                     </div>
                 )}
+            </div>
 
-                {/* Telephone : chevalet pleine largeur, commandes dessous. Ordinateur : une seule rangee. */}
-                <div className="w-full max-w-2xl flex flex-col sm:flex-row items-center gap-1.5 sm:gap-3">
-                    <div className="hidden sm:block shrink-0 w-[150px]">{boutonsSecondaires}</div>
-                    <div className="flex-1 w-full flex justify-center">
+            {/* Chevalet : reprendre / melanger, les jetons, valider */}
+            <div className="shrink-0 w-full px-2 pt-1 pb-2">
+                <div className="mx-auto max-w-[520px] flex items-center gap-1.5 sm:gap-3">
+                    {placedTiles.length > 0 && !revealSolution ? (
+                        <button
+                            onClick={resetPlacement}
+                            aria-label="Reprendre les jetons posés"
+                            title="Reprendre les jetons posés"
+                            className={clsx(boutonRond, 'text-slate-600 bg-white border border-slate-200 shadow-sm hover:bg-slate-100')}
+                        >
+                            <Undo2 className="w-5 h-5" />
+                        </button>
+                    ) : (
+                        <button
+                            onClick={melangerChevalet}
+                            disabled={revealSolution}
+                            aria-label="Mélanger le chevalet"
+                            title="Mélanger le chevalet"
+                            className={clsx(boutonRond, 'text-slate-600 bg-white border border-slate-200 shadow-sm hover:bg-slate-100 disabled:opacity-40')}
+                        >
+                            <Shuffle className="w-5 h-5" />
+                        </button>
+                    )}
+
+                    <div className="flex-1 min-w-0">
                         <Rack3D
                             tiles={rackTiles}
                             selected={selectedRackTile}
                             disabled={revealSolution}
                             onTileClick={handleRackClick}
                             onTileTouchStart={handleTouchStart}
-                            onTouchMove={handleTouchMove}
-                            onTouchEnd={handleTouchEnd}
+                            onDropOnSlot={handleRackDrop}
                         />
                     </div>
-                    <div className="hidden sm:flex shrink-0 w-[150px] justify-end">{boutonValider}</div>
-                    <div className="sm:hidden w-full flex items-center justify-between gap-2">
-                        {boutonsSecondaires || <span />}
-                        <div className="flex-1 max-w-[220px] [&>button]:w-full">{boutonValider}</div>
-                    </div>
-                </div>
 
-                <p className="text-center text-[11px] text-slate-400 leading-tight">
-                    {revealSolution
-                        ? `Le scrabble attendu est en vert sur le plateau (${currentPuzzle.solution.score} pts, prime comprise).`
-                        : rackRestant === 0
-                            ? `Sept jetons posés : le meilleur scrabble vaut ${currentPuzzle.solution.score} points.`
-                            : `Pose les ${rackRestant} jeton${rackRestant > 1 ? 's' : ''} : un scrabble les utilise tous.`}
-                </p>
+                    <button
+                        onClick={revealSolution ? () => { setLastResult(null); nextPuzzle(); } : checkAnswer}
+                        disabled={feedback === 'checking' || (!revealSolution && placedTiles.length === 0)}
+                        aria-label={revealSolution ? 'Exercice suivant' : 'Valider le coup'}
+                        title={revealSolution ? 'Exercice suivant (Entrée)' : 'Valider le coup (Entrée)'}
+                        className={clsx(
+                            boutonRond,
+                            'disabled:opacity-35 disabled:shadow-none',
+                            revealSolution
+                                ? 'bg-slate-800 text-white hover:bg-slate-700 shadow-md'
+                                : feedback === 'refused'
+                                    ? 'animate-shake bg-red-500 text-white'
+                                    : feedback === 'success'
+                                        ? 'bg-emerald-500 text-white'
+                                        : 'bg-gradient-to-b from-amber-400 to-amber-500 text-amber-950 shadow-[0_3px_0_#b45309] active:translate-y-[2px] active:shadow-[0_1px_0_#b45309]'
+                        )}
+                    >
+                        {feedback === 'checking' ? <Loader2 className="w-5 h-5 animate-spin" />
+                            : revealSolution ? <ArrowRight className="w-5 h-5" strokeWidth={2.5} />
+                                : <Check className="w-6 h-6" strokeWidth={3} />}
+                    </button>
+                </div>
             </div>
 
             {/* Fantome de glisser-deposer tactile */}
@@ -651,6 +756,11 @@ const TrainingPage: React.FC = () => {
                             {origine && (
                                 <p className="text-xs text-slate-600 pt-1">
                                     <strong>{lastResult.expectedWord}</strong> vient de <strong>{origine.verbe}</strong> · {origine.raison}
+                                </p>
+                            )}
+                            {mode === 'verbes' && !pseudo && (
+                                <p className="text-xs text-slate-400 pt-1">
+                                    Connecte-toi dans Verbes Club : l'entraînement visera tes propres ratés.
                                 </p>
                             )}
                             {lastResult.wordsFormed.length > 1 && (

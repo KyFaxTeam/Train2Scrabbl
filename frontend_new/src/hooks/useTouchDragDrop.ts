@@ -6,69 +6,86 @@ interface DragState {
     ghostPosition: { x: number; y: number } | null;
 }
 
+/** En dessous de ce deplacement (px), le geste est un tap : c'est le `click` qui le traite. */
+const SEUIL_GLISSER = 8;
+
+const AU_REPOS: DragState = { isDragging: false, draggedTile: null, ghostPosition: null };
+
 /**
- * Hook for touch-based drag and drop (mobile).
- * Desktop uses native HTML5 D&D via draggable + onDragStart/onDrop.
- * This hook handles touch events as a polyfill for mobile.
+ * Glisser-deposer au doigt (le bureau passe par le glisser-deposer HTML5).
+ *
+ * Un jeton lache sur une case du plateau (`data-cell="r-c"`) y est pose ; lache
+ * sur une place du chevalet (`data-rack-slot="i"`), il y est range - c'est ainsi
+ * qu'on reordonne ses lettres ou qu'on reprend un jeton du plateau.
+ *
+ * Le glisser ne commence qu'apres un vrai deplacement : un simple tap garde son
+ * sens (choisir un jeton, retirer un jeton pose) au lieu de declencher un depot
+ * sur place.
  */
 export function useTouchDragDrop(
-    onDrop: (rackId: number, row: number, col: number) => void
+    onDrop: (rackId: number, row: number, col: number) => void,
+    onRackDrop?: (rackId: number, slot: number) => void
 ) {
-    const [dragState, setDragState] = useState<DragState>({
-        isDragging: false,
-        draggedTile: null,
-        ghostPosition: null,
-    });
+    const [dragState, setDragStateRaw] = useState<DragState>(AU_REPOS);
+    const pending = useRef<{ char: string; rackId: number; x: number; y: number } | null>(null);
+    // Copie lue par les gestionnaires d'evenements, tenue a jour a chaque changement
+    const dragRef = useRef<DragState>(AU_REPOS);
+    const setDragState = useCallback((next: DragState) => {
+        dragRef.current = next;
+        setDragStateRaw(next);
+    }, []);
 
-    const dragRef = useRef(dragState);
-    dragRef.current = dragState;
-
-    const handleTouchStart = useCallback((
-        e: React.TouchEvent,
-        char: string,
-        rackId: number
-    ) => {
+    const handleTouchStart = useCallback((e: React.TouchEvent, char: string, rackId: number) => {
         const touch = e.touches[0];
-        setDragState({
-            isDragging: true,
-            draggedTile: { char, rackId },
-            ghostPosition: { x: touch.clientX, y: touch.clientY },
-        });
+        pending.current = { char, rackId, x: touch.clientX, y: touch.clientY };
     }, []);
 
     const handleTouchMove = useCallback((e: React.TouchEvent) => {
-        if (!dragRef.current.isDragging) return;
-        e.preventDefault();
         const touch = e.touches[0];
-        setDragState(prev => ({
-            ...prev,
-            ghostPosition: { x: touch.clientX, y: touch.clientY },
-        }));
-    }, []);
-
-    const handleTouchEnd = useCallback((e: React.TouchEvent) => {
-        if (!dragRef.current.isDragging || !dragRef.current.draggedTile) {
-            setDragState({ isDragging: false, draggedTile: null, ghostPosition: null });
+        const p = pending.current;
+        if (!dragRef.current.isDragging) {
+            if (!p) return;
+            if (Math.hypot(touch.clientX - p.x, touch.clientY - p.y) < SEUIL_GLISSER) return;
+            setDragState({
+                isDragging: true,
+                draggedTile: { char: p.char, rackId: p.rackId },
+                ghostPosition: { x: touch.clientX, y: touch.clientY },
+            });
             return;
         }
+        if (e.cancelable) e.preventDefault();
+        setDragState({ ...dragRef.current, ghostPosition: { x: touch.clientX, y: touch.clientY } });
+    }, [setDragState]);
+
+    const handleTouchEnd = useCallback((e: React.TouchEvent) => {
+        pending.current = null;
+        const tile = dragRef.current.draggedTile;
+        if (!dragRef.current.isDragging || !tile) {
+            setDragState(AU_REPOS);
+            return;
+        }
+        // Le geste etait un glisser : le `click` qui suit ne doit pas compter comme un tap.
+        if (e.cancelable) e.preventDefault();
 
         const touch = e.changedTouches[0];
-        // Find the cell element under the touch point
         const element = document.elementFromPoint(touch.clientX, touch.clientY);
-        const cellElement = element?.closest('[data-cell]') as HTMLElement | null;
+        const cell = element?.closest('[data-cell]')?.getAttribute('data-cell');
+        const slot = element?.closest('[data-rack-slot]')?.getAttribute('data-rack-slot');
+        const rack = element?.closest('[data-rack]');
 
-        if (cellElement) {
-            const cellData = cellElement.getAttribute('data-cell');
-            if (cellData) {
-                const [row, col] = cellData.split('-').map(Number);
-                onDrop(dragRef.current.draggedTile.rackId, row, col);
-            }
+        if (cell) {
+            const [row, col] = cell.split('-').map(Number);
+            onDrop(tile.rackId, row, col);
+        } else if (onRackDrop && slot != null) {
+            onRackDrop(tile.rackId, Number(slot));
+        } else if (onRackDrop && rack) {
+            onRackDrop(tile.rackId, Number.MAX_SAFE_INTEGER);
         }
 
-        setDragState({ isDragging: false, draggedTile: null, ghostPosition: null });
-    }, [onDrop]);
+        setDragState(AU_REPOS);
+    }, [onDrop, onRackDrop, setDragState]);
 
-    // Prevent scrolling while dragging
+    // Pas de defilement de la page pendant un glisser
     useEffect(() => {
         if (!dragState.isDragging) return;
         const prevent = (e: TouchEvent) => {
@@ -78,10 +95,5 @@ export function useTouchDragDrop(
         return () => document.removeEventListener('touchmove', prevent);
     }, [dragState.isDragging]);
 
-    return {
-        dragState,
-        handleTouchStart,
-        handleTouchMove,
-        handleTouchEnd,
-    };
+    return { dragState, handleTouchStart, handleTouchMove, handleTouchEnd };
 }
