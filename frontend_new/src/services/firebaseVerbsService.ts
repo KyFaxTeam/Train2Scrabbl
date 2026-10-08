@@ -87,6 +87,8 @@ export interface WordStat {
   t: number;
   /** Dernier passage (ms) */
   last: number;
+  /** Entraînement seulement : 1 si le dernier exercice a été trouvé, 0 sinon. */
+  r?: number;
 }
 
 /** `word_stats` tel que lu en base : verbe → joueur → historique. */
@@ -370,6 +372,7 @@ class FirebaseVerbsService {
         w: s.w || 0,
         t: Math.round(((s.t || 0) + t) * 10) / 10,
         last: Date.now(),
+        r: resultat === 'trouve' ? 1 : 0,
       };
     }).catch((err) => console.warn('Erreur suivi entraînement', verbe, err));
   }
@@ -382,6 +385,18 @@ class FirebaseVerbsService {
       return snap.exists() ? (snap.val() as WordStatsTree) : {};
     } catch (err) {
       console.warn('Erreur lecture training_stats:', err);
+      return {};
+    }
+  }
+
+  /** Les profils de tous les membres (lecture unique), pour les carnets de Bêtes noires du club. */
+  public async loadAllPlayers(): Promise<Record<string, PlayerVerbProfile>> {
+    if (!this.isConnected || !this.db) return {};
+    try {
+      const snap = await get(ref(this.db, 'verb_mastery/players'));
+      return snap.exists() ? (snap.val() as Record<string, PlayerVerbProfile>) : {};
+    } catch (err) {
+      console.warn('Erreur lecture des membres:', err);
       return {};
     }
   }

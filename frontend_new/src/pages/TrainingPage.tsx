@@ -725,7 +725,10 @@ const TrainingPage: React.FC = () => {
                         ) : origine ? (
                             <>
                                 Une <strong className="text-slate-700">conjugaison</strong> d'un verbe{' '}
-                                {origine.source === 'perso' ? 'qui t’a résisté' : origine.source === 'club' ? 'qui résiste au club' : 'que tu as joué'}{' '}
+                                {origine.source === 'perso' ? 'qui t’a résisté'
+                                    : origine.source === 'club' ? 'qui résiste au club'
+                                        : origine.source === 'lent' ? 'long à trouver'
+                                            : 'de tes lots'}{' '}
                                 se cache ici
                             </>
                         ) : null}
