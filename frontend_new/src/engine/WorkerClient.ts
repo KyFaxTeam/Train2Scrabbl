@@ -167,6 +167,17 @@ export class EngineWorkerClient {
         return result;
     }
 
+    /** Formes conjuguees de chaque verbe, a la longueur voulue, presentes dans le lexique. */
+    public async conjugate(verbes: string[], longueur = 7): Promise<Record<string, string[]>> {
+        const { result } = await this.call<Record<string, string[]>>(
+            'CONJUGATE',
+            { verbes, longueur },
+            CHECK_TIMEOUT_MS,
+            'Conjugaison des verbes'
+        );
+        return result;
+    }
+
     /**
      * Soumet le coup du joueur a l'arbitre du moteur : alignement, contiguite,
      * raccordement au plateau, mots formes, score. Le lexique vit dans le

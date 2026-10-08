@@ -16,6 +16,8 @@ interface ArenaBoardProps {
     onTilePlace?: (char: string, row: number, col: number) => void;
     onTileRemove?: (row: number, col: number) => void;
     onDropTile?: (rackId: number, row: number, col: number) => void;
+    /** Sans plafond de 520 px : le parent fixe la taille (l'entrainement ajuste le plateau a l'espace libre). */
+    fluid?: boolean;
 }
 
 const BONUS_LABELS: Record<string, string> = {
@@ -37,7 +39,8 @@ export const ArenaBoard: React.FC<ArenaBoardProps> = ({
     onCellClick,
     onTilePlace,
     onTileRemove,
-    onDropTile
+    onDropTile,
+    fluid = false
 }) => {
     const [activeCell, setActiveCell] = useState<{ r: number, c: number } | null>(null);
     const [direction, setDirection] = useState<'H' | 'V'>('H');
@@ -194,7 +197,7 @@ export const ArenaBoard: React.FC<ArenaBoardProps> = ({
             ref={boardRef}
             tabIndex={0}
             onKeyDown={handleKeyDown}
-            className="rounded-xl outline-none p-1 sm:p-2 bg-[var(--color-board-gap)] w-full max-w-[520px]"
+            className={clsx("rounded-xl outline-none p-1 sm:p-2 bg-[var(--color-board-gap)] w-full", !fluid && "max-w-[520px]")}
             style={{
                 boxShadow: 'var(--box-shadow-board)',
                 border: '2px solid var(--color-board-border)'

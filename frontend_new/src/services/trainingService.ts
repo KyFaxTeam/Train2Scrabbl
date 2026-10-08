@@ -1,5 +1,16 @@
 import { getDueForReview } from './learningStore';
 import { EngineWorkerClient } from '../engine/WorkerClient';
+import { verbesCandidats, type VerbSource } from './verbTargetsService';
+
+/** `verbes` : des conjugaisons des verbes que le club peine a trouver. `libre` : des scrabbles au hasard. */
+export type TrainingMode = 'verbes' | 'libre';
+
+/** D'ou vient l'exercice quand il conjugue un verbe du club. */
+export interface VerbOrigin {
+    verbe: string;
+    source: VerbSource;
+    raison: string;
+}
 
 export interface PuzzleSolution {
     word: string;
@@ -31,12 +42,32 @@ export interface Puzzle {
         difficulty: 'facile' | 'moyen' | 'difficile';
         generationMs: number;
     };
+    origine?: VerbOrigin;
 }
 
 interface TargetWord {
     word: string;
     draw: string;
+    origine?: VerbOrigin;
 }
+
+/**
+ * Une forme conjuguee de sept lettres par verbe retenu. Les verbes sans forme
+ * de sept lettres (les plus longs) sont sautes au profit des suivants.
+ */
+const choisirConjugaisons = async (size: number, worker: EngineWorkerClient): Promise<TargetWord[]> => {
+    const candidats = await verbesCandidats(size);
+    const formes = await worker.conjugate(candidats.map(c => c.verbe), 7);
+    const cibles: TargetWord[] = [];
+    for (const c of candidats) {
+        if (cibles.length >= size) break;
+        const liste = formes[c.verbe] || [];
+        if (liste.length === 0) continue;
+        const word = liste[Math.floor(Math.random() * liste.length)];
+        cibles.push({ word, draw: [...word].sort().join(''), origine: { verbe: c.verbe, source: c.source, raison: c.raison } });
+    }
+    return cibles;
+};
 
 /**
  * Les mots a faire travailler : d'abord ceux que la repetition espacee reclame,
@@ -96,11 +127,21 @@ const choisirMots = async (size: number, worker: EngineWorkerClient): Promise<Ta
  */
 export const generateBatch = async (
     size: number = 5,
-    onPuzzle?: (puzzle: Puzzle, index: number) => void
+    onPuzzle?: (puzzle: Puzzle, index: number) => void,
+    mode: TrainingMode = 'libre'
 ): Promise<Puzzle[]> => {
     const worker = EngineWorkerClient.getInstance();
     await worker.initialize();
-    const cibles = await choisirMots(size, worker);
+
+    let cibles: TargetWord[] = [];
+    if (mode === 'verbes') {
+        try {
+            cibles = await choisirConjugaisons(size, worker);
+        } catch (e) {
+            console.warn('Verbes du club indisponibles, on tire des scrabbles libres', e);
+        }
+    }
+    if (cibles.length < size) cibles = cibles.concat(await choisirMots(size - cibles.length, worker));
 
     const puzzles: Puzzle[] = [];
     const echecs: string[] = [];
@@ -140,6 +181,7 @@ export const generateBatch = async (
                     difficulty: result.metadata.difficulte,
                     generationMs: Math.round(timeMs),
                 },
+                origine: cible.origine,
             };
 
             onPuzzle?.(puzzle, puzzles.length);

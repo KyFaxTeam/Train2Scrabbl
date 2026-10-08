@@ -1,6 +1,8 @@
 import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { generateBatch } from '../services/trainingService';
-import type { Puzzle } from '../services/trainingService';
+import type { Puzzle, TrainingMode } from '../services/trainingService';
+import { pseudoCourant } from '../services/verbTargetsService';
+import { Rack3D } from '../components/Training/Rack3D';
 import { EngineWorkerClient, type InitProgress, type MoveReview } from '../engine/WorkerClient';
 import { ArenaBoard } from '../components/Arena/ArenaBoard';
 import { useLearningStore } from '../store/useLearningStore';
@@ -9,13 +11,17 @@ import { useTouchDragDrop } from '../hooks/useTouchDragDrop';
 import type { XPReward, WordMastery } from '../types';
 import { clsx } from 'clsx';
 import confetti from 'canvas-confetti';
-import { RefreshCw, Check, Eye, Flame, Star, Loader2, AlertTriangle } from 'lucide-react';
+import { RefreshCw, Check, Eye, Flame, Star, Loader2, AlertTriangle, Undo2 } from 'lucide-react';
 
-const LETTER_POINTS: Record<string, number> = {
-    A: 1, B: 3, C: 3, D: 2, E: 1, F: 4, G: 2, H: 4, I: 1, J: 8, K: 10, L: 1, M: 2,
-    N: 1, O: 1, P: 3, Q: 8, R: 1, S: 1, T: 1, U: 1, V: 4, W: 10, X: 10, Y: 10, Z: 10,
-    '?': 0
-};
+const MODE_KEY = 'faizers_training_mode';
+
+function modeInitial(): TrainingMode {
+    try {
+        return localStorage.getItem(MODE_KEY) === 'libre' ? 'libre' : 'verbes';
+    } catch {
+        return 'verbes';
+    }
+}
 
 const DIFFICULTY_LABEL: Record<Puzzle['metadata']['difficulty'], string> = {
     facile: 'Facile',
@@ -52,6 +58,24 @@ const TrainingPage: React.FC = () => {
     const [showXPFeedback, setShowXPFeedback] = useState(false);
     const [lastResult, setLastResult] = useState<PlayResult | null>(null);
     const batchToken = useRef(0);
+    const [mode, setMode] = useState<TrainingMode>(modeInitial);
+    const pseudo = useMemo(() => pseudoCourant(), []);
+
+    // Le plateau prend le plus grand carre qui tient dans l'espace libre : avant,
+    // seule la largeur comptait, et sur un ecran peu haut le bas du plateau
+    // passait sous le chevalet.
+    const boardAreaRef = useRef<HTMLDivElement>(null);
+    const [boardSize, setBoardSize] = useState<number | null>(null);
+    useEffect(() => {
+        const el = boardAreaRef.current;
+        if (!el) return;
+        const ro = new ResizeObserver(([entry]) => {
+            const { width, height } = entry.contentRect;
+            setBoardSize(Math.max(200, Math.floor(Math.min(width, height))));
+        });
+        ro.observe(el);
+        return () => ro.disconnect();
+    });
 
     const currentPuzzle = puzzles[currentPuzzleIndex];
 
@@ -100,7 +124,14 @@ const TrainingPage: React.FC = () => {
         setShowXPFeedback(false);
     };
 
-    const startNewBatch = async () => {
+    const changerMode = (m: TrainingMode) => {
+        if (m === mode) return;
+        setMode(m);
+        try { localStorage.setItem(MODE_KEY, m); } catch { /* preference non conservee */ }
+        startNewBatch(m);
+    };
+
+    const startNewBatch = async (m: TrainingMode = mode) => {
         // Un lot arrivant par morceaux, il faut savoir a quel lot chaque
         // exercice appartient : sans ce jeton, le double montage de
         // `StrictMode` (et un clic de plus sur « nouveau lot ») empilaient deux
@@ -125,7 +156,7 @@ const TrainingPage: React.FC = () => {
                     setupPuzzle(puzzle);
                     setProgress(null);
                 }
-            });
+            }, m);
             if (batchToken.current !== token) return;
         } catch (e) {
             console.error('Echec du lot d entrainement', e);
@@ -336,7 +367,7 @@ const TrainingPage: React.FC = () => {
                 <div className="text-red-500 font-bold text-lg">Oups!</div>
                 <p className="text-center px-4">{error}</p>
                 <button
-                    onClick={startNewBatch}
+                    onClick={() => startNewBatch()}
                     className="px-6 py-2 bg-amber-500 text-white font-bold rounded-lg hover:bg-amber-600 transition-colors"
                 >
                     Réessayer
@@ -379,18 +410,87 @@ const TrainingPage: React.FC = () => {
     }
 
     const rackRestant = rackTiles.filter(t => !t.used).length;
+    const origine = currentPuzzle.origine;
+    const termine = revealSolution || feedback === 'success';
+
+    const boutonsMode = (
+        <div role="tablist" aria-label="Mode d'entraînement" className="flex bg-slate-100 rounded-full p-0.5 text-xs font-bold">
+            {([['verbes', 'Verbes du club'], ['libre', 'Libres']] as const).map(([m, label]) => (
+                <button
+                    key={m}
+                    role="tab"
+                    aria-selected={mode === m}
+                    onClick={() => changerMode(m)}
+                    className={clsx(
+                        'px-3 py-1 rounded-full transition-colors whitespace-nowrap',
+                        mode === m ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-500 hover:text-slate-700'
+                    )}
+                >
+                    {label}
+                </button>
+            ))}
+        </div>
+    );
+
+    const boutonValider = (
+        <button
+            onClick={revealSolution ? () => { setLastResult(null); nextPuzzle(); } : checkAnswer}
+            disabled={feedback === 'checking' || (!revealSolution && placedTiles.length === 0)}
+            className={clsx(
+                'h-11 sm:h-12 px-5 rounded-xl font-black text-sm tracking-wide flex items-center justify-center gap-2 transition-all',
+                'disabled:opacity-40 disabled:shadow-none',
+                revealSolution
+                    ? 'bg-slate-800 text-white hover:bg-slate-700'
+                    : feedback === 'refused'
+                        ? 'animate-shake bg-red-500 text-white'
+                        : feedback === 'success'
+                            ? 'bg-emerald-500 text-white'
+                            : 'bg-gradient-to-b from-amber-400 to-amber-500 text-amber-950 shadow-[0_3px_0_#b45309] active:translate-y-[2px] active:shadow-[0_1px_0_#b45309]'
+            )}
+        >
+            {feedback === 'checking' ? <Loader2 className="w-5 h-5 animate-spin" />
+                : revealSolution ? 'Suivant →'
+                    : feedback === 'success' ? <Check className="w-5 h-5" />
+                        : <><Check className="w-4 h-4" strokeWidth={3} />VALIDER</>}
+        </button>
+    );
+
+    const boutonsSecondaires = !revealSolution && (
+        <div className="flex items-center gap-1">
+            <button
+                onClick={abandonner}
+                aria-label="Voir la solution"
+                title="Voir la solution"
+                className="h-11 sm:h-12 px-2.5 rounded-xl text-slate-500 hover:text-slate-800 hover:bg-slate-200/70 transition flex items-center gap-1 text-xs font-semibold"
+            >
+                <Eye className="w-4 h-4" />
+                <span>Solution</span>
+            </button>
+            {placedTiles.length > 0 && (
+                <button
+                    onClick={resetPlacement}
+                    aria-label="Reprendre les jetons"
+                    title="Reprendre les jetons"
+                    className="h-11 sm:h-12 px-2.5 rounded-xl text-slate-500 hover:text-slate-800 hover:bg-slate-200/70 transition flex items-center"
+                >
+                    <Undo2 className="w-4 h-4" />
+                </button>
+            )}
+        </div>
+    );
 
     return (
         <div className="h-full flex flex-col bg-slate-50 overflow-hidden">
             {/* En-tete */}
-            <div className="bg-white/80 backdrop-blur-sm border-b border-slate-200/60 px-4 py-3 flex justify-between items-center z-30">
-                <div className="flex items-center gap-3">
-                    <h1 className="text-lg font-bold text-slate-800">Entraînement</h1>
-                    <span className="text-xs text-slate-400 font-medium">
+            <div className="bg-white/80 backdrop-blur-sm border-b border-slate-200/60 px-3 sm:px-4 py-2 flex justify-between items-center gap-2 z-30">
+                <div className="flex items-center gap-2 min-w-0">
+                    <h1 className="hidden lg:block text-lg font-bold text-slate-800">Entraînement</h1>
+                    {boutonsMode}
+                    <span className="text-xs text-slate-400 font-medium tabular-nums">
                         {currentPuzzleIndex + 1}/{puzzles.length}
                     </span>
                     <span className={clsx(
-                        'text-[10px] font-semibold uppercase tracking-wide px-2 py-0.5 rounded-full',
+                        'hidden sm:inline text-[10px] font-semibold uppercase tracking-wide px-2 py-0.5 rounded-full',
                         currentPuzzle.metadata.difficulty === 'difficile' ? 'bg-red-100 text-red-600'
                             : currentPuzzle.metadata.difficulty === 'moyen' ? 'bg-amber-100 text-amber-700'
                                 : 'bg-emerald-100 text-emerald-700'
@@ -400,7 +500,7 @@ const TrainingPage: React.FC = () => {
                         {DIFFICULTY_LABEL[currentPuzzle.metadata.difficulty]}
                     </span>
                 </div>
-                <div className="flex items-center gap-3">
+                <div className="flex items-center gap-2 sm:gap-3 shrink-0">
                     {sessionCorrectStreak > 0 && (
                         <div className="flex items-center gap-1 text-amber-500" title="Combo">
                             <Flame className="w-4 h-4" />
@@ -408,13 +508,13 @@ const TrainingPage: React.FC = () => {
                         </div>
                     )}
                     {userProgress && (
-                        <div className="flex items-center gap-1 text-emerald-600" title="XP">
+                        <div className="hidden sm:flex items-center gap-1 text-emerald-600" title="XP">
                             <Star className="w-4 h-4" />
                             <span className="font-bold text-sm">{userProgress.totalXP}</span>
                         </div>
                     )}
                     <button
-                        onClick={startNewBatch}
+                        onClick={() => startNewBatch()}
                         title="Nouveau lot d exercices"
                         className="p-1.5 hover:bg-slate-100 rounded-full text-slate-400 transition-colors"
                     >
@@ -423,135 +523,81 @@ const TrainingPage: React.FC = () => {
                 </div>
             </div>
 
-            {/* Plateau */}
-            <div className="flex-1 overflow-auto flex justify-center items-start p-2 sm:p-4 lg:p-6">
-                <ArenaBoard
-                    initialTiles={currentPuzzle.boardConfig.initialTiles}
-                    placedTiles={placedTiles}
-                    solutionTiles={solutionTiles}
-                    onCellClick={handleBoardClick}
-                    onTilePlace={handleTilePlace}
-                    onTileRemove={handleTileRemove}
-                    onDropTile={handleDropTile}
-                />
+            {/* Consigne : en mode verbes, on dit ce qu'on cherche sans dire lequel */}
+            {mode === 'verbes' && origine && (
+                <div className="px-3 pt-2 text-center text-[11px] sm:text-xs text-slate-500 leading-snug">
+                    {termine ? (
+                        <>
+                            <strong className="text-slate-800">{currentPuzzle.solution.word}</strong>
+                            {' '}vient de <strong className="text-slate-800">{origine.verbe}</strong> · {origine.raison}
+                        </>
+                    ) : (
+                        <>
+                            Une <strong className="text-slate-700">conjugaison</strong> d'un verbe{' '}
+                            {origine.source === 'perso' ? 'qui t’a résisté' : origine.source === 'club' ? 'qui résiste au club' : 'de tes lots'}{' '}
+                            se cache dans ce tirage
+                        </>
+                    )}
+                    {!pseudo && !termine && (
+                        <span className="block text-slate-400">Connecte-toi dans Verbes Club pour travailler tes propres ratés.</span>
+                    )}
+                </div>
+            )}
+
+            {/* Plateau : le plus grand carre qui tient dans l'espace libre */}
+            <div ref={boardAreaRef} className="flex-1 min-h-0 flex justify-center items-center p-2 sm:p-3">
+                <div style={boardSize ? { width: boardSize } : { width: '100%', maxWidth: 520 }}>
+                    <ArenaBoard
+                        fluid
+                        initialTiles={currentPuzzle.boardConfig.initialTiles}
+                        placedTiles={placedTiles}
+                        solutionTiles={solutionTiles}
+                        onCellClick={handleBoardClick}
+                        onTilePlace={handleTilePlace}
+                        onTileRemove={handleTileRemove}
+                        onDropTile={handleDropTile}
+                    />
+                </div>
             </div>
 
             {/* Chevalet + commandes */}
-            <div className="shrink-0 w-full p-2 sm:p-4 pb-20 sm:pb-4 flex justify-center">
-                <div className="w-full max-w-xl bg-slate-900/85 backdrop-blur-xl rounded-2xl shadow-2xl shadow-black/20
-                                p-3 sm:p-4 flex flex-col gap-2 z-40 border border-white/10">
-
-                    {refusal && (
-                        <div className="flex items-start gap-2 text-amber-200 bg-amber-500/15 border border-amber-400/30
-                                        rounded-lg px-3 py-2 text-xs leading-snug">
-                            <AlertTriangle className="w-4 h-4 shrink-0 mt-px" />
-                            <span>{refusal}</span>
-                        </div>
-                    )}
-
-                    <div
-                        className="flex justify-center gap-1.5 sm:gap-2"
-                        onTouchMove={handleTouchMove}
-                        onTouchEnd={handleTouchEnd}
-                    >
-                        {rackTiles.map((tile, i) => (
-                            <button
-                                key={tile.id}
-                                onClick={() => handleRackClick(i)}
-                                draggable={!tile.used && !revealSolution}
-                                onDragStart={(e) => {
-                                    e.dataTransfer.setData('text/rackId', String(tile.id));
-                                    e.dataTransfer.setData('text/char', tile.char);
-                                    e.dataTransfer.effectAllowed = 'move';
-                                }}
-                                onTouchStart={(e) => {
-                                    if (!tile.used && !revealSolution) handleTouchStart(e, tile.char, tile.id);
-                                }}
-                                disabled={tile.used || revealSolution}
-                                className={clsx(
-                                    "w-11 h-11 sm:w-12 sm:h-12 rounded-lg font-mono font-bold text-lg",
-                                    "flex items-center justify-center relative transition-all duration-150",
-                                    tile.used
-                                        ? "bg-white/5 text-white/20 cursor-not-allowed scale-90"
-                                        : selectedRackTile === i
-                                            ? "bg-amber-500 text-amber-950 -translate-y-1.5 shadow-lg shadow-amber-500/40 ring-2 ring-white/60"
-                                            : "bg-[#F7F0E6] text-[#4A3728] hover:bg-white hover:-translate-y-0.5 cursor-grab active:cursor-grabbing shadow-md"
-                                )}
-                            >
-                                <span>{tile.char}</span>
-                                {!tile.used && (
-                                    <span className="absolute bottom-0.5 right-1 text-[7px] font-normal opacity-60">
-                                        {LETTER_POINTS[tile.char] || ''}
-                                    </span>
-                                )}
-                            </button>
-                        ))}
+            <div className="shrink-0 w-full px-3 pb-3 sm:pb-4 pt-1 flex flex-col items-center gap-1.5">
+                {refusal && (
+                    <div className="w-full max-w-xl flex items-start gap-2 text-amber-900 bg-amber-50 border border-amber-200
+                                    rounded-lg px-3 py-2 text-xs leading-snug">
+                        <AlertTriangle className="w-4 h-4 shrink-0 mt-px text-amber-600" />
+                        <span>{refusal}</span>
                     </div>
+                )}
 
-                    {revealSolution ? (
-                        <div className="flex gap-2 items-center">
-                            <button
-                                onClick={() => { setLastResult(null); nextPuzzle(); }}
-                                className="flex-1 py-2.5 rounded-xl font-bold text-base bg-slate-100 text-slate-800
-                                           hover:bg-white transition-all flex items-center justify-center gap-2"
-                            >
-                                {currentPuzzleIndex < puzzles.length - 1 ? 'Exercice suivant' : 'Nouveau lot'}
-                            </button>
-                        </div>
-                    ) : (
-                    <div className="flex gap-2 items-center">
-                        {/* Le libelle reste visible sur telephone : cache derriere
-                            `hidden sm:inline`, la seule porte de sortie de
-                            l'exercice n'etait plus qu'une icone muette. */}
-                        <button
-                            onClick={abandonner}
+                {/* Telephone : chevalet pleine largeur, commandes dessous. Ordinateur : une seule rangee. */}
+                <div className="w-full max-w-2xl flex flex-col sm:flex-row items-center gap-1.5 sm:gap-3">
+                    <div className="hidden sm:block shrink-0 w-[150px]">{boutonsSecondaires}</div>
+                    <div className="flex-1 w-full flex justify-center">
+                        <Rack3D
+                            tiles={rackTiles}
+                            selected={selectedRackTile}
                             disabled={revealSolution}
-                            aria-label="Voir la solution"
-                            className="px-3 py-2.5 rounded-xl text-white/40 hover:text-white/70 hover:bg-white/10
-                                       disabled:opacity-30 transition-all text-sm font-medium flex items-center gap-1"
-                        >
-                            <Eye className="w-3.5 h-3.5" />
-                            <span>Solution</span>
-                        </button>
-
-                        {placedTiles.length > 0 && !revealSolution && (
-                            <button
-                                onClick={resetPlacement}
-                                className="px-3 py-2.5 rounded-xl text-white/40 hover:text-white/70 hover:bg-white/10
-                                           transition-all text-sm font-medium"
-                            >
-                                Reprendre
-                            </button>
-                        )}
-
-                        <button
-                            onClick={checkAnswer}
-                            disabled={feedback === 'checking' || revealSolution}
-                            className={clsx(
-                                "flex-1 py-2.5 rounded-xl font-bold text-base flex items-center justify-center gap-2 transition-all",
-                                feedback === 'refused'
-                                    ? "animate-shake bg-red-500 text-white"
-                                    : feedback === 'success'
-                                        ? "bg-emerald-500 text-white"
-                                        : "bg-gradient-to-r from-amber-500 to-amber-400 text-amber-950 hover:from-amber-400 hover:to-amber-300 shadow-lg shadow-amber-500/30",
-                                (feedback === 'checking' || revealSolution) && 'opacity-60'
-                            )}
-                        >
-                            {feedback === 'checking' ? <Loader2 className="w-5 h-5 animate-spin" />
-                                : feedback === 'success' ? <Check className="w-5 h-5" />
-                                    : 'VALIDER'}
-                        </button>
+                            onTileClick={handleRackClick}
+                            onTileTouchStart={handleTouchStart}
+                            onTouchMove={handleTouchMove}
+                            onTouchEnd={handleTouchEnd}
+                        />
                     </div>
-                    )}
-
-                    <p className="text-center text-[11px] text-white/35">
-                        {revealSolution
-                            ? `Le scrabble attendu est affiché en vert sur le plateau (${currentPuzzle.solution.score} pts, prime comprise).`
-                            : rackRestant === 0
-                                ? `Tes sept jetons sont posés — le meilleur scrabble vaut ${currentPuzzle.solution.score} points.`
-                                : `Pose tes ${rackRestant} jeton${rackRestant > 1 ? 's' : ''} restant${rackRestant > 1 ? 's' : ''} : un scrabble les utilise tous.`}
-                    </p>
+                    <div className="hidden sm:flex shrink-0 w-[150px] justify-end">{boutonValider}</div>
+                    <div className="sm:hidden w-full flex items-center justify-between gap-2">
+                        {boutonsSecondaires || <span />}
+                        <div className="flex-1 max-w-[220px] [&>button]:w-full">{boutonValider}</div>
+                    </div>
                 </div>
+
+                <p className="text-center text-[11px] text-slate-400 leading-tight">
+                    {revealSolution
+                        ? `Le scrabble attendu est en vert sur le plateau (${currentPuzzle.solution.score} pts, prime comprise).`
+                        : rackRestant === 0
+                            ? `Sept jetons posés : le meilleur scrabble vaut ${currentPuzzle.solution.score} points.`
+                            : `Pose les ${rackRestant} jeton${rackRestant > 1 ? 's' : ''} : un scrabble les utilise tous.`}
+                </p>
             </div>
 
             {/* Fantome de glisser-deposer tactile */}
@@ -601,6 +647,11 @@ const TrainingPage: React.FC = () => {
                                         {lastResult.bestScore} pts
                                     </span>
                                 </div>
+                            )}
+                            {origine && (
+                                <p className="text-xs text-slate-600 pt-1">
+                                    <strong>{lastResult.expectedWord}</strong> vient de <strong>{origine.verbe}</strong> · {origine.raison}
+                                </p>
                             )}
                             {lastResult.wordsFormed.length > 1 && (
                                 <p className="text-xs text-slate-500 pt-1">

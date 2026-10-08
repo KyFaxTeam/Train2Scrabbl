@@ -2,6 +2,7 @@ import { Lexicon } from './models/Lexicon';
 import { WordPool } from './services/WordPool';
 import { MoveChecker, type PlacedTile } from './services/MoveChecker';
 import { NaturalFlow } from './modules/NaturalFlow';
+import { formesConjuguees } from './modules/Conjugaisons';
 
 let lexicon: Lexicon | null = null;
 let wordPool: WordPool | null = null;
@@ -155,6 +156,16 @@ self.onmessage = async (e: MessageEvent) => {
                 choisis.push(mots[Math.floor(Math.random() * mots.length)]);
             }
             self.postMessage({ type: 'TARGETS_SUCCESS', payload: choisis, callId });
+            return;
+        }
+
+        if (type === 'CONJUGATE') {
+            // Formes conjuguees de sept lettres, verifiees dans le lexique :
+            // ce sont elles qui deviennent des scrabbles a trouver.
+            const { verbes = [], longueur = 7 } = payload as { verbes: string[]; longueur?: number };
+            const formes: Record<string, string[]> = {};
+            for (const verbe of verbes) formes[verbe] = formesConjuguees(verbe, mot => lexicon!.has(mot), longueur);
+            self.postMessage({ type: 'TARGETS_SUCCESS', payload: formes, callId });
             return;
         }
 
