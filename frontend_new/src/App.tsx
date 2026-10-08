@@ -32,7 +32,31 @@ const RouteFallback: React.FC = () => (
   </div>
 );
 
+/**
+ * Prechauffage du moteur d'entrainement : le lexique (236 Ko, puis lu depuis le
+ * cache de l'appareil) est charge dans le worker des que le site est au repos,
+ * sur n'importe quelle page. Ouvrir Training ne fait alors plus attendre ce
+ * chargement - c'etait l'essentiel du temps avant le premier plateau.
+ */
+function usePrechauffageMoteur() {
+  React.useEffect(() => {
+    const lancer = () => {
+      import('./engine/WorkerClient')
+        .then((m) => m.EngineWorkerClient.getInstance().initialize())
+        .catch(() => { /* Training retentera a l'ouverture */ });
+    };
+    const w = window as Window & { requestIdleCallback?: (cb: () => void, o?: { timeout: number }) => number };
+    if (w.requestIdleCallback) {
+      w.requestIdleCallback(lancer, { timeout: 4000 });
+    } else {
+      const t = setTimeout(lancer, 2000);
+      return () => clearTimeout(t);
+    }
+  }, []);
+}
+
 const App: React.FC = () => {
+  usePrechauffageMoteur();
   return (
     <Router basename={import.meta.env.BASE_URL}>
       <Layout>

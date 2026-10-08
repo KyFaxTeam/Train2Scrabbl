@@ -1,7 +1,9 @@
 import React, { useState, useEffect, useLayoutEffect, useCallback, useMemo, useRef } from 'react';
 import { generateBatch } from '../services/trainingService';
 import type { Puzzle, TrainingMode } from '../services/trainingService';
-import { pseudoCourant } from '../services/verbTargetsService';
+import { pseudoCourant, AucunVerbeJoue } from '../services/verbTargetsService';
+import { firebaseVerbsService } from '../services/firebaseVerbsService';
+import { Link } from 'react-router-dom';
 import { Rack3D } from '../components/Training/Rack3D';
 import { EngineWorkerClient, type InitProgress, type MoveReview } from '../engine/WorkerClient';
 import { ArenaBoard } from '../components/Arena/ArenaBoard';
@@ -11,7 +13,7 @@ import { useTouchDragDrop } from '../hooks/useTouchDragDrop';
 import type { XPReward, WordMastery } from '../types';
 import { clsx } from 'clsx';
 import confetti from 'canvas-confetti';
-import { RefreshCw, Check, Eye, Flame, Star, Loader2, AlertTriangle, Undo2, Shuffle, ArrowRight, ZoomIn, ZoomOut, X } from 'lucide-react';
+import { RefreshCw, Check, Eye, Flame, Star, Loader2, AlertTriangle, Undo2, Shuffle, ArrowRight, ZoomIn, ZoomOut, X, SkipForward, LogIn } from 'lucide-react';
 
 const MODE_KEY = 'faizers_training_mode';
 const ZOOM_KEY = 'faizers_training_zoom';
@@ -30,8 +32,19 @@ const DIFFICULTY_LABEL: Record<Puzzle['metadata']['difficulty'], string> = {
     difficile: 'Difficile',
 };
 
+/** Un collage montre sur le plateau apres coup. */
+interface Collage {
+    word: string;
+    row: number;
+    col: number;
+    direction: 'H' | 'V';
+    score: number;
+}
+
 interface PlayResult {
     correct: boolean;
+    /** Le meilleur scrabble du mot attendu, pour le montrer sur demande apres une reussite. */
+    meilleur: Collage;
     title: string;
     playedWord: string;
     expectedWord: string;
@@ -58,6 +71,15 @@ const TrainingPage: React.FC = () => {
     const [revealSolution, setRevealSolution] = useState(false);
     const [showXPFeedback, setShowXPFeedback] = useState(false);
     const [lastResult, setLastResult] = useState<PlayResult | null>(null);
+    /** Collage montre en vert une fois l'exercice termine (par defaut : la solution du lot). */
+    const [correction, setCorrection] = useState<Collage | null>(null);
+    /** Apres une reussite : le coup du joueur, pour comparer avec le meilleur. */
+    const [monCoup, setMonCoup] = useState<{ word: string; score: number } | null>(null);
+    const [voirMonCoup, setVoirMonCoup] = useState(false);
+    /** Mode verbes impossible : joueur non connecte, ou aucun verbe joue. */
+    const [aucunVerbe, setAucunVerbe] = useState<{ connecte: boolean } | null>(null);
+    const [annonce, setAnnonce] = useState<string | null>(null);
+    const annonceTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
     const batchToken = useRef(0);
     const [mode, setMode] = useState<TrainingMode>(modeInitial);
     const pseudo = useMemo(() => pseudoCourant(), []);
@@ -178,6 +200,9 @@ const TrainingPage: React.FC = () => {
         setFeedback('idle');
         effacerRefus();
         setRevealSolution(false);
+        setCorrection(null);
+        setMonCoup(null);
+        setVoirMonCoup(false);
         setSelectedRackTile(null);
         setRackTiles(puzzle.rack.map((char, i) => ({ char, id: i, used: false })));
         setPuzzleStartTime(Date.now());
@@ -200,6 +225,7 @@ const TrainingPage: React.FC = () => {
 
         try {
             setError(null);
+            setAucunVerbe(null);
             setPuzzles([]);
             setCurrentPuzzleIndex(0);
             EngineWorkerClient.getInstance().setProgressListener(setProgress);
@@ -219,6 +245,10 @@ const TrainingPage: React.FC = () => {
             }, m);
             if (batchToken.current !== token) return;
         } catch (e) {
+            if (e instanceof AucunVerbeJoue) {
+                if (batchToken.current === token) setAucunVerbe({ connecte: e.connecte });
+                return;
+            }
             console.error('Echec du lot d entrainement', e);
             if (batchToken.current === token) {
                 setError(e instanceof Error ? e.message : "Impossible de charger l’entraînement.");
@@ -283,12 +313,33 @@ const TrainingPage: React.FC = () => {
      *  vide - et les revisions qui revenaient plus tard ne portaient sur rien. */
     const buildWordId = (puzzle: Puzzle) => `${[...puzzle.rack].sort().join('')}--${puzzle.solution.word}`;
 
+    /** Inscrit l'exercice dans le suivi du club (mode verbes, joueur connecte). */
+    const suivreExercice = (puzzle: Puzzle, resultat: 'trouve' | 'passe' | 'solution') => {
+        if (!puzzle.origine || !pseudo) return;
+        firebaseVerbsService.recordTrainingResult(
+            firebaseVerbsService.slugify(pseudo),
+            puzzle.origine.verbe,
+            resultat,
+            (Date.now() - puzzleStartTime) / 1000
+        );
+    };
+
     const enregistrer = async (puzzle: Puzzle, correct: boolean, review: MoveReview | null, title: string) => {
         const responseTime = Date.now() - puzzleStartTime;
+        suivreExercice(puzzle, correct ? 'trouve' : 'solution');
         const { mastery, xp } = await recordTestResult(buildWordId(puzzle), correct, responseTime);
+
+        const m = review?.meilleur;
+        const meilleur: Collage = m
+            ? { word: puzzle.solution.word, row: m.row, col: m.col, direction: m.direction, score: m.score }
+            : puzzle.solution;
+        if (correct && review?.verdict.word) {
+            setMonCoup({ word: review.verdict.word, score: review.verdict.score ?? 0 });
+        }
 
         setLastResult({
             correct,
+            meilleur,
             title,
             playedWord: review?.verdict.word ?? '(rien)',
             expectedWord: puzzle.solution.word,
@@ -382,6 +433,32 @@ const TrainingPage: React.FC = () => {
     };
 
     /**
+     * Passer sans voir la reponse : compte comme non trouve (la repetition
+     * espacee le reproposera, le suivi du club le range parmi les durs), mais
+     * le tirage reste a trouver un autre jour.
+     */
+    const passer = () => {
+        const puzzle = puzzles[currentPuzzleIndex];
+        if (!puzzle || revealSolution || feedback === 'checking') return;
+        suivreExercice(puzzle, 'passe');
+        void recordTestResult(buildWordId(puzzle), false, Date.now() - puzzleStartTime);
+        setAnnonce('Passé sans voir la réponse : ce tirage reviendra plus tard.');
+        if (annonceTimer.current) clearTimeout(annonceTimer.current);
+        annonceTimer.current = setTimeout(() => setAnnonce(null), 2600);
+        nextPuzzle();
+    };
+
+    /** Apres une reussite : fermer la fenetre et montrer le meilleur scrabble sur le plateau. */
+    const voirLeMeilleur = () => {
+        if (!lastResult) return;
+        setCorrection(lastResult.meilleur);
+        setShowXPFeedback(false);
+        setLastResult(null);
+        setVoirMonCoup(false);
+        setRevealSolution(true);
+    };
+
+    /**
      * Sur une erreur, fermer la fenetre ne passe PAS a l'exercice suivant :
      * elle recouvre le plateau, et c'est justement le plateau qu'il faut
      * regarder - le coup attendu y est affiche. Le joueur enchaine ensuite avec
@@ -410,8 +487,8 @@ const TrainingPage: React.FC = () => {
 
     /** Les jetons du meilleur collage, pour montrer le coup sur le plateau. */
     const solutionTiles = useMemo(() => {
-        if (!revealSolution || !currentPuzzle) return undefined;
-        const { word, row, col, direction } = currentPuzzle.solution;
+        if (!revealSolution || !currentPuzzle || voirMonCoup) return undefined;
+        const { word, row, col, direction } = correction ?? currentPuzzle.solution;
         const occupees = new Set(currentPuzzle.boardConfig.initialTiles.map(t => `${t.row},${t.col}`));
 
         return word.split('').map((char, i) => ({
@@ -419,7 +496,7 @@ const TrainingPage: React.FC = () => {
             col: col + (direction === 'H' ? i : 0),
             char,
         })).filter(t => !occupees.has(`${t.row},${t.col}`));
-    }, [revealSolution, currentPuzzle]);
+    }, [revealSolution, currentPuzzle, correction, voirMonCoup]);
 
     // Loupe : on recentre la vue sur les jetons du plateau, la ou se joue le coup
     useLayoutEffect(() => {
@@ -458,6 +535,40 @@ const TrainingPage: React.FC = () => {
         window.addEventListener('keydown', onKey);
         return () => window.removeEventListener('keydown', onKey);
     });
+
+    if (aucunVerbe) {
+        return (
+            <div className="h-full flex flex-col items-center justify-center gap-4 px-6 text-center">
+                <div className="w-12 h-12 rounded-2xl bg-emerald-50 text-emerald-600 flex items-center justify-center">
+                    <LogIn className="w-6 h-6" />
+                </div>
+                <div className="max-w-sm space-y-1.5">
+                    <h2 className="text-lg font-bold text-slate-800">
+                        {aucunVerbe.connecte ? 'Aucun verbe joué pour l’instant' : 'Connecte-toi dans Verbes Club'}
+                    </h2>
+                    <p className="text-sm text-slate-500 leading-relaxed">
+                        L’entraînement « Verbes du club » ne reprend que les verbes que <strong>toi</strong> as déjà joués,
+                        conjugués et cachés dans des scrabbles.{' '}
+                        {aucunVerbe.connecte ? 'Joue un premier lot, puis reviens ici.' : 'Choisis ton pseudo, puis reviens ici.'}
+                    </p>
+                </div>
+                <div className="flex flex-col sm:flex-row gap-2 w-full max-w-xs sm:max-w-sm">
+                    <Link
+                        to="/verbs"
+                        className="flex-1 px-4 py-2.5 rounded-xl bg-emerald-600 text-white font-bold text-sm hover:bg-emerald-700 transition-colors"
+                    >
+                        Aller à Verbes Club
+                    </Link>
+                    <button
+                        onClick={() => changerMode('libre')}
+                        className="flex-1 px-4 py-2.5 rounded-xl bg-white border border-slate-200 text-slate-700 font-bold text-sm hover:bg-slate-50 transition-colors"
+                    >
+                        Scrabbles libres
+                    </button>
+                </div>
+            </div>
+        );
+    }
 
     if (error) {
         return (
@@ -508,7 +619,6 @@ const TrainingPage: React.FC = () => {
     }
 
     const origine = currentPuzzle.origine;
-    const termine = revealSolution || feedback === 'success';
 
     const boutonsMode = (
         <div role="tablist" aria-label="Mode d'entraînement" className="flex bg-slate-100 rounded-full p-0.5 text-xs font-bold shrink-0">
@@ -582,32 +692,53 @@ const TrainingPage: React.FC = () => {
                         </button>
                     )}
                     {!revealSolution && (
-                        <button onClick={abandonner} title="Voir la solution" aria-label="Voir la solution" className={iconeHeader}>
-                            <Eye className="w-[18px] h-[18px]" />
-                        </button>
+                        <>
+                            <button onClick={passer} title="Passer, sans voir la réponse" aria-label="Passer, sans voir la réponse" className={iconeHeader}>
+                                <SkipForward className="w-[18px] h-[18px]" />
+                            </button>
+                            <button onClick={abandonner} title="Voir la solution" aria-label="Voir la solution" className={iconeHeader}>
+                                <Eye className="w-[18px] h-[18px]" />
+                            </button>
+                        </>
                     )}
-                    <button onClick={() => startNewBatch()} title="Nouveau lot d'exercices" aria-label="Nouveau lot d'exercices" className={iconeHeader}>
+                    <button onClick={() => startNewBatch()} title="Nouveau lot d'exercices" aria-label="Nouveau lot d'exercices" className={clsx(iconeHeader, 'hidden sm:inline-flex')}>
                         <RefreshCw className="w-[18px] h-[18px]" />
                     </button>
                 </div>
             </div>
 
-            {/* Consigne, sur une ligne : en mode verbes, ce qu'on cherche sans dire lequel */}
-            {mode === 'verbes' && origine && (
-                <p className="shrink-0 px-3 pt-1.5 text-center text-[11px] sm:text-xs text-slate-500 leading-4 truncate">
-                    {termine ? (
-                        <>
-                            <strong className="text-slate-800">{currentPuzzle.solution.word}</strong>
-                            {' '}vient de <strong className="text-slate-800">{origine.verbe}</strong> · {origine.raison}
-                        </>
-                    ) : (
-                        <>
-                            Une <strong className="text-slate-700">conjugaison</strong> d'un verbe{' '}
-                            {origine.source === 'perso' ? 'qui t’a résisté' : origine.source === 'club' ? 'qui résiste au club' : 'de tes lots'}{' '}
-                            se cache ici
-                        </>
+            {/* Consigne, sur une ligne. En jeu : ce qu'on cherche, sans dire lequel.
+                Apres coup : le collage montre, et de quel verbe il vient. */}
+            {(revealSolution || (mode === 'verbes' && origine)) && (
+                <div className="shrink-0 px-3 pt-1.5 flex items-center justify-center gap-2 text-[11px] sm:text-xs text-slate-500 leading-4 min-w-0">
+                    <p className="truncate">
+                        {revealSolution ? (
+                            voirMonCoup && monCoup ? (
+                                <>Ton coup : <strong className="text-slate-800">{monCoup.word}</strong> · {monCoup.score} pts</>
+                            ) : (
+                                <>
+                                    Meilleur scrabble : <strong className="text-slate-800">{(correction ?? currentPuzzle.solution).word}</strong>
+                                    {' '}· {(correction ?? currentPuzzle.solution).score} pts
+                                    {origine && <> · de <strong className="text-slate-800">{origine.verbe}</strong></>}
+                                </>
+                            )
+                        ) : origine ? (
+                            <>
+                                Une <strong className="text-slate-700">conjugaison</strong> d'un verbe{' '}
+                                {origine.source === 'perso' ? 'qui t’a résisté' : origine.source === 'club' ? 'qui résiste au club' : 'que tu as joué'}{' '}
+                                se cache ici
+                            </>
+                        ) : null}
+                    </p>
+                    {revealSolution && monCoup && (
+                        <button
+                            onClick={() => setVoirMonCoup(v => !v)}
+                            className="shrink-0 font-bold text-emerald-700 hover:underline underline-offset-2"
+                        >
+                            {voirMonCoup ? 'Voir le meilleur' : 'Voir mon coup'}
+                        </button>
                     )}
-                </p>
+                </div>
             )}
 
             {/* Plateau */}
@@ -621,7 +752,7 @@ const TrainingPage: React.FC = () => {
                             <ArenaBoard
                                 fluid
                                 initialTiles={currentPuzzle.boardConfig.initialTiles}
-                                placedTiles={placedTiles}
+                                placedTiles={revealSolution && !voirMonCoup ? [] : placedTiles}
                                 solutionTiles={solutionTiles}
                                 onCellClick={handleBoardClick}
                                 onTilePlace={handleTilePlace}
@@ -632,6 +763,13 @@ const TrainingPage: React.FC = () => {
                         </div>
                     </div>
                 </div>
+
+                {annonce && (
+                    <div role="status" className="absolute left-1/2 -translate-x-1/2 top-2 z-20 max-w-[92%] px-3 py-1.5 rounded-full
+                                    bg-slate-900/85 text-white text-xs font-medium shadow-lg text-center">
+                        {annonce}
+                    </div>
+                )}
 
                 {/* Refus de l'arbitre : par-dessus le bas du plateau, sans pousser la mise en page */}
                 {refusal && (
@@ -771,6 +909,9 @@ const TrainingPage: React.FC = () => {
                         </div>
                     }
                     onContinue={handleContinueAfterFeedback}
+                    secondaryAction={lastResult.correct && lastResult.playedScore !== null && lastResult.meilleur.score > lastResult.playedScore
+                        ? { label: `Voir le meilleur scrabble (${lastResult.meilleur.score} pts)`, onClick: voirLeMeilleur }
+                        : undefined}
                 />
             )}
         </div>

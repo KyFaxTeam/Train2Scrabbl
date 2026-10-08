@@ -349,6 +349,43 @@ class FirebaseVerbsService {
     );
   }
 
+  /**
+   * Note un exercice de l'entraînement (une conjugaison du verbe) sous
+   * `verb_mastery/training_stats/{VERBE}/{slug}`, au même format que `word_stats` :
+   * `f` compte les exercices passés ou dont la solution a été demandée.
+   */
+  public async recordTrainingResult(
+    slug: string,
+    verbe: string,
+    resultat: 'trouve' | 'passe' | 'solution',
+    seconds: number
+  ): Promise<void> {
+    if (!this.isConnected || !this.db || !slug || !verbe) return;
+    const t = Math.round(Math.min(seconds, 600) * 10) / 10;
+    await runTransaction(ref(this.db, `verb_mastery/training_stats/${verbe}/${slug}`), (cur: WordStat | null) => {
+      const s = cur || { a: 0, f: 0, w: 0, t: 0, last: 0 };
+      return {
+        a: (s.a || 0) + 1,
+        f: (s.f || 0) + (resultat === 'trouve' ? 0 : 1),
+        w: s.w || 0,
+        t: Math.round(((s.t || 0) + t) * 10) / 10,
+        last: Date.now(),
+      };
+    }).catch((err) => console.warn('Erreur suivi entraînement', verbe, err));
+  }
+
+  /** Historique de l'entraînement, même forme que `loadWordStats`. */
+  public async loadTrainingStats(): Promise<WordStatsTree> {
+    if (!this.isConnected || !this.db) return {};
+    try {
+      const snap = await get(ref(this.db, 'verb_mastery/training_stats'));
+      return snap.exists() ? (snap.val() as WordStatsTree) : {};
+    } catch (err) {
+      console.warn('Erreur lecture training_stats:', err);
+      return {};
+    }
+  }
+
   /** Tout l'historique mot par mot du club (quelques centaines de Ko au plus). */
   public async loadWordStats(): Promise<WordStatsTree> {
     if (!this.isConnected || !this.db) return {};

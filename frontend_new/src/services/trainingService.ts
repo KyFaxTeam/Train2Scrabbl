@@ -1,6 +1,6 @@
 import { getDueForReview } from './learningStore';
 import { EngineWorkerClient } from '../engine/WorkerClient';
-import { verbesCandidats, type VerbSource } from './verbTargetsService';
+import { verbesCandidats, type VerbSource, type VerbCandidate } from './verbTargetsService';
 
 /** `verbes` : des conjugaisons des verbes que le club peine a trouver. `libre` : des scrabbles au hasard. */
 export type TrainingMode = 'verbes' | 'libre';
@@ -55,8 +55,12 @@ interface TargetWord {
  * Une forme conjuguee de sept lettres par verbe retenu. Les verbes sans forme
  * de sept lettres (les plus longs) sont sautes au profit des suivants.
  */
-const choisirConjugaisons = async (size: number, worker: EngineWorkerClient): Promise<TargetWord[]> => {
-    const candidats = await verbesCandidats(size);
+const choisirConjugaisons = async (
+    size: number,
+    worker: EngineWorkerClient,
+    enCours: Promise<VerbCandidate[]>
+): Promise<TargetWord[]> => {
+    const candidats = await enCours;
     const formes = await worker.conjugate(candidats.map(c => c.verbe), 7);
     const cibles: TargetWord[] = [];
     for (const c of candidats) {
@@ -130,18 +134,21 @@ export const generateBatch = async (
     onPuzzle?: (puzzle: Puzzle, index: number) => void,
     mode: TrainingMode = 'libre'
 ): Promise<Puzzle[]> => {
+    // Les verbes du joueur se lisent dans Firebase PENDANT que le moteur charge
+    // son lexique : les deux attentes se recouvrent au lieu de s'additionner.
+    const candidats = mode === 'verbes' ? verbesCandidats(size) : null;
+    candidats?.catch(() => { /* l'erreur remonte plus bas, a l'await */ });
     const worker = EngineWorkerClient.getInstance();
     await worker.initialize();
 
-    let cibles: TargetWord[] = [];
-    if (mode === 'verbes') {
-        try {
-            cibles = await choisirConjugaisons(size, worker);
-        } catch (e) {
-            console.warn('Verbes du club indisponibles, on tire des scrabbles libres', e);
-        }
+    // En mode verbes, uniquement des verbes deja joues par le joueur : jamais de
+    // mot tire au hasard pour completer le lot. `AucunVerbeJoue` remonte a la page.
+    const cibles: TargetWord[] = mode === 'verbes'
+        ? await choisirConjugaisons(size, worker, candidats!)
+        : await choisirMots(size, worker);
+    if (cibles.length === 0) {
+        throw new Error("Aucun de tes verbes n'a de conjugaison de sept lettres : valide d'autres lots dans Verbes Club.");
     }
-    if (cibles.length < size) cibles = cibles.concat(await choisirMots(size - cibles.length, worker));
 
     const puzzles: Puzzle[] = [];
     const echecs: string[] = [];

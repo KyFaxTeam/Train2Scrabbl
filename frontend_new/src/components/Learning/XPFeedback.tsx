@@ -20,6 +20,8 @@ interface XPFeedbackProps {
     /** Libellé du bouton : « Continuer » n'a pas de sens si le coup est montré. */
     continueLabel?: string;
     onContinue: () => void;
+    /** Action secondaire, au-dessus du bouton principal (ex. « Voir le meilleur scrabble »). */
+    secondaryAction?: { label: string; onClick: () => void };
 }
 
 export const XPFeedback: React.FC<XPFeedbackProps> = ({
@@ -31,7 +33,8 @@ export const XPFeedback: React.FC<XPFeedbackProps> = ({
     mastery,
     details,
     continueLabel = 'Continuer',
-    onContinue
+    onContinue,
+    secondaryAction
 }) => {
     return (
         <AnimatePresence>
@@ -116,7 +119,16 @@ export const XPFeedback: React.FC<XPFeedbackProps> = ({
                         )}
 
                         {/* Action */}
-                        <div className="px-6 pb-6">
+                        <div className="px-6 pb-6 flex flex-col gap-2">
+                            {secondaryAction && (
+                                <button
+                                    onClick={secondaryAction.onClick}
+                                    className="w-full py-2.5 rounded-xl font-bold text-emerald-700 bg-emerald-50 border border-emerald-200
+                                               hover:bg-emerald-100 transition-colors"
+                                >
+                                    {secondaryAction.label}
+                                </button>
+                            )}
                             <button
                                 onClick={onContinue}
                                 className={clsx(
