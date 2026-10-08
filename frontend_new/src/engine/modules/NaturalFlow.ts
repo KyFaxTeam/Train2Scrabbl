@@ -52,7 +52,12 @@ const cle = (row: number, col: number) => `${row},${col}`;
  *                choisi pour que la soudure soit un mot (mesure : aucun des
  *                300 mots de sept lettres testes n'est sans accroche possible,
  *                mediane 22 911 candidates) ;
- *   RESPIRATION  on meuble le reste du plateau, le couloir restant interdit.
+ *   RESPIRATION  on meuble le reste du plateau, le couloir restant interdit ;
+ *   CENTRE       comme dans toute partie, la case centrale doit etre couverte :
+ *                si le decor ne l'a pas atteinte, on pose des mots qui s'en
+ *                rapprochent jusqu'a la couvrir, sinon le plateau est refait.
+ *                Le couloir, lui, n'y touche jamais. Mesure avant : 20 plateaux
+ *                sur 60 seulement couvraient le centre ; apres : 200 sur 200.
  *
  * Tout se joue sur DEUX plateaux menes de front : celui que verra le joueur, et
  * le meme avec le mot cible en place. Chaque mot de decor doit etre valide sur
@@ -75,11 +80,19 @@ export class NaturalFlow {
     private static _choisirCouloir(longueur: number, taille: number): Couloir {
         const direction: 'H' | 'V' = Math.random() < 0.5 ? 'H' : 'V';
         const vertical = direction === 'V';
+        const centre = Math.floor(taille / 2);
 
         // Le couloir reste dans la zone centrale : un scrabble colle au bord
-        // n'a presque aucune facon de s'accrocher.
-        const debut = 2 + Math.floor(Math.random() * (taille - longueur - 3));
-        const fixe = 3 + Math.floor(Math.random() * (taille - 6));
+        // n'a presque aucune facon de s'accrocher. Mais il ne passe jamais par
+        // la case centrale, ni ne la touche par un bout : en partie, le premier
+        // mot couvre le centre - le plateau montre au joueur doit donc l'avoir
+        // deja occupe, et c'est le decor qui s'en charge.
+        let debut: number;
+        let fixe: number;
+        do {
+            debut = 2 + Math.floor(Math.random() * (taille - longueur - 3));
+            fixe = 3 + Math.floor(Math.random() * (taille - 6));
+        } while (fixe === centre && debut - 1 <= centre && centre <= debut + longueur);
 
         const row = vertical ? debut : fixe;
         const col = vertical ? fixe : debut;
@@ -219,6 +232,74 @@ export class NaturalFlow {
         return motsPlaces;
     }
 
+    /**
+     * Couvre la case centrale, comme le premier mot de toute partie.
+     *
+     * Le decor pousse a partir de l'accroche, qui peut naitre loin du centre.
+     * On pose donc des mots de decor qui s'en rapprochent, jusqu'a ce que l'un
+     * d'eux passe par la case centrale. Faux si on n'y arrive pas : le plateau
+     * est alors refait.
+     */
+    static couvrirCentre(
+        grille: Board,
+        avecCible: Board,
+        lexicon: Lexicon,
+        wordPool: WordPool,
+        interdites: Set<string>,
+        etapes = 4
+    ): boolean {
+        const centre = Math.floor(grille.size / 2);
+        if (grille.getLetter(centre, centre)) return true;
+        if (interdites.has(cle(centre, centre))) return false;
+
+        const distance = (p: Placement) => {
+            let d = Infinity;
+            for (let i = 0; i < p.mot.length; i++) {
+                const r = p.position[0] + (p.direction === 'V' ? i : 0);
+                const c = p.position[1] + (p.direction === 'H' ? i : 0);
+                d = Math.min(d, Math.abs(r - centre) + Math.abs(c - centre));
+            }
+            return d;
+        };
+        let actuelle = Infinity;
+        for (const [r, c] of NaturalFlow._getOccupiedCells(grille)) {
+            actuelle = Math.min(actuelle, Math.abs(r - centre) + Math.abs(c - centre));
+        }
+
+        for (let etape = 0; etape < etapes; etape++) {
+            const candidats = wordPool.getMotsCourts(80)
+                .concat(wordPool.getMotsMoyens(80), wordPool.getMotsLongs(40));
+            const v = new WordValidator(lexicon, grille);
+            const vc = new WordValidator(lexicon, avecCible);
+
+            let meilleur: Placement | null = null;
+            let meilleureDistance = actuelle;
+            const couvrants: Placement[] = [];
+            for (const mot of candidats) {
+                for (const p of NaturalFlow._genererPlacementsPourMot(mot, grille, v, vc, interdites)) {
+                    const d = distance(p);
+                    if (d === 0) couvrants.push(p);
+                    else if (d < meilleureDistance) {
+                        meilleureDistance = d;
+                        meilleur = p;
+                    }
+                }
+            }
+
+            const choisi = couvrants.length > 0
+                ? couvrants[Math.floor(Math.random() * couvrants.length)]
+                : meilleur;
+            if (!choisi) return false;
+
+            NaturalFlow._appliquerPlacement(grille, choisi);
+            NaturalFlow._appliquerPlacement(avecCible, choisi);
+            if (couvrants.length > 0) return true;
+            actuelle = meilleureDistance;
+        }
+
+        return false;
+    }
+
     private static _choisirCategorie(distribution: { category: string; proba: number }[]): string {
         const r = Math.random();
         let cumul = 0;
@@ -340,10 +421,6 @@ export class NaturalFlow {
         if (placement.mot.length <= 4) score += 15;
         else if (placement.mot.length <= 6) score += 10;
 
-        const center = Math.floor(grille.size / 2);
-        const distCenter = Math.abs(placement.position[0] - center) + Math.abs(placement.position[1] - center);
-        if (distCenter < 3) score -= 5;
-
         return score;
     }
 
@@ -413,6 +490,9 @@ export class NaturalFlow {
             NaturalFlow.phaseBreathe(
                 grille, avecCible, lexicon, wordPool, couloir.interdites, config.profondeurRespiration
             );
+
+            // Regle de toute partie : la case centrale est couverte.
+            if (!NaturalFlow.couvrirCentre(grille, avecCible, lexicon, wordPool, couloir.interdites)) continue;
 
             const jetons = NaturalFlow._getOccupiedCells(grille).length;
             if (jetons < jetonsMinimum) continue;

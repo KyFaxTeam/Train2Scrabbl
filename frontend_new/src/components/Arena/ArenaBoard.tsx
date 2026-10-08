@@ -18,6 +18,8 @@ interface ArenaBoardProps {
     onDropTile?: (rackId: number, row: number, col: number) => void;
     /** Sans plafond de 520 px : le parent fixe la taille (l'entrainement ajuste le plateau a l'espace libre). */
     fluid?: boolean;
+    /** Saisie au doigt d'un jeton deja pose : on peut le deplacer ou le rendre au chevalet. */
+    onPlacedTouchStart?: (e: React.TouchEvent, char: string, rackId: number) => void;
 }
 
 const BONUS_LABELS: Record<string, string> = {
@@ -40,7 +42,8 @@ export const ArenaBoard: React.FC<ArenaBoardProps> = ({
     onTilePlace,
     onTileRemove,
     onDropTile,
-    fluid = false
+    fluid = false,
+    onPlacedTouchStart
 }) => {
     const [activeCell, setActiveCell] = useState<{ r: number, c: number } | null>(null);
     const [direction, setDirection] = useState<'H' | 'V'>('H');
@@ -161,10 +164,10 @@ export const ArenaBoard: React.FC<ArenaBoardProps> = ({
                 {!tile && bonusKey && (
                     <span className={clsx(
                         "text-[1.7cqw] font-semibold uppercase tracking-wide pointer-events-none leading-none",
-                        bonusKey === 'CENTER' ? 'text-[3.6cqw] opacity-40' : 'opacity-50',
+                        isCenter ? 'text-[3.6cqw] opacity-60' : 'opacity-50',
                         BONUS_TEXT_COLORS[bonusKey] || 'text-slate-500/50'
                     )}>
-                        {BONUS_LABELS[bonusKey]}
+                        {isCenter ? '★' : BONUS_LABELS[bonusKey]}
                     </span>
                 )}
 
@@ -176,6 +179,9 @@ export const ArenaBoard: React.FC<ArenaBoardProps> = ({
                         isPlaced={!!placedTile}
                         isSolution={!!solutionTile}
                         draggable={!!placedTile && !solutionTile}
+                        onTouchStart={placedTile && !solutionTile && onPlacedTouchStart
+                            ? (e) => onPlacedTouchStart(e, placedTile.char, placedTile.rackId)
+                            : undefined}
                         onDragStart={placedTile ? (e) => {
                             e.dataTransfer.setData('text/rackId', String(placedTile.rackId));
                             e.dataTransfer.setData('text/char', placedTile.char);
@@ -197,7 +203,10 @@ export const ArenaBoard: React.FC<ArenaBoardProps> = ({
             ref={boardRef}
             tabIndex={0}
             onKeyDown={handleKeyDown}
-            className={clsx("rounded-xl outline-none p-1 sm:p-2 bg-[var(--color-board-gap)] w-full", !fluid && "max-w-[520px]")}
+            className={clsx(
+                "outline-none bg-[var(--color-board-gap)] w-full",
+                fluid ? "rounded-lg p-[3px] sm:p-1.5" : "rounded-xl p-1 sm:p-2 max-w-[520px]"
+            )}
             style={{
                 boxShadow: 'var(--box-shadow-board)',
                 border: '2px solid var(--color-board-border)'
