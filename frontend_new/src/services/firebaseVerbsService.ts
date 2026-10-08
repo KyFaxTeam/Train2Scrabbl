@@ -72,6 +72,26 @@ export interface ClubActivityEvent {
   timestamp: number;
 }
 
+/**
+ * Historique d'un joueur sur un verbe, stocké sous `verb_mastery/word_stats/{VERBE}/{slug}`.
+ * Clés courtes : le nœud grossit d'une entrée par verbe et par joueur.
+ */
+export interface WordStat {
+  /** Tirages où ce verbe était à trouver */
+  a: number;
+  /** Tirages terminés sans l'avoir trouvé */
+  f: number;
+  /** Saisies refusées pendant ces tirages */
+  w: number;
+  /** Secondes passées au total sur ces tirages */
+  t: number;
+  /** Dernier passage (ms) */
+  last: number;
+}
+
+/** `word_stats` tel que lu en base : verbe → joueur → historique. */
+export type WordStatsTree = Record<string, Record<string, WordStat>>;
+
 export interface ClubStats {
   totalBatchesValidated: number;
   totalWordsConquered: number;
@@ -299,6 +319,46 @@ class FirebaseVerbsService {
     }
 
     return profile;
+  }
+
+  /**
+   * Note un tirage terminé pour chacun de ses verbes : trouvé ou non, temps passé, saisies refusées.
+   * Une transaction par verbe : deux appareils du même joueur ne s'écrasent pas.
+   */
+  public async recordWordAttempts(
+    slug: string,
+    results: { word: string; found: boolean }[],
+    seconds: number,
+    wrongInputs: number
+  ): Promise<void> {
+    if (!this.isConnected || !this.db || !slug) return;
+    const t = Math.round(Math.min(seconds, 120) * 10) / 10;
+    await Promise.all(
+      results.map(({ word, found }) =>
+        runTransaction(ref(this.db!, `verb_mastery/word_stats/${word}/${slug}`), (cur: WordStat | null) => {
+          const s = cur || { a: 0, f: 0, w: 0, t: 0, last: 0 };
+          return {
+            a: (s.a || 0) + 1,
+            f: (s.f || 0) + (found ? 0 : 1),
+            w: (s.w || 0) + wrongInputs,
+            t: Math.round(((s.t || 0) + t) * 10) / 10,
+            last: Date.now(),
+          };
+        }).catch((err) => console.warn('Erreur suivi du verbe', word, err))
+      )
+    );
+  }
+
+  /** Tout l'historique mot par mot du club (quelques centaines de Ko au plus). */
+  public async loadWordStats(): Promise<WordStatsTree> {
+    if (!this.isConnected || !this.db) return {};
+    try {
+      const snap = await get(ref(this.db, 'verb_mastery/word_stats'));
+      return snap.exists() ? (snap.val() as WordStatsTree) : {};
+    } catch (err) {
+      console.warn('Erreur lecture word_stats:', err);
+      return {};
+    }
   }
 
   public async saveActiveSession(slug: string, session: ActiveSessionData): Promise<void> {

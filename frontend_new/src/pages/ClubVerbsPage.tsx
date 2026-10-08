@@ -504,6 +504,8 @@ export const ClubVerbsPage: React.FC = () => {
   const [blacklistSearchQuery, setBlacklistSearchQuery] = useState('');
   const wordStartTimeRef = useRef<number>(Date.now());
   const totalTimeSpentRef = useRef<number>(0);
+  /** Saisies refusées sur le tirage en cours (suivi mot par mot). */
+  const wrongInputsRef = useRef<number>(0);
 
   const [sessionWords, setSessionWords] = useState<string[]>([]);
   const [currentIndex, setCurrentIndex] = useState(0);
@@ -803,6 +805,7 @@ export const ClubVerbsPage: React.FC = () => {
     setIsPaused(false);
     setUserInput('');
     wordStartTimeRef.current = Date.now();
+    wrongInputsRef.current = 0;
     totalTimeSpentRef.current = 0;
     setScreenMode('quiz');
 
@@ -842,6 +845,7 @@ export const ClubVerbsPage: React.FC = () => {
     setIsPaused(false);
     setUserInput('');
     wordStartTimeRef.current = Date.now();
+    wrongInputsRef.current = 0;
     totalTimeSpentRef.current = 0;
     setScreenMode('quiz');
   };
@@ -869,6 +873,7 @@ export const ClubVerbsPage: React.FC = () => {
     setIsPaused(false);
     setUserInput('');
     wordStartTimeRef.current = Date.now();
+    wrongInputsRef.current = 0;
     totalTimeSpentRef.current = 0;
     setScreenMode('quiz');
   };
@@ -890,6 +895,7 @@ export const ClubVerbsPage: React.FC = () => {
     setIsPaused(false);
     setUserInput('');
     wordStartTimeRef.current = Date.now();
+    wrongInputsRef.current = 0;
     totalTimeSpentRef.current = 0;
     setScreenMode('quiz');
   };
@@ -900,6 +906,19 @@ export const ClubVerbsPage: React.FC = () => {
     setProfile((prev) =>
       prev ? { ...prev, blacklistedVerbs: (prev.blacklistedVerbs || []).filter((w) => w !== verb) } : null
     );
+  };
+
+  /** Inscrit le tirage qui se termine dans le suivi mot par mot du club. */
+  const logDrawResult = (found: string[], elapsedSeconds: number) => {
+    if (profile && allSolutions.length > 0) {
+      firebaseVerbsService.recordWordAttempts(
+        profile.slug,
+        allSolutions.map((word) => ({ word, found: found.includes(word) })),
+        elapsedSeconds,
+        wrongInputsRef.current
+      );
+    }
+    wrongInputsRef.current = 0;
   };
 
   const processWordSubmission = (inputWord: string) => {
@@ -935,6 +954,7 @@ export const ClubVerbsPage: React.FC = () => {
       if (updatedFound.length >= allSolutions.length) {
         const elapsedSeconds = Math.max(0.5, (Date.now() - wordStartTimeRef.current) / 1000);
         totalTimeSpentRef.current += elapsedSeconds;
+        logDrawResult(updatedFound, elapsedSeconds);
 
         playChime('correct');
         if (isValidationSession || isTieBreakSession || isBlacklistSession) {
@@ -949,6 +969,7 @@ export const ClubVerbsPage: React.FC = () => {
         setTimeout(() => inputRef.current?.focus(), 10);
       }
     } else {
+      wrongInputsRef.current += 1;
       playChime('wrong');
       setInputFeedback(`« ${normalizedInput} » n'est pas un verbe valide.`);
       setTimeout(() => setInputFeedback(null), 2500);
@@ -983,6 +1004,7 @@ export const ClubVerbsPage: React.FC = () => {
     if (showSolution) return;
     const elapsedSeconds = Math.max(0.5, (Date.now() - wordStartTimeRef.current) / 1000);
     totalTimeSpentRef.current += elapsedSeconds;
+    logDrawResult(foundSolutions, elapsedSeconds);
 
     playChime('wrong');
     if (!sessionErrors.includes(targetWord)) {
@@ -1020,6 +1042,7 @@ export const ClubVerbsPage: React.FC = () => {
     setFoundSolutions([]);
     setInputFeedback(null);
     wordStartTimeRef.current = Date.now();
+    wrongInputsRef.current = 0;
 
     if (currentIndex + 1 < sessionWords.length) {
       const nextIdx = currentIndex + 1;
