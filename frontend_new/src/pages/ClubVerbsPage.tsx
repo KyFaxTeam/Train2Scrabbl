@@ -2106,10 +2106,7 @@ export const ClubVerbsPage: React.FC = () => {
                   {/* Formulaire de Saisie */}
                   {!showSolution ? (
                     <form onSubmit={handleSubmitAnswer} autoComplete="off" className="max-w-md mx-auto space-y-3 sm:space-y-4 w-full">
-                      {/* Indication (le badge « N verbes à trouver » couvre déjà le cas multiple) */}
-                      {allSolutions.length === 1 && (
-                        <p className="text-[11px] font-semibold text-slate-400">1 verbe attendu</p>
-                      )}
+                      {/* Un seul verbe : aucune indication ; le badge « N verbes à trouver » couvre le cas multiple */}
 
                       <div className="flex items-center gap-1.5 sm:gap-2 w-full">
                         <input
