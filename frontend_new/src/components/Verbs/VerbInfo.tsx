@@ -16,6 +16,9 @@ export const VerbInfo: React.FC<{ word: string; details?: string; clampDefinitio
         {f.nature && (
           <span className={`${CHIP} ${f.nature === 'vi' ? TONE.vi : TONE.vt}`}>{f.nature}</span>
         )}
+        {/* Rallonges collées au verbe : on lit « CASSER + A », pas « CASSEE + A » */}
+        {f.frontHooks && <span className={`${CHIP} ${TONE.hook}`}>{f.frontHooks.split('').join('·')} +</span>}
+        {f.backHooks && <span className={`${CHIP} ${TONE.hook}`}>+ {f.backHooks.split('').join('·')}</span>}
         {f.participle &&
           (f.participle.valid ? (
             <span className={`${CHIP} ${TONE.ok}`}>✓ {f.participle.form}</span>
@@ -31,8 +34,6 @@ export const VerbInfo: React.FC<{ word: string; details?: string; clampDefinitio
         {f.flaggedDefective && <span className={`${CHIP} ${TONE.defective}`}>Défectif</span>}
         {f.thirdPersonOnly && <span className={`${CHIP} ${TONE.impersonal}`}>3ᵉ pers. seulement</span>}
         {f.pronominal && <span className={`${CHIP} ${TONE.pronominal}`}>pronominal</span>}
-        {f.frontHooks && <span className={`${CHIP} ${TONE.hook}`}>{f.frontHooks.split('').join('·')} +</span>}
-        {f.backHooks && <span className={`${CHIP} ${TONE.hook}`}>+ {f.backHooks.split('').join('·')}</span>}
       </div>
       {f.definition && (
         <p className={`mt-1 text-[11px] sm:text-xs text-slate-500 leading-snug ${clampDefinition ? 'line-clamp-2' : ''}`}>
