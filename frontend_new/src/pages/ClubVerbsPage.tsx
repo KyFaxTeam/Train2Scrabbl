@@ -2074,7 +2074,7 @@ export const ClubVerbsPage: React.FC = () => {
                     <div className="mb-5 max-w-md mx-auto">
                       <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-indigo-50 border border-indigo-200 text-indigo-700 text-xs font-black uppercase tracking-wider mb-2.5">
                         <Sparkles className="w-3.5 h-3.5 text-indigo-600" />
-                        <span>{allSolutions.length} verbes à trouver ({foundSolutions.length} / {allSolutions.length} trouvés)</span>
+                        <span>{allSolutions.length} verbes à trouver</span>
                       </div>
                       <div className="flex items-center justify-center flex-wrap gap-2">
                         {allSolutions.map((sol, idx) => {
