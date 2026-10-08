@@ -1044,6 +1044,13 @@ export const ClubVerbsPage: React.FC = () => {
     wordStartTimeRef.current = Date.now();
     wrongInputsRef.current = 0;
 
+    // L'avance automatique part d'un minuteur posé AVANT la mise à jour du score :
+    // son validationScore ne compte pas encore le dernier tirage. On le rajoute ici,
+    // sinon un 30/30 qui finit en avance automatique était jugé 29/30 et jamais enregistré.
+    const nextScore = lastWasCorrect !== undefined
+      ? (lastWasCorrect ? validationScore + 1 : validationScore)
+      : validationScore;
+
     if (currentIndex + 1 < sessionWords.length) {
       const nextIdx = currentIndex + 1;
       setCurrentIndex(nextIdx);
@@ -1051,9 +1058,6 @@ export const ClubVerbsPage: React.FC = () => {
 
       // Persistance en direct de la session
       if (profile && isValidationSession) {
-        const nextScore = lastWasCorrect !== undefined 
-          ? (lastWasCorrect ? validationScore + 1 : validationScore)
-          : validationScore;
         const nextErrors = lastWasCorrect === false && !sessionErrors.includes(targetWord)
           ? [...sessionErrors, targetWord]
           : sessionErrors;
@@ -1075,7 +1079,7 @@ export const ClubVerbsPage: React.FC = () => {
         firebaseVerbsService.clearActiveSession(profile.slug);
         setProfile((prev) => prev ? { ...prev, activeSession: null } : null);
       }
-      finishSession();
+      finishSession(nextScore);
     }
   };
 
@@ -1101,10 +1105,10 @@ export const ClubVerbsPage: React.FC = () => {
     return () => window.removeEventListener('keydown', onKey);
   });
 
-  const finishSession = async () => {
+  /** @param finalScore score de la session, dernier tirage compris (voir handleNextTurn). */
+  const finishSession = async (finalScore: number) => {
     setScreenMode('summary');
     if (isValidationSession) {
-      const finalScore = validationScore;
       const isSuccess = finalScore >= CERT_PASS_SCORE;
       if (isSuccess && profile) {
         playChime('victory');
@@ -1180,7 +1184,7 @@ export const ClubVerbsPage: React.FC = () => {
       }
     } else if (isTieBreakSession) {
       const needed = sessionWords.length; // Aucune erreur tolérée en tie-break : 100% requis
-      const isSuccess = validationScore >= needed;
+      const isSuccess = finalScore >= needed;
       if (isSuccess && profile) {
         playChime('victory');
         confetti({
@@ -1214,14 +1218,14 @@ export const ClubVerbsPage: React.FC = () => {
         });
       }
     } else if (isBlacklistSession) {
-      if (validationScore > 0) {
+      if (finalScore > 0) {
         playChime('victory');
         confetti({
           particleCount: 90,
           spread: 70,
           origin: { y: 0.6 },
         });
-        addXPToDb(validationScore * 10);
+        addXPToDb(finalScore * 10);
       }
     }
   };
