@@ -17,7 +17,10 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
     }, [initialize]);
 
     return (
-        <div className="flex h-screen w-screen overflow-hidden bg-lexis-bg">
+        // `h-dvh` : la hauteur reellement visible. Sur Chrome Android, `100vh`
+        // compte aussi la barre d'adresse : la page depassait de ~56 px et le
+        // bas (le chevalet de l'entrainement) passait sous la barre de navigation.
+        <div className="flex h-screen h-dvh w-screen overflow-hidden bg-lexis-bg">
             <Sidebar />
 
             <main className="flex-1 h-full relative overflow-hidden flex flex-col">
@@ -25,11 +28,11 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
                     {children}
                 </div>
 
-                {/* Spacer for Mobile Nav */}
-                <div className="h-[80px] md:hidden shrink-0" />
+                {/* Barre de navigation telephone : dans le flux, sous le contenu,
+                    et non plus posee par-dessus avec un espaceur a la bonne hauteur
+                    devinee (80 px pour une barre qui en mesure 84). */}
+                <MobileNav />
             </main>
-
-            <MobileNav />
 
             {/* Global Smart Popup for Learning Triggers */}
             <SmartPopup />

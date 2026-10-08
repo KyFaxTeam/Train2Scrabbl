@@ -15,7 +15,7 @@ export const MobileNav: React.FC = () => {
     ];
 
     return (
-        <div className="md:hidden fixed bottom-0 left-0 right-0 bg-white/90 backdrop-blur-lg border-t border-slate-200 pb-safe z-50 px-6 py-2 flex justify-around items-center shadow-[0_-4px_20px_rgba(0,0,0,0.05)]">
+        <div className="md:hidden shrink-0 bg-white/90 backdrop-blur-lg border-t border-slate-200 z-40 px-6 py-2 flex justify-around items-center shadow-[0_-4px_20px_rgba(0,0,0,0.05)]">
             {navItems.map((item) => {
                 const isActive = location.pathname === item.path;
                 const Icon = item.icon;
