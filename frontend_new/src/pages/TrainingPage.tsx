@@ -186,7 +186,7 @@ const TrainingPage: React.FC = () => {
         setSelectedRackTile(null);
     };
 
-    const { dragState, handleTouchStart, handleTouchMove, handleTouchEnd } = useTouchDragDrop(handleDropTile, handleRackDrop);
+    const { dragState, ghostRef, handleTouchStart, handleTouchMove, handleTouchEnd } = useTouchDragDrop(handleDropTile, handleRackDrop);
 
     useEffect(() => {
         startSession();
@@ -819,6 +819,7 @@ const TrainingPage: React.FC = () => {
                             onTileClick={handleRackClick}
                             onTileTouchStart={handleTouchStart}
                             onDropOnSlot={handleRackDrop}
+                            enMain={dragState.draggedTile?.rackId ?? null}
                         />
                     </div>
 
@@ -847,13 +848,11 @@ const TrainingPage: React.FC = () => {
             </div>
 
             {/* Fantome de glisser-deposer tactile */}
-            {dragState.isDragging && dragState.ghostPosition && dragState.draggedTile && (
+            {dragState.isDragging && dragState.draggedTile && (
                 <div
-                    className="fixed pointer-events-none z-50"
-                    style={{
-                        left: dragState.ghostPosition.x - 22,
-                        top: dragState.ghostPosition.y - 44,
-                    }}
+                    ref={ghostRef}
+                    className="fixed left-0 top-0 pointer-events-none z-50"
+                    style={{ willChange: 'transform' }}
                 >
                     <div className="w-11 h-11 rounded-lg bg-amber-500 text-amber-950 font-mono font-bold text-lg
                                     flex items-center justify-center shadow-xl shadow-amber-500/50

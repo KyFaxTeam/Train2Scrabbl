@@ -21,6 +21,8 @@ interface Rack3DProps {
     onTileTouchStart: (e: React.TouchEvent, char: string, id: number) => void;
     /** Un jeton (du chevalet ou du plateau) est lache sur la place `slot`. */
     onDropOnSlot: (rackId: number, slot: number) => void;
+    /** Jeton en cours de glisser au doigt : sa place s'estompe. */
+    enMain?: number | null;
 }
 
 /**
@@ -31,7 +33,7 @@ interface Rack3DProps {
  * lettres, ou on reprend un jeton du plateau a l'endroit voulu.
  */
 export const Rack3D: React.FC<Rack3DProps> = ({
-    tiles, selected, disabled, onTileClick, onTileTouchStart, onDropOnSlot,
+    tiles, selected, disabled, onTileClick, onTileTouchStart, onDropOnSlot, enMain = null,
 }) => {
     const [survol, setSurvol] = useState<number | null>(null);
 
@@ -87,7 +89,8 @@ export const Rack3D: React.FC<Rack3DProps> = ({
                                         'absolute inset-0 rounded-[6px] transition-transform duration-150',
                                         'font-mono font-black leading-none text-[clamp(16px,5vw,23px)]',
                                         actif && 'cursor-grab active:cursor-grabbing',
-                                        choisi ? '-translate-y-2' : actif && 'hover:-translate-y-0.5'
+                                        choisi ? '-translate-y-2' : actif && 'hover:-translate-y-0.5',
+                                        enMain === tile.id && 'opacity-30'
                                     )}
                                     style={{
                                         touchAction: 'none',
