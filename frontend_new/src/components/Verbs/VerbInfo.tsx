@@ -16,9 +16,15 @@ export const VerbInfo: React.FC<{ word: string; details?: string; clampDefinitio
         {f.nature && (
           <span className={`${CHIP} ${f.nature === 'vi' ? TONE.vi : TONE.vt}`}>{f.nature}</span>
         )}
-        {/* Rallonges collées au verbe : on lit « CASSER + A », pas « CASSEE + A » */}
+        {/* Rallonges collées au verbe : on lit « DIRE + S », pas « DIREE + S ». Le A d'un verbe en -ER
+            (son futur) n'est pas montré : c'est son absence, le piège, qui compte. */}
         {f.frontHooks && <span className={`${CHIP} ${TONE.hook}`}>{f.frontHooks.split('').join('·')} +</span>}
-        {f.backHooks && <span className={`${CHIP} ${TONE.hook}`}>+ {f.backHooks.split('').join('·')}</span>}
+        {f.shownBackHooks && <span className={`${CHIP} ${TONE.hook}`}>+ {f.shownBackHooks.split('').join('·')}</span>}
+        {f.futureTrap && (
+          <span className={`${CHIP} ${TONE.trap}`} title={`${f.futureTrap} est refusé`}>
+            ✗ <span className="line-through decoration-rose-400/70">{f.futureTrap}</span>
+          </span>
+        )}
         {f.participle &&
           (f.participle.valid ? (
             <span className={`${CHIP} ${TONE.ok}`}>✓ {f.participle.form}</span>
@@ -68,7 +74,8 @@ export const VerbLegend: React.FC<{ className?: string; onOpenGuide?: () => void
       piège
     </span>
     <span className="flex items-center gap-1.5 notranslate" translate="no">
-      <span className={`${CHIP} ${TONE.hook}`}>+ A</span> rallonge
+      <span className={`${CHIP} ${TONE.hook}`}>D +</span>
+      <span className={`${CHIP} ${TONE.hook}`}>+ S</span> rallonges
     </span>
     {onOpenGuide && (
       <button

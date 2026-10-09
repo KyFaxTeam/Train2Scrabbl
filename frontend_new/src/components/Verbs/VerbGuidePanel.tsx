@@ -39,9 +39,7 @@ const DEFECTIVE = ALL.filter(
 ).sort(byWord);
 const THIRD_PERSON = ALL.filter((v) => v.facts.thirdPersonOnly).sort(byWord);
 const PRONOMINAL = ALL.filter((v) => v.facts.pronominal).sort(byWord);
-const NO_A = ALL.filter(
-  (v) => v.word.endsWith('ER') && !v.facts.backHooks.includes('A') && !v.facts.infinitiveOnly && v.facts.participle
-).sort(byWord);
+const NO_A = ALL.filter((v) => v.facts.futureTrap).sort(byWord);
 const WITH_FRONT = ALL.filter((v) => v.facts.frontHooks).length;
 
 // ============================================================
@@ -333,7 +331,7 @@ export const VerbGuidePanel: React.FC<{ onOpenVerb: (word: string) => void }> = 
           {[
             { n: TRAPS.length, l: 'pièges en -EE' },
             { n: INFINITIVE_ONLY.length + DEFECTIVE.length + THIRD_PERSON.length, l: 'verbes incomplets' },
-            { n: NO_A.length, l: 'verbes -ER sans +A' },
+            { n: NO_A.length, l: 'verbes -ER sans futur en A' },
           ].map((s) => (
             <div key={s.l} className="rounded-xl bg-white/10 border border-white/10 px-2 py-2.5 text-center">
               <p className="text-lg sm:text-2xl font-black tabular-nums leading-none">{s.n}</p>
@@ -397,7 +395,8 @@ export const VerbGuidePanel: React.FC<{ onOpenVerb: (word: string) => void }> = 
           <li className="flex items-start gap-2.5">
             <span className="w-5 h-5 rounded-full bg-slate-900 text-white text-[11px] font-black flex items-center justify-center shrink-0 mt-0.5">4</span>
             <span>
-              <span className={`${CHIP} ${TONE.hook} mr-1`}>+ A</span> lettre à placer <strong>derrière</strong> : ENTERA.
+              <span className={`${CHIP} ${TONE.hook} mr-1`}>+ S·Z</span> lettres à placer <strong>derrière</strong> : DIRES, DIREZ.
+              Le A du futur (ENTERA) n'est pas affiché : presque tous les verbes en -ER le prennent.
             </span>
           </li>
           <li className="flex items-start gap-2.5">
@@ -406,8 +405,11 @@ export const VerbGuidePanel: React.FC<{ onOpenVerb: (word: string) => void }> = 
           </li>
         </ol>
         <Tip>
-          Une pastille absente est aussi une information. JETER n'a pas de <strong>+ A</strong> : JETERA est refusé (on écrit
-          JETTERA).
+          Les rares verbes en -ER qui refusent le A sont signalés en rouge :{' '}
+          <span className={`${CHIP} ${TONE.trap}`}>
+            ✗ <span className="line-through">JETERA</span>
+          </span>{' '}
+          (on écrit JETTERA).
         </Tip>
       </Section>
 
@@ -461,19 +463,22 @@ export const VerbGuidePanel: React.FC<{ onOpenVerb: (word: string) => void }> = 
             </span>
           </Example>
           <Example>
-            <span className={`${CHIP} ${TONE.hook}`}>+ A</span>
+            <span className={`${CHIP} ${TONE.hook}`}>+ S·Z</span>
             <span className="text-xs">
-              <strong>Arrière</strong> : <span className="notranslate" translate="no">ENTER+A = ENTERA</span>
+              <strong>Arrière</strong> : <span className="notranslate" translate="no">DIRE+S = DIRES</span>
             </span>
           </Example>
         </div>
         <p>
-          Presque tous les verbes en -ER prennent <strong>+ A</strong> (futur : il fêlera). Ceux qui ne le prennent pas
-          changent de radical au futur (JETTERA, NOIERA, IRA) : ce sont des pièges classiques.
+          Presque tous les verbes en -ER prennent un A derrière (futur : il fêlera) : cette rallonge-là n'est pas affichée.
+          Ceux qui ne la prennent pas changent de radical au futur (JETTERA, NOIERA, IRA) : ce sont des pièges classiques,
+          marqués <span className={`${CHIP} ${TONE.trap}`}>✗ <span className="line-through">JETERA</span></span>.
         </p>
         <div>
-          <p className="text-xs font-black uppercase tracking-widest text-slate-400 mb-2">Verbes en -ER sans + A</p>
-          <WordCloud verbs={NO_A} onOpenVerb={onOpenVerb} tone={TONE.hook} label={(v) => v.word} />
+          <p className="text-xs font-black uppercase tracking-widest text-slate-400 mb-2">
+            Verbes en -ER qui refusent le A ({NO_A.length})
+          </p>
+          <WordCloud verbs={NO_A} onOpenVerb={onOpenVerb} tone={TONE.trap} label={(v) => v.word} />
         </div>
       </Section>
 

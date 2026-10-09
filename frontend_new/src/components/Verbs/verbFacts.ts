@@ -16,7 +16,18 @@ export interface VerbFacts {
   /** Défectif signalé par la source (3e groupe, non calculable). */
   flaggedDefective: boolean;
   frontHooks: string;
+  /** Toutes les rallonges arrière de l'ODS, A compris. */
   backHooks: string;
+  /**
+   * Rallonges arrière à afficher : sans le A d'un verbe en -ER, qui n'est que
+   * son futur (ERODER + A = ERODERA) et vaut pour 97 % d'entre eux.
+   */
+  shownBackHooks: string;
+  /**
+   * Verbe en -ER qui n'accepte PAS le A (JETERA refusé : on écrit JETTERA) :
+   * la forme piège, à montrer barrée. Absent sinon.
+   */
+  futureTrap?: string;
   /** Définition nettoyée des codes de notation, vide si absente. */
   definition: string;
 }
@@ -83,6 +94,13 @@ export function getVerbFacts(word: string, details = ''): VerbFacts {
   const sourceInfinitiveOnly = /^\s*\(i\)/i.test(details);
   const infinitiveOnly = missing.length >= 4 || sourceInfinitiveOnly;
   const ppForm = word.endsWith('ER') ? `${word.slice(0, -2)}EE` : `${word.slice(0, -2)}IE`;
+  const isEr = word.endsWith('ER');
+  // Pas de piege du A pour un verbe sans futur (deja « Pas de futur »), reduit a l'infinitif,
+  // ou absent de l'ODS 8 (flag 'n' : aucune rallonge n'y est calculee)
+  const futureTrap =
+    isEr && !back.includes('A') && !infinitiveOnly && !flags.includes('n') && !missing.includes('F')
+      ? `${word}A`
+      : undefined;
 
   return {
     participle: pp && !infinitiveOnly ? { form: ppForm, valid: pp === 'v' } : undefined,
@@ -94,6 +112,8 @@ export function getVerbFacts(word: string, details = ''): VerbFacts {
     flaggedDefective: !missing && !flags.includes('3') && /^\s*\(d\)/i.test(details),
     frontHooks: front,
     backHooks: back,
+    shownBackHooks: isEr ? back.replace('A', '') : back,
+    futureTrap,
     definition: cleanDefinition(details) || VERB_DEFINITIONS[word] || '',
   };
 }
