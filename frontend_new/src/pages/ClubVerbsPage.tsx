@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { createPortal } from 'react-dom';
+import { useLocation, useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import confetti from 'canvas-confetti';
 import {
@@ -44,12 +45,18 @@ import {
   firebaseVerbsService,
   type PlayerVerbProfile,
   type ClubActivityEvent,
+  type ActiveSessionData,
 } from '../services/firebaseVerbsService';
 import { addXP as addXPToDb, updateStreak } from '../services/learningStore';
 import { WeeklyClubPanel } from '../components/Verbs/WeeklyClubPanel';
 import { VerbInfo, VerbLegend } from '../components/Verbs/VerbInfo';
 import { VerbGuidePanel } from '../components/Verbs/VerbGuidePanel';
 import { VERB_DEFINITIONS } from '../data/verbDefinitions';
+import { playCeremony } from '../utils/ceremonySound';
+import { challengeService, CHALLENGE_START_MS, CHALLENGE_LOTS } from '../services/challengeService';
+import { ChallengeBoard, ChallengeStatusCard, ChallengeJoinBanner, ChallengeJoinModal } from '../components/Challenge/challengeUi';
+import { useChallenge, useReached, START_LABEL } from '../components/Challenge/useChallenge';
+import { markPosterSeen } from '../components/Challenge/challengeFlags';
 
 type TabMode = 'training' | 'team' | 'blacklisted' | 'codex' | 'guide';
 type ScreenMode = 'selector' | 'preview' | 'quiz' | 'validation' | 'summary';
@@ -101,60 +108,6 @@ function playChime(type: 'correct' | 'wrong' | 'victory' | 'unlock' | 'fanfare')
   } catch {
     // Audio non critique
   }
-}
-
-// Sons de cérémonie du Panthéon : déclic de cadenas + fanfare de cuivres synthétiques
-function playCeremony(ctx: AudioContext, type: 'unlock' | 'fanfare') {
-  const master = ctx.createGain();
-  master.gain.value = type === 'unlock' ? 0.12 : 0.16;
-  master.connect(ctx.destination);
-  const t0 = ctx.currentTime + 0.03;
-
-  const note = (freq: number, start: number, dur: number, wave: OscillatorType, vol: number) => {
-    const o = ctx.createOscillator();
-    const g = ctx.createGain();
-    const f = ctx.createBiquadFilter();
-    f.type = 'lowpass';
-    f.frequency.value = 2600;
-    o.type = wave;
-    o.frequency.setValueAtTime(freq, t0 + start);
-    g.gain.setValueAtTime(0.0001, t0 + start);
-    g.gain.exponentialRampToValueAtTime(vol, t0 + start + 0.025);
-    g.gain.setValueAtTime(vol, t0 + start + dur * 0.65);
-    g.gain.exponentialRampToValueAtTime(0.0001, t0 + start + dur);
-    o.connect(f);
-    f.connect(g);
-    g.connect(master);
-    o.start(t0 + start);
-    o.stop(t0 + start + dur + 0.05);
-  };
-
-  if (type === 'unlock') {
-    // « clic-clac » métallique du cadenas qui cède
-    note(1400, 0, 0.05, 'square', 0.6);
-    note(2100, 0.07, 0.06, 'square', 0.5);
-    note(880, 0.16, 0.25, 'triangle', 0.6);
-    setTimeout(() => ctx.close().catch(() => undefined), 800);
-    return;
-  }
-
-  // Ta-ta-ta TAAA… ta-TAAAA, puis accord final de do majeur
-  const phrase: [number, number, number][] = [
-    [392.0, 0, 0.13],
-    [392.0, 0.15, 0.13],
-    [392.0, 0.3, 0.13],
-    [523.25, 0.45, 0.48],
-    [659.25, 0.95, 0.16],
-    [783.99, 1.13, 0.62],
-  ];
-  phrase.forEach(([freq, start, dur]) => {
-    note(freq, start, dur, 'sawtooth', 0.45);
-    note(freq * 2, start, dur, 'triangle', 0.18);
-  });
-  [523.25, 659.25, 783.99, 1046.5].forEach((freq) => note(freq, 1.85, 1.7, 'triangle', 0.32));
-  note(130.81, 1.85, 1.7, 'sawtooth', 0.28);
-  note(261.63, 1.85, 1.7, 'sawtooth', 0.2);
-  setTimeout(() => ctx.close().catch(() => undefined), 4200);
 }
 
 // ============================================================
@@ -527,14 +480,46 @@ export const ClubVerbsPage: React.FC = () => {
   const inputRef = useRef<HTMLInputElement | null>(null);
   const solutionPanelRef = useRef<HTMLDivElement | null>(null);
 
+  // Challenge 125 : un inscrit joue sur son parcours de challenge (repart du lot 1) ; son compte habituel reste intact.
+  const challenge = useChallenge();
+  const challengeStarted = useReached(CHALLENGE_START_MS);
+  const myChallenge = profile ? challenge.rows.find((r) => r.slug === profile.slug) ?? null : null;
+  /** En course : inscrit et pas encore arrivé. Une fois les 125 lots faits, retour au parcours habituel (et au Panthéon). */
+  const inChallenge = myChallenge !== null && myChallenge.finishedAt === undefined;
+  /** Mode de la session en cours, figé au lancement : un minuteur ne doit jamais relire l'état React (voir handleNextTurn). */
+  const challengeSessionRef = useRef(false);
+  const [sessionIsChallenge, setSessionIsChallenge] = useState(false);
+  /** Lot du challenge réussi mais pas enregistré (réseau) : on propose de réessayer. */
+  const [challengeSaveFailed, setChallengeSaveFailed] = useState<number | null>(null);
+  const [joinModalOpen, setJoinModalOpen] = useState(false);
+  const [joinBusy, setJoinBusy] = useState(false);
+  const [joinError, setJoinError] = useState<string | null>(null);
+  /** Inscription demandée sans pseudo : on la reprend dès que le joueur s'est identifié. */
+  const pendingJoinRef = useRef(false);
+
+  /** Partie en cours sur le parcours du challenge, écoutée pour soi seul. */
+  const [challengeSessionState, setChallengeSessionState] = useState<{ slug: string; session: ActiveSessionData | null } | null>(null);
+  const challengeSlug = inChallenge && profile ? profile.slug : '';
+  useEffect(() => {
+    if (!challengeSlug) return;
+    return challengeService.subscribeSession(challengeSlug, (session) => setChallengeSessionState({ slug: challengeSlug, session }));
+  }, [challengeSlug]);
+  const challengeSessionLoaded = challengeSlug !== '' && challengeSessionState?.slug === challengeSlug;
+  const challengeSession = challengeSessionLoaded ? challengeSessionState!.session : null;
+
+  /** Progression qui commande les lots : celle du challenge pour un inscrit, sinon celle du compte. */
+  const progressValidated: number[] = (inChallenge ? myChallenge.validatedBatches : profile?.validatedBatches) || [];
+  const progressCurrentBatch = (inChallenge ? myChallenge.currentBatch : profile?.currentBatch) || 0;
+  const progressSession = (inChallenge ? challengeSession : profile?.activeSession) || null;
+
   // Paliers : Maître Club (1-125) → Panthéon ODS (126+)
   const [codexTier, setCodexTier] = useState<'master' | 'elite'>('master');
   const [pantheonHint, setPantheonHint] = useState(0); // >0 : message de verrou visible (sert aussi de clé d'animation)
   const [celebrationOpen, setCelebrationOpen] = useState(false);
   const pantheonHintTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  const masterValidatedCount = DEV_FAKE_MASTER_LOTS ?? countMasterValidated(profile?.validatedBatches);
-  const isPantheonUnlocked = computePantheonUnlocked(profile?.validatedBatches);
+  const masterValidatedCount = DEV_FAKE_MASTER_LOTS ?? countMasterValidated(progressValidated);
+  const isPantheonUnlocked = computePantheonUnlocked(progressValidated);
   const isPantheonBadge = isPantheonMember(profile?.validatedBatches) || DEV_FORCE_UNLOCK;
   const inPantheon = isEliteBatch(selectedBatch);
   const masterProgressPct = Math.min(100, (masterValidatedCount / MASTER_TIER_BATCHES) * 100);
@@ -549,8 +534,8 @@ export const ClubVerbsPage: React.FC = () => {
   /** Lot accessible : déjà validé, ou lot précédent validé, ou pas au-delà du lot courant (index 0-based). */
   const isBatchUnlocked = (target: number) => {
     if (!profile || target <= 0) return true;
-    const validated = profile.validatedBatches || [];
-    return target <= (profile.currentBatch || 0) || validated.includes(target) || validated.includes(target + 1);
+    const validated = progressValidated;
+    return target <= progressCurrentBatch || validated.includes(target) || validated.includes(target + 1);
   };
 
   /** Seul point d'entrée pour changer de lot : applique le verrou de progression séquentielle et du Panthéon. */
@@ -601,6 +586,12 @@ export const ClubVerbsPage: React.FC = () => {
     const clamped = clampBatchIndex(selectedBatch, isPantheonUnlocked);
     if (clamped !== selectedBatch) setSelectedBatch(clamped);
   }, [selectedBatch, isPantheonUnlocked]);
+
+  // Challenge : jamais un lot au-delà de sa progression de challenge (ex. après « Changer de joueur » sur le même pseudo)
+  const selectedBatchLocked = inChallenge && screenMode === 'selector' && !isBatchUnlocked(selectedBatch);
+  useEffect(() => {
+    if (selectedBatchLocked) setSelectedBatch(clampBatchIndex(progressCurrentBatch, false));
+  }, [selectedBatchLocked, progressCurrentBatch]);
 
   // Célébration de déblocage : une seule fois par joueur (profil Firebase + localStorage)
   useEffect(() => {
@@ -661,6 +652,67 @@ export const ClubVerbsPage: React.FC = () => {
       }
     });
   }, [playerName]);
+
+  // Inscrit au challenge : on se place sur son lot du challenge (une fois par joueur, pas à chaque mise à jour)
+  const challengeSyncedSlug = useRef('');
+  useEffect(() => {
+    if (!profile || !myChallenge || !inChallenge) {
+      challengeSyncedSlug.current = '';
+      return;
+    }
+    if (!challengeSessionLoaded || challengeSyncedSlug.current === profile.slug) return;
+    challengeSyncedSlug.current = profile.slug;
+    const s = challengeSession;
+    const target = s && typeof s.batchIndex === 'number' && s.currentIndex < 30 ? s.batchIndex : myChallenge.currentBatch;
+    setSelectedBatch(clampBatchIndex(target, false));
+  }, [profile, myChallenge, inChallenge, challengeSessionLoaded, challengeSession]);
+
+  // Arrivée depuis l'affiche du challenge (« Je relève le défi »)
+  const location = useLocation();
+  const navigate = useNavigate();
+  useEffect(() => {
+    const state = location.state as { joinChallenge?: boolean } | null;
+    if (!state?.joinChallenge) return;
+    navigate(location.pathname, { replace: true, state: null });
+    requestChallengeJoin();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [location.key]);
+
+  const requestChallengeJoin = () => {
+    markPosterSeen();
+    setJoinError(null);
+    const saved = (localStorage.getItem('faizers_verb_user') || '').trim();
+    if (!saved) {
+      pendingJoinRef.current = true;
+      setTypedAuthName('');
+      setIsAuthModalOpen(true);
+      return;
+    }
+    setJoinModalOpen(true);
+  };
+
+  const handleConfirmJoin = async () => {
+    if (!profile) {
+      setJoinError('Profil en cours de chargement, réessaie dans un instant.');
+      return;
+    }
+    setJoinBusy(true);
+    setJoinError(null);
+    try {
+      await challengeService.join(profile.slug, profile.displayName);
+      setJoinModalOpen(false);
+      setActiveTab('training');
+      setScreenMode('selector');
+      playChime('fanfare');
+      confetti({ particleCount: 160, spread: 100, origin: { y: 0.5 }, colors: ['#fbbf24', '#f59e0b', '#fde68a', '#10b981'] });
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    } catch (err) {
+      console.warn('Inscription au challenge impossible:', err);
+      setJoinError('Inscription impossible : vérifie ta connexion et réessaie.');
+    } finally {
+      setJoinBusy(false);
+    }
+  };
 
   // Écouteurs temps réel Firebase Club
   useEffect(() => {
@@ -782,7 +834,22 @@ export const ClubVerbsPage: React.FC = () => {
       }
       setIsAuthModalOpen(false);
       setTypedAuthName('');
+      if (pendingJoinRef.current) {
+        pendingJoinRef.current = false;
+        setJoinModalOpen(true);
+      }
     }
+  };
+
+  /** Partie en cours, rangée sur le parcours du challenge ou sur le compte selon la session. */
+  const persistActiveSession = (slug: string, session: PlayerVerbProfile['activeSession'], challengeMode: boolean) => {
+    if (challengeMode) {
+      challengeService.saveActiveSession(slug, session ?? null);
+      return;
+    }
+    if (session) firebaseVerbsService.saveActiveSession(slug, session);
+    else firebaseVerbsService.clearActiveSession(slug);
+    setProfile((prev) => (prev ? { ...prev, activeSession: session ?? null } : null));
   };
 
   const handleStartValidation = () => {
@@ -790,6 +857,10 @@ export const ClubVerbsPage: React.FC = () => {
       triggerPantheonHint();
       return;
     }
+    if (inChallenge && (!challengeStarted || !isBatchUnlocked(selectedBatch))) return;
+    challengeSessionRef.current = inChallenge;
+    setSessionIsChallenge(inChallenge);
+    setChallengeSaveFailed(null);
     const batchWords = getBatchWords(selectedBatch).map((w) => w.word);
     const shuffled = [...batchWords].sort(() => Math.random() - 0.5);
     setSessionWords(shuffled);
@@ -819,18 +890,21 @@ export const ClubVerbsPage: React.FC = () => {
         sessionErrors: [],
         lastSaved: Date.now(),
       };
-      firebaseVerbsService.saveActiveSession(profile.slug, sessionData);
-      setProfile((prev) => prev ? { ...prev, activeSession: sessionData } : null);
+      persistActiveSession(profile.slug, sessionData, inChallenge);
     }
   };
 
   const handleResumeSession = () => {
-    if (!profile?.activeSession) return;
-    const session = profile.activeSession;
+    if (!progressSession) return;
+    const session = progressSession;
     if (isEliteBatch(session.batchIndex) && !isPantheonUnlocked) {
       triggerPantheonHint();
       return;
     }
+    if (inChallenge && !challengeStarted) return;
+    challengeSessionRef.current = inChallenge;
+    setSessionIsChallenge(inChallenge);
+    setChallengeSaveFailed(null);
     setSelectedBatch(session.batchIndex);
     setSessionWords(session.sessionWords);
     setCurrentIndex(session.currentIndex);
@@ -851,16 +925,14 @@ export const ClubVerbsPage: React.FC = () => {
   };
 
   const handleRestartSession = () => {
-    if (profile) {
-      firebaseVerbsService.clearActiveSession(profile.slug);
-      setProfile((prev) => prev ? { ...prev, activeSession: null } : null);
-    }
+    if (profile) persistActiveSession(profile.slug, null, inChallenge);
     handleStartValidation();
   };
 
   const handleStartTieBreak = () => {
     const errorWords = [...sessionErrors];
-    if (errorWords.length === 0) return;
+    // Pas de Tie-Break dans le challenge : seul un 30/30 valide un lot
+    if (errorWords.length === 0 || challengeSessionRef.current) return;
     setSessionWords(errorWords);
     setCurrentIndex(0);
     setValidationScore(0);
@@ -881,6 +953,8 @@ export const ClubVerbsPage: React.FC = () => {
   const handleStartBlacklistSession = () => {
     const list = profile?.blacklistedVerbs || [];
     if (list.length === 0) return;
+    challengeSessionRef.current = false;
+    setSessionIsChallenge(false);
     const shuffled = [...list].sort(() => Math.random() - 0.5).slice(0, 20);
     setSessionWords(shuffled);
     setCurrentIndex(0);
@@ -1070,14 +1144,12 @@ export const ClubVerbsPage: React.FC = () => {
           sessionErrors: nextErrors,
           lastSaved: Date.now(),
         };
-        firebaseVerbsService.saveActiveSession(profile.slug, sessionData);
-        setProfile((prev) => prev ? { ...prev, activeSession: sessionData } : null);
+        persistActiveSession(profile.slug, sessionData, challengeSessionRef.current);
       }
     } else {
       // Fin de session
       if (profile && isValidationSession) {
-        firebaseVerbsService.clearActiveSession(profile.slug);
-        setProfile((prev) => prev ? { ...prev, activeSession: null } : null);
+        persistActiveSession(profile.slug, null, challengeSessionRef.current);
       }
       finishSession(nextScore);
     }
@@ -1104,6 +1176,18 @@ export const ClubVerbsPage: React.FC = () => {
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
   });
+
+  /** Inscrit un lot réussi au challenge ; en cas d'échec réseau, l'écran de résultat propose de réessayer. */
+  const saveChallengeLot = async (slug: string, name: string, batchNumber: number) => {
+    setChallengeSaveFailed(null);
+    try {
+      const saved = await challengeService.recordValidation(slug, name, batchNumber);
+      if (!saved || !saved.validatedBatches.includes(batchNumber)) throw new Error('transaction non validée');
+    } catch (err) {
+      console.warn('Enregistrement du lot de challenge impossible:', err);
+      setChallengeSaveFailed(batchNumber);
+    }
+  };
 
   /** @param finalScore score de la session, dernier tirage compris (voir handleNextTurn). */
   const finishSession = async (finalScore: number) => {
@@ -1153,18 +1237,16 @@ export const ClubVerbsPage: React.FC = () => {
 
         // Enregistrement atomique (mise à jour directe du profil et de l'activité sans écrasement)
         setIsRecordingValidation(true);
-        const updated = await firebaseVerbsService
-          .recordBatchValidation(
-          profile.slug,
-          profile.displayName,
-          selectedBatch + 1,
-          finalScore,
-          {
+        const challengeMode = challengeSessionRef.current;
+        const batchNumber = selectedBatch + 1;
+        const updated = await (async () => {
+          if (challengeMode) await saveChallengeLot(profile.slug, profile.displayName, batchNumber);
+          return firebaseVerbsService.recordBatchValidation(profile.slug, profile.displayName, batchNumber, finalScore, {
             badges: currentBadges,
             streak30Count: nextStreak30,
-          }
-        )
-          .finally(() => setIsRecordingValidation(false));
+            challenge: challengeMode,
+          });
+        })().finally(() => setIsRecordingValidation(false));
 
         setProfile(updated);
         setLeaderboard((prev) => {
@@ -1354,7 +1436,9 @@ export const ClubVerbsPage: React.FC = () => {
                 </div>
                 <div className="text-[9px] sm:text-[10px] text-slate-500 leading-tight">
                   {playerName && profile
-                    ? `${profile.completedBatches || 0} lot${(profile.completedBatches || 0) > 1 ? 's' : ''}`
+                    ? inChallenge
+                      ? `🏆 ${myChallenge.lots}/${CHALLENGE_LOTS} challenge`
+                      : `${profile.completedBatches || 0} lot${(profile.completedBatches || 0) > 1 ? 's' : ''}`
                     : 'Non connecté'}
                 </div>
               </div>
@@ -1367,6 +1451,8 @@ export const ClubVerbsPage: React.FC = () => {
             >
               {inPantheon ? (
                 <Crown className="w-3.5 h-3.5 text-amber-300 fill-amber-300 shrink-0" />
+              ) : inChallenge ? (
+                <Trophy className="w-3.5 h-3.5 text-amber-600 shrink-0" />
               ) : (
                 <Flame className="w-3.5 h-3.5 text-amber-500 fill-amber-500 shrink-0" />
               )}
@@ -1621,6 +1707,30 @@ export const ClubVerbsPage: React.FC = () => {
           document.body
         )}
 
+      {/* Inscription au Challenge 125 (portal) */}
+      <ChallengeJoinModal
+        open={joinModalOpen}
+        playerName={profile?.displayName || playerName}
+        mainLots={profile?.completedBatches || 0}
+        alreadyMember={myChallenge !== null}
+        busy={joinBusy}
+        error={joinError}
+        onConfirm={handleConfirmJoin}
+        onChangePlayer={() => {
+          setJoinModalOpen(false);
+          pendingJoinRef.current = true;
+          setTypedAuthName('');
+          setIsAuthModalOpen(true);
+        }}
+        onClose={() => {
+          setJoinModalOpen(false);
+          if (myChallenge) {
+            setActiveTab('training');
+            setScreenMode('selector');
+          }
+        }}
+      />
+
       {/* Célébration : déblocage du Panthéon ODS (portal) */}
       <PantheonCelebration
         open={celebrationOpen}
@@ -1639,6 +1749,26 @@ export const ClubVerbsPage: React.FC = () => {
             {/* Mode Sélecteur de lot & Aperçu */}
             {screenMode === 'selector' && (
               <div className="space-y-6">
+                {/* Challenge 125 : suivi de l'inscrit, ou invitation tant que personne n'a gagné */}
+                {myChallenge ? (
+                  <ChallengeStatusCard
+                    me={myChallenge}
+                    rows={challenge.rows}
+                    winner={challenge.winner}
+                    followerDeadline={challenge.followerDeadline}
+                    started={challengeStarted}
+                    onShowBoard={() => {
+                      setActiveTab('team');
+                      window.scrollTo({ top: 0, behavior: 'smooth' });
+                    }}
+                  />
+                ) : (
+                  challenge.loaded &&
+                  !challenge.winner && (
+                    <ChallengeJoinBanner count={challenge.rows.length} started={challengeStarted} onJoin={requestChallengeJoin} />
+                  )
+                )}
+
                 {/* Bannière d'accès direct au Carnet des Bêtes Noires */}
                 {(profile?.blacklistedVerbs?.length || 0) > 0 && (
                   <div className="bg-gradient-to-r from-rose-950 via-slate-900 to-rose-950 text-white rounded-3xl p-5 sm:p-6 border border-rose-800/40 shadow-xl flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
@@ -1684,7 +1814,7 @@ export const ClubVerbsPage: React.FC = () => {
                 {/* Carte de Statut du Lot Actuel */}
                 <div
                   className={`rounded-3xl p-6 sm:p-8 text-white shadow-xl relative overflow-hidden ${
-                    inPantheon
+                    inPantheon || inChallenge
                       ? 'bg-gradient-to-br from-slate-900 via-slate-800 to-amber-900 ring-1 ring-amber-400/40'
                       : 'bg-gradient-to-r from-emerald-800 to-teal-900'
                   }`}
@@ -1699,12 +1829,17 @@ export const ClubVerbsPage: React.FC = () => {
                             <Crown className="w-3.5 h-3.5 text-amber-300 fill-amber-300 shrink-0" />
                             Panthéon · Lot n°{selectedBatch + 1}
                           </span>
+                        ) : inChallenge ? (
+                          <span className="bg-amber-400/15 text-amber-200 border border-amber-300/40 text-xs uppercase tracking-widest font-black px-3 py-1 rounded-full flex items-center gap-1.5">
+                            <Trophy className="w-3.5 h-3.5 shrink-0" />
+                            Challenge · Lot n°{selectedBatch + 1} sur {CHALLENGE_LOTS}
+                          </span>
                         ) : (
                           <span className="bg-emerald-500/30 text-emerald-200 border border-emerald-400/30 text-xs uppercase tracking-widest font-black px-3 py-1 rounded-full">
                             Lot n°{selectedBatch + 1} sur {MASTER_TIER_BATCHES}
                           </span>
                         )}
-                        {profile?.validatedBatches.includes(selectedBatch + 1) && (
+                        {progressValidated.includes(selectedBatch + 1) && (
                           <span className="bg-amber-400 text-amber-950 text-xs font-black px-2.5 py-0.5 rounded-full flex items-center gap-1 shadow">
                             <ShieldCheck className="w-3.5 h-3.5" /> Validé
                           </span>
@@ -1713,23 +1848,33 @@ export const ClubVerbsPage: React.FC = () => {
                       <h2 className="text-2xl sm:text-3xl font-black tracking-tight">
                         {inPantheon ? 'Lot bonus : 30 verbes rares' : 'Programme de 30 verbes ODS'}
                       </h2>
-                      <p className={`${inPantheon ? 'text-amber-100/80' : 'text-emerald-100/80'} text-sm mt-1 max-w-xl`}>
-                        {currentBatchWords[0]?.length} à {currentBatchWords[currentBatchWords.length - 1]?.length} lettres • Révisez le lot, consolidez vos réflexes d'anagramme, puis passez la Certification officielle du lot.
+                      <p className={`${inPantheon || inChallenge ? 'text-amber-100/80' : 'text-emerald-100/80'} text-sm mt-1 max-w-xl`}>
+                        {currentBatchWords[0]?.length} à {currentBatchWords[currentBatchWords.length - 1]?.length} lettres •{' '}
+                        {inChallenge
+                          ? 'Révise le lot, puis passe la Certification : 30/30 obligatoire, pas de Tie-Break.'
+                          : "Révisez le lot, consolidez vos réflexes d'anagramme, puis passez la Certification officielle du lot."}
                       </p>
                     </div>
 
                     <div className="w-full sm:w-auto">
-                      {profile?.activeSession && profile.activeSession.batchIndex === selectedBatch && profile.activeSession.currentIndex < 30 ? (
+                      {inChallenge && !challengeStarted ? (
+                        <div className="w-full sm:w-auto flex flex-col items-center gap-1 px-6 py-3 rounded-2xl bg-white/10 border border-amber-300/30 text-center">
+                          <span className="flex items-center gap-2 text-sm font-black text-amber-100">
+                            <Lock className="w-4 h-4 shrink-0" /> Certification ouverte {START_LABEL}
+                          </span>
+                          <span className="text-[11px] text-amber-200/80">En attendant, apprends le lot 1 ci-dessous.</span>
+                        </div>
+                      ) : progressSession && progressSession.batchIndex === selectedBatch && progressSession.currentIndex < 30 ? (
                         <div className="flex flex-col gap-2 w-full sm:w-auto">
                           <button
                             onClick={handleResumeSession}
                             className="w-full sm:w-auto flex items-center justify-center gap-2.5 px-6 sm:px-8 py-3.5 sm:py-4 bg-gradient-to-r from-amber-400 via-amber-300 to-amber-500 hover:from-amber-500 hover:to-amber-600 text-amber-950 rounded-2xl font-black text-sm sm:text-base shadow-xl transition transform hover:-translate-y-0.5 border border-amber-200"
                           >
                             <Play className="w-5 h-5 text-amber-950 fill-amber-950 shrink-0" />
-                            <span>Reprendre le Lot (Tirage {profile.activeSession.currentIndex + 1}/30)</span>
+                            <span>Reprendre le Lot (Tirage {progressSession.currentIndex + 1}/30)</span>
                           </button>
                           <div className="flex items-center justify-between px-1 text-xs text-amber-200">
-                            <span>Score en cours : {profile.activeSession.validationScore} / {profile.activeSession.currentIndex}</span>
+                            <span>Score en cours : {progressSession.validationScore} / {progressSession.currentIndex}</span>
                             <button
                               onClick={handleRestartSession}
                               className="underline hover:text-white transition font-medium"
@@ -1752,7 +1897,7 @@ export const ClubVerbsPage: React.FC = () => {
 
                   {/* Sélecteur rapide de lots */}
                   <div className="mt-6 pt-6 border-t border-white/10 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
-                    <span className={`text-xs ${inPantheon ? 'text-amber-200' : 'text-emerald-200'}`}>Naviguer dans les lots :</span>
+                    <span className={`text-xs ${inPantheon || inChallenge ? 'text-amber-200' : 'text-emerald-200'}`}>Naviguer dans les lots :</span>
                     <div className="flex items-center gap-2 w-full sm:w-auto min-w-0">
                       <button
                         disabled={selectedBatch <= 0}
@@ -1767,18 +1912,21 @@ export const ClubVerbsPage: React.FC = () => {
                         onChange={(e) => goToBatch(Number(e.target.value))}
                         className="flex-1 sm:flex-none min-w-0 bg-white/10 text-white border border-white/20 rounded-lg text-xs font-bold px-2 py-1.5 focus:outline-none"
                       >
-                        <optgroup label={`Palier 1 · Maître Club (${MASTER_TIER_BATCHES} lots)`} className="text-slate-900">
+                        <optgroup
+                          label={inChallenge ? `Challenge ${CHALLENGE_LOTS} (${CHALLENGE_LOTS} lots)` : `Palier 1 · Maître Club (${MASTER_TIER_BATCHES} lots)`}
+                          className="text-slate-900"
+                        >
                           {Array.from({ length: Math.min(TOTAL_BATCHES, MASTER_TIER_BATCHES) }).map((_, i) => {
                             const isUnlocked = isBatchUnlocked(i);
                             return (
                               <option key={i} value={i} disabled={!isUnlocked} className="text-slate-900 font-medium">
                                 {!isUnlocked ? '🔒 ' : ''}Lot n°{i + 1}{' '}
-                                {profile?.validatedBatches.includes(i + 1) ? '✓ (Validé)' : ''}
+                                {progressValidated.includes(i + 1) ? '✓ (Validé)' : ''}
                               </option>
                             );
                           })}
                         </optgroup>
-                        {HAS_ELITE_TIER && (
+                        {HAS_ELITE_TIER && !inChallenge && (
                           <optgroup
                             label={`Palier 2 · Panthéon ODS ${isPantheonUnlocked ? '👑' : `🔒 (${masterValidatedCount}/${MASTER_TIER_BATCHES})`}`}
                             className="text-slate-900"
@@ -1788,7 +1936,7 @@ export const ClubVerbsPage: React.FC = () => {
                               return (
                                 <option key={i} value={i} disabled={!isPantheonUnlocked} className="text-slate-900 font-medium">
                                   {isPantheonUnlocked ? '👑' : '🔒'} Lot n°{i + 1}{' '}
-                                  {profile?.validatedBatches.includes(i + 1) ? '✓ (Validé)' : ''}
+                                  {progressValidated.includes(i + 1) ? '✓ (Validé)' : ''}
                                 </option>
                               );
                             })}
@@ -1817,8 +1965,8 @@ export const ClubVerbsPage: React.FC = () => {
                   </div>
                 </div>
 
-                {/* Entrée du Panthéon ODS (palier 2) */}
-                <div>
+                {/* Entrée du Panthéon ODS (palier 2) — pas pendant le challenge, qui s'arrête au lot 125 */}
+                <div className={inChallenge ? 'hidden' : undefined}>
                   <motion.button
                     type="button"
                     onClick={() => {
@@ -2290,6 +2438,41 @@ export const ClubVerbsPage: React.FC = () => {
                         Score parfait : <strong className="text-slate-800">{validationScore} / 30</strong> (≥ {CERT_PASS_SCORE}/30).
                         Votre exploit est enregistré sur Firebase et partagé avec tous les membres du club !
                       </p>
+                      {sessionIsChallenge && challengeSaveFailed !== null && profile && (
+                        <div className="mt-4 rounded-2xl bg-rose-50 border border-rose-200 p-3 text-sm text-rose-800">
+                          <p className="font-bold">Le lot n'a pas pu être enregistré dans le challenge (connexion ?).</p>
+                          <button
+                            onClick={() => saveChallengeLot(profile.slug, profile.displayName, challengeSaveFailed)}
+                            className="mt-2 px-4 py-2 rounded-xl bg-rose-600 hover:bg-rose-700 text-white text-xs font-black transition"
+                          >
+                            Réessayer l'enregistrement
+                          </button>
+                        </div>
+                      )}
+                      {sessionIsChallenge && challengeSaveFailed === null && myChallenge && (
+                        <div
+                          className={`mt-4 rounded-2xl p-3.5 text-left flex items-center gap-3 ${
+                            myChallenge.finishedAt
+                              ? 'bg-gradient-to-r from-amber-300 via-yellow-200 to-amber-400 text-amber-950'
+                              : 'bg-slate-900 text-white'
+                          }`}
+                        >
+                          <Trophy className={`w-7 h-7 shrink-0 ${myChallenge.finishedAt ? 'text-amber-900' : 'text-amber-300'}`} />
+                          <div className="min-w-0 text-sm leading-snug">
+                            {myChallenge.finishedAt ? (
+                              <>
+                                <strong className="font-black">Challenge 125 terminé !</strong> Arrivée n°{myChallenge.finishRank}
+                                {myChallenge.prize ? ` : ${myChallenge.prize.toLocaleString('fr-FR')} FCFA, après vérification par le club.` : '.'}
+                              </>
+                            ) : (
+                              <>
+                                <strong className="font-black text-amber-200">Challenge 125</strong> · {myChallenge.lots}/{CHALLENGE_LOTS} lots ·{' '}
+                                {myChallenge.rank === 1 ? 'en tête' : `${myChallenge.rank}e sur ${challenge.rows.length}`}
+                              </>
+                            )}
+                          </div>
+                        </div>
+                      )}
                     </div>
                   ) : (
                     <div>
@@ -2303,8 +2486,14 @@ export const ClubVerbsPage: React.FC = () => {
                         La Certification du Lot requiert un sans-faute de <strong>{CERT_PASS_SCORE} / 30</strong>.
                       </p>
 
-                      {/* Carte Spéciale Tie-Break de Sauvetage */}
-                      {validationScore >= TIE_BREAK_MIN_SCORE && validationScore < CERT_PASS_SCORE && (
+                      {sessionIsChallenge && (
+                        <p className="text-amber-800 text-sm font-bold mt-2">
+                          Challenge 125 : pas de Tie-Break. Revois les verbes ratés et rejoue le lot entier.
+                        </p>
+                      )}
+
+                      {/* Carte Spéciale Tie-Break de Sauvetage (hors challenge) */}
+                      {!sessionIsChallenge && validationScore >= TIE_BREAK_MIN_SCORE && validationScore < CERT_PASS_SCORE && (
                         <div className="bg-amber-100 border-2 border-amber-300 rounded-2xl p-4 text-center my-4">
                           <div className="flex items-center justify-center gap-1.5 text-amber-900 font-black text-sm uppercase">
                             <Zap className="w-4 h-4 text-amber-600 fill-amber-500 animate-bounce" />
@@ -2462,6 +2651,16 @@ export const ClubVerbsPage: React.FC = () => {
         {/* ============================================================ */}
         {activeTab === 'team' && (
           <div className="space-y-6 sm:space-y-8">
+            {challenge.loaded && (challenge.rows.length > 0 || !challenge.winner) && (
+              <ChallengeBoard
+                rows={challenge.rows}
+                winner={challenge.winner}
+                followerDeadline={challenge.followerDeadline}
+                mySlug={profile?.slug}
+                onJoin={requestChallengeJoin}
+              />
+            )}
+
             {/* La Grande Pyramide Collective */}
             <div className="bg-gradient-to-br from-indigo-900 via-slate-900 to-slate-950 rounded-2xl sm:rounded-3xl p-5 sm:p-8 text-white shadow-xl relative overflow-hidden">
               <div className="relative z-10">
@@ -2642,8 +2841,12 @@ export const ClubVerbsPage: React.FC = () => {
                           <div>
                             <p className="text-slate-800 leading-snug">
                               <strong translate="no" className="notranslate">{act.player}</strong> a validé le{' '}
-                              <strong className="text-emerald-700">Lot #{act.batchNumber}</strong>
+                              <strong className="text-emerald-700">
+                                {act.challenge ? 'Lot challenge #' : 'Lot #'}
+                                {act.batchNumber}
+                              </strong>
                               {act.score && ` (${act.score})`} !
+                              {act.challenge && <span className="ml-1" title="Challenge 125">🏆</span>}
                             </p>
                             <span className="text-[10px] text-slate-400 mt-0.5 block">
                               {formatActivityTime(act.timestamp)}

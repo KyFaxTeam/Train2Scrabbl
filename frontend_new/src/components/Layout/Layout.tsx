@@ -1,8 +1,23 @@
-import React, { useEffect } from 'react';
+import React, { Suspense, lazy, useEffect, useState } from 'react';
 import { Sidebar } from './Sidebar';
 import { MobileNav } from './MobileNav';
 import { SmartPopup } from '../Learning';
 import { useLearningStore } from '../../store/useLearningStore';
+import { isPosterSeen } from '../Challenge/challengeFlags';
+
+// L'affiche du Challenge 125 tire Firebase : chargee a part, un peu apres le premier ecran,
+// et seulement sur un appareil qui ne l'a pas encore vue.
+const ChallengeAnnouncement = lazy(() => import('../Challenge/ChallengeAnnouncement'));
+
+function useAfficheChallenge(): boolean {
+    const [show, setShow] = useState(false);
+    useEffect(() => {
+        if (isPosterSeen()) return;
+        const t = setTimeout(() => setShow(true), 1200);
+        return () => clearTimeout(t);
+    }, []);
+    return show;
+}
 
 interface LayoutProps {
     children: React.ReactNode;
@@ -10,6 +25,7 @@ interface LayoutProps {
 
 export const Layout: React.FC<LayoutProps> = ({ children }) => {
     const initialize = useLearningStore(state => state.initialize);
+    const afficheChallenge = useAfficheChallenge();
 
     // Initialize learning store on mount
     useEffect(() => {
@@ -36,6 +52,12 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
 
             {/* Global Smart Popup for Learning Triggers */}
             <SmartPopup />
+
+            {afficheChallenge && (
+                <Suspense fallback={null}>
+                    <ChallengeAnnouncement />
+                </Suspense>
+            )}
         </div>
     );
 };

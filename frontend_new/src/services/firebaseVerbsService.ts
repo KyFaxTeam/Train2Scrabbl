@@ -70,6 +70,8 @@ export interface ClubActivityEvent {
   score?: string;
   details?: string;
   timestamp: number;
+  /** Lot validé dans le Challenge 125 */
+  challenge?: boolean;
 }
 
 /**
@@ -256,6 +258,8 @@ class FirebaseVerbsService {
     extraUpdates?: {
       badges?: PlayerVerbBadges;
       streak30Count?: number;
+      /** Lot du Challenge 125 : la partie en cours du parcours habituel n'est pas effacée. */
+      challenge?: boolean;
     }
   ): Promise<PlayerVerbProfile> {
     // Transaction sur le nœud du joueur : on part TOUJOURS de l'état serveur et on n'ajoute que ce lot.
@@ -271,9 +275,11 @@ class FirebaseVerbsService {
       base.completedBatches = list.length;
       base.masteredWordsCount = list.length * 30;
       base.currentBatch = Math.max(typeof base.currentBatch === 'number' ? base.currentBatch : 0, batchNumber); // batchNumber 1-indexé = index du lot suivant
-      base.drawIndex = 0;
-      base.drawWords = [];
-      base.activeSession = null;
+      if (!extraUpdates?.challenge) {
+        base.drawIndex = 0;
+        base.drawWords = [];
+        base.activeSession = null;
+      }
       base.lastActive = new Date().toISOString();
       if (!base.stats) base.stats = { totalDrawsAttempted: 0, totalDrawsCorrect: 0, bestValidationScore: 0 };
       if (typeof base.streakDays !== 'number') base.streakDays = 1;
@@ -314,6 +320,7 @@ class FirebaseVerbsService {
           batchNumber: batchNumber,
           score: `${score}/30`,
           timestamp: Date.now(),
+          ...(extraUpdates?.challenge ? { challenge: true } : {}),
         });
       } catch (err) {
         console.warn('Erreur ajout événement activité club:', err);
