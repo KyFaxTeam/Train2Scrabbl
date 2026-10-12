@@ -55,7 +55,7 @@ import { VERB_DEFINITIONS } from '../data/verbDefinitions';
 import { playCeremony } from '../utils/ceremonySound';
 import { challengeService, CHALLENGE_START_MS, CHALLENGE_LOTS } from '../services/challengeService';
 import { ChallengeBoard, ChallengeStatusCard, ChallengeJoinBanner, ChallengeJoinModal } from '../components/Challenge/challengeUi';
-import { useChallenge, useReached, START_LABEL } from '../components/Challenge/useChallenge';
+import { useChallenge, useReached } from '../components/Challenge/useChallenge';
 import { markPosterSeen } from '../components/Challenge/challengeFlags';
 
 type TabMode = 'training' | 'team' | 'blacklisted' | 'codex' | 'guide';
@@ -484,8 +484,11 @@ export const ClubVerbsPage: React.FC = () => {
   const challenge = useChallenge();
   const challengeStarted = useReached(CHALLENGE_START_MS);
   const myChallenge = profile ? challenge.rows.find((r) => r.slug === profile.slug) ?? null : null;
-  /** En course : inscrit et pas encore arrivé. Une fois les 125 lots faits, retour au parcours habituel (et au Panthéon). */
-  const inChallenge = myChallenge !== null && myChallenge.finishedAt === undefined;
+  /**
+   * En course : départ donné, inscrit et pas encore arrivé. Avant le départ, un inscrit joue normalement sur son compte ;
+   * une fois les 125 lots faits, retour au parcours habituel (et au Panthéon).
+   */
+  const inChallenge = challengeStarted && myChallenge !== null && myChallenge.finishedAt === undefined;
   /** Mode de la session en cours, figé au lancement : un minuteur ne doit jamais relire l'état React (voir handleNextTurn). */
   const challengeSessionRef = useRef(false);
   const [sessionIsChallenge, setSessionIsChallenge] = useState(false);
@@ -661,11 +664,13 @@ export const ClubVerbsPage: React.FC = () => {
       return;
     }
     if (!challengeSessionLoaded || challengeSyncedSlug.current === profile.slug) return;
+    // Départ donné en pleine partie : on ne touche pas au lot en cours (son numéro sert à l'enregistrer), on attend le retour aux lots
+    if (screenMode !== 'selector') return;
     challengeSyncedSlug.current = profile.slug;
     const s = challengeSession;
     const target = s && typeof s.batchIndex === 'number' && s.currentIndex < 30 ? s.batchIndex : myChallenge.currentBatch;
     setSelectedBatch(clampBatchIndex(target, false));
-  }, [profile, myChallenge, inChallenge, challengeSessionLoaded, challengeSession]);
+  }, [profile, myChallenge, inChallenge, challengeSessionLoaded, challengeSession, screenMode]);
 
   // Arrivée depuis l'affiche du challenge (« Je relève le défi »)
   const location = useLocation();
@@ -857,7 +862,7 @@ export const ClubVerbsPage: React.FC = () => {
       triggerPantheonHint();
       return;
     }
-    if (inChallenge && (!challengeStarted || !isBatchUnlocked(selectedBatch))) return;
+    if (inChallenge && !isBatchUnlocked(selectedBatch)) return;
     challengeSessionRef.current = inChallenge;
     setSessionIsChallenge(inChallenge);
     setChallengeSaveFailed(null);
@@ -901,7 +906,6 @@ export const ClubVerbsPage: React.FC = () => {
       triggerPantheonHint();
       return;
     }
-    if (inChallenge && !challengeStarted) return;
     challengeSessionRef.current = inChallenge;
     setSessionIsChallenge(inChallenge);
     setChallengeSaveFailed(null);
@@ -955,6 +959,9 @@ export const ClubVerbsPage: React.FC = () => {
     if (list.length === 0) return;
     challengeSessionRef.current = false;
     setSessionIsChallenge(false);
+    // Lancée depuis l'onglet Bêtes : la partie ne s'affiche que dans l'onglet Lots
+    setActiveTab('training');
+    window.scrollTo({ top: 0 });
     const shuffled = [...list].sort(() => Math.random() - 0.5).slice(0, 20);
     setSessionWords(shuffled);
     setCurrentIndex(0);
@@ -1857,14 +1864,7 @@ export const ClubVerbsPage: React.FC = () => {
                     </div>
 
                     <div className="w-full sm:w-auto">
-                      {inChallenge && !challengeStarted ? (
-                        <div className="w-full sm:w-auto flex flex-col items-center gap-1 px-6 py-3 rounded-2xl bg-white/10 border border-amber-300/30 text-center">
-                          <span className="flex items-center gap-2 text-sm font-black text-amber-100">
-                            <Lock className="w-4 h-4 shrink-0" /> Certification ouverte {START_LABEL}
-                          </span>
-                          <span className="text-[11px] text-amber-200/80">En attendant, apprends le lot 1 ci-dessous.</span>
-                        </div>
-                      ) : progressSession && progressSession.batchIndex === selectedBatch && progressSession.currentIndex < 30 ? (
+                      {progressSession && progressSession.batchIndex === selectedBatch && progressSession.currentIndex < 30 ? (
                         <div className="flex flex-col gap-2 w-full sm:w-auto">
                           <button
                             onClick={handleResumeSession}

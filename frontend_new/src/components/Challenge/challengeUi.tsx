@@ -320,7 +320,12 @@ export const ChallengeStatusCard: React.FC<{
       </>
     );
   } else if (!started) {
-    gap = <>En attendant le départ, révise le lot 1 ci-dessous : sa composition est déjà visible.</>;
+    gap = (
+      <>
+        Tu es inscrit. D'ici le départ, tu joues <strong className="text-white">normalement sur ton compte</strong> ; {START_LABEL}, la page
+        passe toute seule au lot 1 du challenge.
+      </>
+    );
   } else if (me.rank === 1) {
     gap =
       behind && behind.lots < me.lots ? (
