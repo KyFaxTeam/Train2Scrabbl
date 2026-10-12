@@ -1,7 +1,8 @@
 // Mémoire de l'appareil pour l'affiche du Challenge 125. Ce module n'importe pas
 // Firebase : le Layout peut le lire au démarrage sans alourdir le premier écran.
 
-const POSTER_SEEN_KEY = 'faizers_c125_affiche_vue';
+// v2 : l'affiche revient une fois sur chaque appareil pour annoncer les 1 000 F des 12 jours
+const POSTER_SEEN_KEY = 'faizers_c125_affiche_vue_v2';
 
 /** L'affiche n'apparaît qu'une fois par appareil ; ensuite, le bandeau de la page Verbes prend le relais. */
 export function isPosterSeen(): boolean {

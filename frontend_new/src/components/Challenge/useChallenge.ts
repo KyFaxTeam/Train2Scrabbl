@@ -3,6 +3,7 @@ import {
   challengeService,
   rankChallenge,
   CHALLENGE_START_MS,
+  CHALLENGE_BONUS_DEADLINE_MS,
   type ChallengeParticipant,
 } from '../../services/challengeService';
 
@@ -52,12 +53,16 @@ export function useReached(target: number | null): boolean {
 const pad2 = (n: number) => String(n).padStart(2, '0');
 
 /** « lundi 12 octobre à 20 h » (heure de l'appareil, celle du club). */
-export const START_LABEL = (() => {
-  const d = new Date(CHALLENGE_START_MS);
+function dayLabel(ms: number): string {
+  const d = new Date(ms);
   const day = d.toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long' });
   const m = d.getMinutes();
   return `${day} à ${d.getHours()} h${m ? pad2(m) : ''}`;
-})();
+}
+
+export const START_LABEL = dayLabel(CHALLENGE_START_MS);
+/** « samedi 24 octobre à 20 h » : fin des 1 000 FCFA pour tous. */
+export const BONUS_DEADLINE_LABEL = dayLabel(CHALLENGE_BONUS_DEADLINE_MS);
 
 export function challengeDay(now: number): number {
   return Math.floor((now - CHALLENGE_START_MS) / 86_400_000) + 1;

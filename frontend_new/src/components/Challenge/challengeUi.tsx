@@ -1,7 +1,7 @@
 import React from 'react';
 import { createPortal } from 'react-dom';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Trophy, Timer, ShieldCheck, RotateCcw, UserCheck, ChevronRight, Loader2 } from 'lucide-react';
+import { Trophy, Timer, ShieldCheck, RotateCcw, UserCheck, ChevronRight, Loader2, CalendarClock } from 'lucide-react';
 import {
   formatCountdown,
   formatFcfa,
@@ -10,9 +10,11 @@ import {
   CHALLENGE_FIRST_PRIZE,
   CHALLENGE_FOLLOWER_PRIZE,
   CHALLENGE_FOLLOWER_PLACES,
+  CHALLENGE_BONUS_DAYS,
+  CHALLENGE_BONUS_DEADLINE_MS,
   type ChallengeRankRow,
 } from '../../services/challengeService';
-import { useServerNow, START_LABEL, challengeDay } from './useChallenge';
+import { useServerNow, START_LABEL, BONUS_DEADLINE_LABEL, challengeDay } from './useChallenge';
 
 const pad2 = (n: number) => String(n).padStart(2, '0');
 const plural = (n: number, word: string) => `${n} ${word}${n > 1 ? 's' : ''}`;
@@ -72,22 +74,36 @@ export const ChallengeRules: React.FC<{ className?: string }> = ({ className = '
   </ul>
 );
 
+/** Les deux gains, dits en clair : affiche, classement et inscription. */
 export const PrizeCards: React.FC<{ compact?: boolean }> = ({ compact = false }) => (
-  <div className={`grid ${compact ? 'grid-cols-2' : 'grid-cols-1'} gap-2`}>
-    <div className="rounded-2xl bg-gradient-to-br from-amber-300/20 via-amber-400/10 to-transparent border border-amber-300/50 px-3 py-2.5 sm:py-3 text-center">
-      <div className={`${compact ? 'text-xl sm:text-2xl' : 'text-4xl sm:text-5xl'} font-black leading-none bg-gradient-to-r from-amber-200 via-yellow-50 to-amber-300 bg-clip-text text-transparent`}>
-        {CHALLENGE_FIRST_PRIZE.toLocaleString('fr-FR')} FCFA
+  <div>
+    <div className={`grid ${compact ? 'grid-cols-2' : 'grid-cols-1'} gap-2`}>
+      <div className="rounded-2xl bg-gradient-to-br from-amber-300/20 via-amber-400/10 to-transparent border border-amber-300/50 px-3 py-2.5 sm:py-3 text-center">
+        <div className={`${compact ? 'text-xl sm:text-2xl' : 'text-4xl sm:text-5xl'} font-black leading-none bg-gradient-to-r from-amber-200 via-yellow-50 to-amber-300 bg-clip-text text-transparent`}>
+          {CHALLENGE_FIRST_PRIZE.toLocaleString('fr-FR')} FCFA
+        </div>
+        <div className="text-[11px] sm:text-xs text-amber-100/90 font-semibold mt-1">au 1er qui valide les {CHALLENGE_LOTS} lots</div>
       </div>
-      <div className="text-[11px] sm:text-xs text-amber-100/90 font-semibold mt-1">au 1er qui valide les {CHALLENGE_LOTS} lots</div>
-    </div>
-    <div className="rounded-2xl bg-white/5 border border-white/10 px-3 py-2.5 text-center">
-      <div className={`${compact ? 'text-xl sm:text-2xl' : 'text-xl sm:text-2xl'} font-black text-white leading-none`}>
-        {compact ? '' : '+ '}
-        {CHALLENGE_FOLLOWER_PRIZE.toLocaleString('fr-FR')} FCFA
-        <span className="text-xs font-bold text-slate-400"> × {CHALLENGE_FOLLOWER_PLACES}</span>
+      <div className="relative rounded-2xl bg-emerald-400/10 border border-emerald-300/40 px-3 py-2.5 text-center">
+        <span className="absolute -top-2 right-2 text-[9px] font-black uppercase tracking-wider bg-emerald-400 text-emerald-950 px-1.5 py-0.5 rounded-full">
+          Nouveau
+        </span>
+        <div className={`${compact ? 'text-xl sm:text-2xl' : 'text-2xl sm:text-3xl'} font-black text-white leading-none`}>
+          {compact ? '' : '+ '}
+          {CHALLENGE_FOLLOWER_PRIZE.toLocaleString('fr-FR')} FCFA
+        </div>
+        <div className="text-[11px] sm:text-xs text-emerald-50/90 font-semibold mt-1">
+          à <strong className="text-white">chaque joueur</strong> qui finit les {CHALLENGE_LOTS} lots en {CHALLENGE_BONUS_DAYS} jours
+          {compact ? '' : ', sans limite de places'}
+        </div>
       </div>
-      <div className="text-[11px] sm:text-xs text-slate-300 mt-1">du 2e au 5e, s'ils finissent dans les 3 jours après le 1er</div>
     </div>
+    <p className={`mt-2 text-left text-[10px] sm:text-[11px] leading-snug ${compact ? 'text-slate-400' : 'text-slate-300'}`}>
+      <CalendarClock className="inline w-3.5 h-3.5 -mt-0.5 mr-1 text-emerald-300" />
+      Pour les {CHALLENGE_FOLLOWER_PRIZE.toLocaleString('fr-FR')} F, il faut avoir fini <strong className="text-white">avant le {BONUS_DEADLINE_LABEL}</strong>.
+      Le 1er touche les {CHALLENGE_FIRST_PRIZE.toLocaleString('fr-FR')} F (les deux gains ne s'ajoutent pas). Et si le 1er finit après cette date, les
+      2e à 5e ont encore <strong className="text-white">3 jours après lui</strong> pour gagner {CHALLENGE_FOLLOWER_PRIZE.toLocaleString('fr-FR')} F.
+    </p>
   </div>
 );
 
@@ -105,29 +121,78 @@ const PhaseLine: React.FC<{ winner: ChallengeRankRow | null; followerDeadline: n
       </span>
     );
   }
-  if (!winner || followerDeadline === null) {
+  const winnerName = winner ? (
+    <strong translate="no" className="notranslate text-white">
+      {winner.displayName}
+    </strong>
+  ) : null;
+  // Délai des 12 jours en cours : 1 000 F pour chaque finisseur
+  if (now < CHALLENGE_BONUS_DEADLINE_MS) {
     return (
       <span>
-        <strong className="text-amber-200">Jour {challengeDay(now)}</strong> · personne n'a encore fini les {CHALLENGE_LOTS} lots
+        {winner ? (
+          <>
+            {winnerName} a gagné les {formatFcfa(CHALLENGE_FIRST_PRIZE)} ·{' '}
+          </>
+        ) : (
+          <>
+            <strong className="text-amber-200">
+              Jour {challengeDay(now)} sur {CHALLENGE_BONUS_DAYS}
+            </strong>{' '}
+            ·{' '}
+          </>
+        )}
+        {formatFcfa(CHALLENGE_FOLLOWER_PRIZE)} à chaque finisseur, encore{' '}
+        <strong className="text-emerald-300 tabular-nums">{formatCountdown(CHALLENGE_BONUS_DEADLINE_MS - now)}</strong>
       </span>
     );
   }
-  const paidFollowers = rows.filter((r) => r.prize === CHALLENGE_FOLLOWER_PRIZE).length;
-  const placesLeft = Math.max(0, CHALLENGE_FOLLOWER_PLACES - paidFollowers);
+  if (!winner || followerDeadline === null) {
+    return (
+      <span>
+        <strong className="text-amber-200">Jour {challengeDay(now)}</strong> · délai des {formatFcfa(CHALLENGE_FOLLOWER_PRIZE)} passé, les{' '}
+        {formatFcfa(CHALLENGE_FIRST_PRIZE)} attendent toujours le 1er
+      </span>
+    );
+  }
+  // 1er arrivé après le 9e jour : les 2e-5e ont encore 3 jours après lui
+  const followers = rows.filter((r) => r.finishRank !== undefined && r.finishRank > 1).length;
+  const placesLeft = Math.max(0, CHALLENGE_FOLLOWER_PLACES - followers);
   if (now < followerDeadline && placesLeft > 0) {
     return (
       <span>
-        <strong translate="no" className="notranslate text-white">{winner.displayName}</strong> a gagné les{' '}
-        {formatFcfa(CHALLENGE_FIRST_PRIZE)} · {plural(placesLeft, 'place')} à {formatFcfa(CHALLENGE_FOLLOWER_PRIZE)} encore{' '}
+        {winnerName} a gagné les {formatFcfa(CHALLENGE_FIRST_PRIZE)} · {plural(placesLeft, 'place')} à {formatFcfa(CHALLENGE_FOLLOWER_PRIZE)} encore{' '}
         {placesLeft > 1 ? 'ouvertes' : 'ouverte'}, plus que{' '}
         <strong className="text-amber-200 tabular-nums">{formatCountdown(followerDeadline - now)}</strong>
       </span>
     );
   }
+  return <span>Challenge terminé · bravo à {winnerName} et aux finisseurs !</span>;
+};
+
+/** Rythme à tenir pour les 1 000 F des 12 jours (carte du participant). */
+const PaceLine: React.FC<{ lotsLeft: number }> = ({ lotsLeft }) => {
+  const now = useServerNow(30_000);
+  if (lotsLeft <= 0 || now >= CHALLENGE_BONUS_DEADLINE_MS) return null;
+  const daysLeft = (CHALLENGE_BONUS_DEADLINE_MS - Math.max(now, CHALLENGE_START_MS)) / 86_400_000;
+  const perDay = Math.ceil(lotsLeft / Math.max(1, daysLeft));
   return (
-    <span>
-      Challenge terminé · bravo à <strong translate="no" className="notranslate text-white">{winner.displayName}</strong> et aux finisseurs !
-    </span>
+    <p className="mt-2 text-[11px] sm:text-xs text-emerald-100/90 leading-snug flex items-start gap-1.5">
+      <CalendarClock className="w-3.5 h-3.5 shrink-0 mt-0.5 text-emerald-300" />
+      <span>
+        <strong className="text-white">{formatFcfa(CHALLENGE_FOLLOWER_PRIZE)} garantis</strong> si tu finis avant le {BONUS_DEADLINE_LABEL}
+        {daysLeft >= 1 ? (
+          <>
+            {' '}: environ <strong className="text-emerald-300">{plural(perDay, 'lot')} par jour</strong>
+          </>
+        ) : (
+          <>
+            {' '}: plus que <strong className="text-emerald-300 tabular-nums">{formatCountdown(CHALLENGE_BONUS_DEADLINE_MS - now)}</strong>
+          </>
+        )}
+        .
+      </span>
+    </p>
   );
 };
 
@@ -326,12 +391,13 @@ export const ChallengeStatusCard: React.FC<{
         </div>
 
         {gap && <p className="mt-3 text-xs sm:text-sm text-slate-200 leading-snug">{gap}</p>}
-        {winner && !me.finishedAt && (
+        {started && !me.finishedAt && (
           <p className="mt-2 text-[11px] sm:text-xs text-amber-100/90 leading-snug flex items-start gap-1.5">
             <Timer className="w-3.5 h-3.5 shrink-0 mt-0.5 text-amber-300" />
             <PhaseLine winner={winner} followerDeadline={followerDeadline} rows={rows} />
           </p>
         )}
+        {!me.finishedAt && <PaceLine lotsLeft={CHALLENGE_LOTS - me.lots} />}
 
         <div className="mt-3 flex items-center justify-between gap-2">
           <span className="text-[10px] text-slate-400">30/30 obligatoire · pas de Tie-Break</span>
@@ -361,6 +427,9 @@ export const ChallengeJoinBanner: React.FC<{ count: number; started: boolean; on
         <div className="text-[10px] font-black uppercase tracking-widest text-amber-300">Challenge 125</div>
         <div className="font-black text-sm sm:text-base leading-tight">
           {CHALLENGE_FIRST_PRIZE.toLocaleString('fr-FR')} FCFA au 1er qui valide les {CHALLENGE_LOTS} lots
+        </div>
+        <div className="text-xs font-bold text-emerald-300 leading-tight mt-0.5">
+          + {CHALLENGE_FOLLOWER_PRIZE.toLocaleString('fr-FR')} FCFA à chaque joueur qui finit avant le {BONUS_DEADLINE_LABEL}
         </div>
         <div className="text-[11px] text-slate-300 mt-0.5">
           {started ? (
@@ -448,6 +517,9 @@ export const ChallengeJoinModal: React.FC<{
                       </>
                     )}
                   </p>
+                  <div className="mt-4">
+                    <PrizeCards compact />
+                  </div>
                   <ChallengeRules className="mt-4" />
                 </>
               )}

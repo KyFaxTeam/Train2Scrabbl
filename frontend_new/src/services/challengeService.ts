@@ -11,8 +11,10 @@ import {
 import { FIREBASE_CONFIG, type ActiveSessionData } from './firebaseVerbsService';
 
 // ============================================================
-// Challenge 125 : le premier qui valide les 125 lots gagne 5 000 FCFA,
-// les 4 suivants 1 000 FCFA s'ils finissent dans les 3 jours après lui.
+// Challenge 125 : le premier qui valide les 125 lots gagne 5 000 FCFA ;
+// tout autre joueur qui finit dans les 12 jours (avant le 24-10 à 20 h) gagne 1 000 FCFA.
+// Règle d'origine gardée en filet : les 2e-5e gagnent aussi 1 000 FCFA s'ils finissent
+// dans les 3 jours après le 1er (utile seulement si le 1er finit après le 9e jour).
 // Tout le monde repart du lot 1 sur un parcours à part ; le compte habituel
 // n'est pas touché (les lots validés pendant le challenge s'y ajoutent).
 // ============================================================
@@ -26,6 +28,9 @@ export const CHALLENGE_FOLLOWER_PRIZE = 1000;
 export const CHALLENGE_FOLLOWER_PLACES = 4;
 /** Délai laissé aux 2e-5e, compté depuis l'arrivée du premier. */
 export const CHALLENGE_FOLLOWER_WINDOW_MS = 3 * 24 * 3600 * 1000;
+/** 1 000 FCFA à chaque joueur (hors 1er) qui finit dans les 12 jours après le départ, sans limite de places. */
+export const CHALLENGE_BONUS_DAYS = 12;
+export const CHALLENGE_BONUS_DEADLINE_MS = CHALLENGE_START_MS + CHALLENGE_BONUS_DAYS * 24 * 3600 * 1000;
 
 const ROOT = 'verb_mastery/challenge125/participants';
 /**
@@ -106,7 +111,10 @@ export function rankChallenge(list: ChallengeParticipant[]): {
   finishers.forEach((r, i) => {
     r.finishRank = i + 1;
     if (i === 0) r.prize = CHALLENGE_FIRST_PRIZE;
-    else if (i <= CHALLENGE_FOLLOWER_PLACES && followerDeadline !== null && r.finishedAt! <= followerDeadline) {
+    else if (
+      r.finishedAt! <= CHALLENGE_BONUS_DEADLINE_MS ||
+      (i <= CHALLENGE_FOLLOWER_PLACES && followerDeadline !== null && r.finishedAt! <= followerDeadline)
+    ) {
       r.prize = CHALLENGE_FOLLOWER_PRIZE;
     }
   });
