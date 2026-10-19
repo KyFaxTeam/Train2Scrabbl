@@ -168,7 +168,7 @@ export const VERB_FORMS_RAW: Record<string, string> = {
   LUIRE: "|||Z|",
   LUTER: "v|||A|BF",
   LUXER: "v|||A|F",
-  LYRER: "i|||A|",
+  LYRER: "v|||A|",
   LYSER: "v|||A|",
   MATER: "v|||AS|",
   MATIR: "v|||A|A",

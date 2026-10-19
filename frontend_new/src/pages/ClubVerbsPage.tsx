@@ -26,6 +26,8 @@ import {
   GraduationCap,
   Target,
   Trash2,
+  Bookmark,
+  BookmarkCheck,
 } from 'lucide-react';
 import {
   MASTER_VERBS_DB,
@@ -981,6 +983,17 @@ export const ClubVerbsPage: React.FC = () => {
     setScreenMode('quiz');
   };
 
+  /** Garde le tirage affiché dans le carnet des Bêtes Noires pour le retravailler plus tard. */
+  const handleKeepDraw = () => {
+    if (!profile || !targetWord || (profile.blacklistedVerbs || []).includes(targetWord)) return;
+    firebaseVerbsService.addBlacklistedVerb(profile.slug, targetWord);
+    setProfile((prev) => {
+      if (!prev) return null;
+      const currentList = prev.blacklistedVerbs || [];
+      return currentList.includes(targetWord) ? prev : { ...prev, blacklistedVerbs: [targetWord, ...currentList] };
+    });
+  };
+
   const handleRemoveFromBlacklist = async (verb: string) => {
     if (!profile) return;
     await firebaseVerbsService.removeBlacklistedVerb(profile.slug, verb);
@@ -1059,8 +1072,22 @@ export const ClubVerbsPage: React.FC = () => {
     }
   };
 
+  /** Comme sur Elimots : une lettre absente du tirage (ou déjà toutes utilisées) ne s'affiche pas. */
+  const keepRackLetters = (value: string) => {
+    const left: Record<string, number> = {};
+    for (const c of currentRack) left[c] = (left[c] || 0) + 1;
+    let kept = '';
+    for (const c of normalizeStr(value)) {
+      if (left[c]) {
+        left[c] -= 1;
+        kept += c;
+      }
+    }
+    return kept;
+  };
+
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const raw = e.target.value.toUpperCase();
+    const raw = currentRack ? keepRackLetters(e.target.value) : e.target.value.toUpperCase();
     setUserInput(raw);
     if (inputFeedback) setInputFeedback(null);
 
@@ -2370,7 +2397,7 @@ export const ClubVerbsPage: React.FC = () => {
                         })}
                       </div>
 
-                      <div className="flex items-center justify-center gap-3">
+                      <div className="flex items-center justify-center flex-wrap gap-2 sm:gap-3">
                         <button
                           onClick={() => {
                             if (!isPaused) {
@@ -2391,6 +2418,22 @@ export const ClubVerbsPage: React.FC = () => {
                           {isPaused ? <Play className="w-3.5 h-3.5" /> : <Pause className="w-3.5 h-3.5" />}
                           {isPaused ? 'Reprendre' : 'Pause'}
                         </button>
+
+                        {profile && (
+                          (profile.blacklistedVerbs || []).includes(targetWord) ? (
+                            <span className="px-3 py-2 bg-rose-50 text-rose-700 border border-rose-200 rounded-xl text-xs font-bold flex items-center gap-1.5">
+                              <BookmarkCheck className="w-3.5 h-3.5" /> Gardé
+                            </span>
+                          ) : (
+                            <button
+                              onClick={handleKeepDraw}
+                              title="Ajouter ce tirage au carnet des Bêtes Noires"
+                              className="px-3 py-2 bg-rose-100 hover:bg-rose-200 text-rose-800 rounded-xl text-xs font-bold transition flex items-center gap-1.5"
+                            >
+                              <Bookmark className="w-3.5 h-3.5" /> Garder
+                            </button>
+                          )
+                        )}
 
                         <button
                           onClick={() => {

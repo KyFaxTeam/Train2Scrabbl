@@ -28,8 +28,13 @@ OUT_PATH = ROOT / "frontend_new" / "src" / "data" / "verbForms.ts"
 LETTERS = "ABCDEFGHIJKLMNOPQRSTUVWXYZ"
 
 
+# Formes entrées à l'ODS 9, absentes de data/ods8.txt (LYRER y devient transitif : LYREE).
+ODS9_ADDITIONS = {"LYREE", "LYREES"}
+
+
 def load_ods() -> set[str]:
-    return {w.strip() for w in ODS_PATH.read_text(encoding="utf-8").splitlines() if w.strip()}
+    words = {w.strip() for w in ODS_PATH.read_text(encoding="utf-8").splitlines() if w.strip()}
+    return words | ODS9_ADDITIONS
 
 
 def load_verbs() -> list[str]:

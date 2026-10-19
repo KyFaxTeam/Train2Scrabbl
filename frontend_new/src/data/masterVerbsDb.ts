@@ -178,7 +178,7 @@ export const MASTER_VERBS_DB: VerbEntry[] = [
   { word: "LUIRE", length: 5, details: "Verbe du dictionnaire officiel du Scrabble (ODS)." },
   { word: "LUTER", length: 5, details: "[-] | Boucher avec du lut (ciment)." },
   { word: "LUXER", length: 5, details: "Verbe du dictionnaire officiel du Scrabble (ODS)." },
-  { word: "LYRER", length: 5, details: "Intransitif, mais participe passé / adjectif : LYRÉ.e | [-] | (hach.) Pleurnicher longtemps sur le même ton." },
+  { word: "LYRER", length: 5, details: "[-] | (hach.) Pleurnicher longtemps sur le même ton." },
   { word: "LYSER", length: 5, details: "[-] | Détruire par lyse." },
   { word: "MATER", length: 5, details: "(+s) | Mar. Équiper de mâts." },
   { word: "MATIR", length: 5, details: "[-] | Rendre mat." },
